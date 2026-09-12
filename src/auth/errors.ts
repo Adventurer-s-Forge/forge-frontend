@@ -12,12 +12,25 @@ const messages: Record<string, string> = {
   'auth/network-request-failed': 'Network error — check your connection.',
   'auth/operation-not-allowed':
     'Email/password sign-in is disabled for this Firebase project.',
+  'auth/account-exists-with-different-credential':
+    'That email is already registered with a different sign-in method.',
+  'auth/popup-blocked': 'Your browser blocked the sign-in popup.',
+  'auth/unauthorized-domain':
+    'This domain is not in the Firebase authorized domains list.'
 }
 
-/** Turns a thrown auth error into something worth showing a user. */
 export function authErrorMessage(error: unknown): string {
   if (error instanceof FirebaseError) {
     return messages[error.code] ?? `Something went wrong (${error.code}).`
   }
   return 'Something went wrong. Please try again.'
+}
+
+export function isUserCancelled(error: unknown): boolean {
+  return (
+    error instanceof FirebaseError &&
+    (error.code === 'auth/popup-closed-by-user' ||
+      error.code === 'auth/cancelled-popup-request' ||
+      error.code === 'auth/user-cancelled')
+  )
 }

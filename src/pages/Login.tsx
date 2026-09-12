@@ -2,23 +2,28 @@ import { useState } from "react";
 import type { SubmitEvent } from "react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import { authErrorMessage } from "../auth/errors";
+import { authErrorMessage, isUserCancelled } from "../auth/errors";
+import { signInWithGoogle, signInWithGithub } from "../auth/oauth";
+import { FcGoogle } from "react-icons/fc";
+import { FaGithub } from "react-icons/fa";
 
 type Mode = 'signin' | 'signup'
+type Pending = 'email' | 'google' | 'github' | null
 
 export function Login() {
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [pending, setPending] = useState<Pending>(null)
 
   const isSignup = mode === 'signup'
+  const busy = pending !== null
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setBusy(true)
+    setPending('email')
 
     try {
       if (isSignup) {
@@ -28,7 +33,19 @@ export function Login() {
       }
     } catch (err) {
       setError(authErrorMessage(err))
-      setBusy(false)
+      setPending(null)
+    }
+  }
+
+  async function handleOAuth(provider: 'google' | 'github') {
+    setError(null)
+    setPending(provider)
+
+    try {
+      await (provider === 'google' ? signInWithGoogle() : signInWithGithub())
+    } catch (err) {
+      if (!isUserCancelled(err)) setError(authErrorMessage(err))
+        setPending(null)
     }
   }
 
@@ -70,8 +87,24 @@ export function Login() {
         )}
 
         <button type="submit" className="primary" disabled={busy}>
-          {busy ? 'Working...' : isSignup ? 'Create account' : 'Sign in'}
+          {pending === 'email' ? 'Working...' : isSignup ? 'Create account' : 'Sign in'}
         </button>
+
+        <div className="divider">
+          <span>or continue with</span>
+        </div>
+
+        <div className="oauth">
+          <button type="button" className="oauth-btn" disabled={busy} onClick={() => handleOAuth('google')}>
+            <FcGoogle size={18} />
+            {pending === 'google' ? 'Opening...' : 'Google'}
+          </button>
+
+          <button type="button" className="oauth-btn" disabled={busy} onClick={() => handleOAuth('github')}>
+            <FaGithub size={18} />
+            {pending === 'github' ? 'Opening...' : 'GitHub'}
+          </button>
+        </div>
 
         <p className="muted">
           {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}

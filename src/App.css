@@ -136,3 +136,34 @@ button:disabled {
   border-radius: 8px;
   overflow-x: auto;
 }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.oauth {
+  display: flex;
+  gap: 8px;
+}
+
+.oauth-btn {
+  flex: 1;
+  display: inline-flex;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  padding: 10px 12px;
+}
