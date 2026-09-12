@@ -184,6 +184,10 @@ export function Login() {
           </p>
         )}
 
+        <button type="submit" className="primary" disabled={busy}>
+          {pending === 'email' || pending === 'reset' ? 'Working...' : heading}
+        </button>
+
         {!isReset && (
           <>
             <div className="divider">
@@ -217,7 +221,7 @@ export function Login() {
               </button>
               {!isSignup && (
                 <>
-                  {' . '}
+                  {' · '}
                   <button type="button" className="link" onClick={() => go('reset')}>
                     Forgot password?
                   </button>
