@@ -61,7 +61,7 @@ button {
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--accent-broder);
+  border-color: var(--accent-border);
 }
 
 button:disabled {
@@ -165,5 +165,15 @@ button:disabled {
   justify-content: center;
   gap: 8px;
   font-size: 15px;
+  padding: 10px 12px;
+}
+
+.notice {
+  margin-top: 12px;
+  font-size: 15px;
+  color: var(--text-h);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
   padding: 10px 12px;
 }

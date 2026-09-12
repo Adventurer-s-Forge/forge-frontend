@@ -13,10 +13,13 @@ const messages: Record<string, string> = {
   'auth/operation-not-allowed':
     'Email/password sign-in is disabled for this Firebase project.',
   'auth/account-exists-with-different-credential':
-    'That email is already registered with a different sign-in method.',
+    'That email is already registered with a different sign-in method. ' +
+    'Sign in the way you did originally and we will link the two.',
   'auth/popup-blocked': 'Your browser blocked the sign-in popup.',
   'auth/unauthorized-domain':
-    'This domain is not in the Firebase authorized domains list.'
+    'This domain is not in the Firebase authorized domains list.',
+  'auth/requires-recent-login': 'Please sign in again to continue',
+  'auth/missing-email': 'Enter your email address.'
 }
 
 export function authErrorMessage(error: unknown): string {
