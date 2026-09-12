@@ -8,6 +8,7 @@ import {
 } from "firebase/auth";
 import type { AuthCredential, User, UserCredential } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import { authErrorMessage } from "./errors";
 
 export type ProviderId = 'google' | 'github'
 
@@ -53,15 +54,22 @@ export function stashPendingCredential(error: unknown): boolean {
   return pendingCredential !== null
 }
 
-export async function consumePendingCredential(user: User): Promise<void> {
-  if (!pendingCredential) return
+const benignLinkErrors = new Set(['auth/provider-already-linked'])
+
+export async function consumePendingCredential(user: User): Promise<string | null> {
+  if (!pendingCredential) return null
 
   const credential = pendingCredential
   pendingCredential = null
   
   try {
     await linkWithCredential(user, credential)
-  } catch {
-    
+    return null
+  } catch (error) {
+    if (error instanceof FirebaseError && benignLinkErrors.has(error.code)) {
+      return null
+    }
+    console.error('Could not link pending credential', error)
+    return authErrorMessage(error)
   }
 }

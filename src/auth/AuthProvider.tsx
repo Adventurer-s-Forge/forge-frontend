@@ -8,14 +8,13 @@ import { consumePendingCredential, stashPendingCredential } from './oauth'
 import { authErrorMessage, isUserCancelled } from './errors'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<{ user: User | null }>({ user: null })
   const [loading, setLoading] = useState(true)
-  const [nonce, setNonce] = useState(0)
   const [redirectError, setRedirectError] = useState<string | null>(null)
 
   useEffect(() => {
     return onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser)
+      setSession({ user: nextUser })
       setLoading(false)
     })
   }, [])
@@ -39,13 +38,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     await auth.currentUser?.reload()
-    setUser(auth.currentUser)
-    setNonce((n) => n + 1)
+    setSession({ user: auth.currentUser })
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, refreshUser, redirectError, clearRedirectError }), 
-    [user, loading, refreshUser, redirectError, clearRedirectError, nonce],
+    () => ({
+      user: session.user,
+      loading,
+      refreshUser,
+      redirectError,
+      clearRedirectError,
+    }), 
+    [session, loading, refreshUser, redirectError, clearRedirectError, ],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>
