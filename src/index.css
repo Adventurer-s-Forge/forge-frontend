@@ -61,7 +61,13 @@
   }
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
 :root[data-theme='dark'] {
+  color-scheme: dark;
+
   --ground: #0c0e13;
   --surface: #14171e;
   --surface-2: #1a1e27;

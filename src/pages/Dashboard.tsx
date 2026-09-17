@@ -4,6 +4,7 @@ import { auth } from "../lib/firebase";
 import { authErrorMessage } from "../auth/errors";
 import { useAuth } from "../auth/useAuth";
 import { Wordmark } from "../components/Wordmark";
+import { ThemeToggle } from "../components/Themetoggle";
 
 export function Dashboard() {
   const { user } = useAuth()
@@ -27,6 +28,7 @@ export function Dashboard() {
       <header className="app-bar">
         <Wordmark to="/dashboard" />
         <div className="app-bar-right">
+          <ThemeToggle />
           <span className="app-bar-user">{user?.displayName ?? user?.email}</span>
           <button type="button" className="btn btn-quiet" onClick={handleSignOut} disabled={signingOut}>
             {signingOut ? 'Signing out...' : 'Sign out'}
