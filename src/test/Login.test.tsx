@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { FirebaseError } from "firebase/app";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Login } from "../pages/Login";
+import { MemoryRouter } from "react-router";
 
 const fb = vi.hoisted(() => ({
   signInWithEmailAndPassword: vi.fn(),
@@ -39,7 +40,11 @@ describe('Login', () => {
   })
 
   it('signs in with the email and password entered', async () => {
-    render(<Login />)
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    )
 
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.com')
     await userEvent.type(screen.getByLabelText('Password'), 'password6')
@@ -53,7 +58,11 @@ describe('Login', () => {
   })
 
   it('refuses to register when the two passwords differ', async () => {
-    render(<Login />)
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Create one' }))
 
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.com')
@@ -68,7 +77,11 @@ describe('Login', () => {
   })
 
   it('sets a display name when one is given at signup', async () => {
-    render(<Login />)
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Create one' }))
 
     await userEvent.type(screen.getByLabelText('Name'), 'TestName')
@@ -87,7 +100,11 @@ describe('Login', () => {
 
   it('sends a reset link without revealing whether the account exists', async () => {
     fb.sendPasswordResetEmail.mockResolvedValue(undefined)
-    render(<Login />)
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Forgot password?' }))
 
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.com')
@@ -103,7 +120,11 @@ describe('Login', () => {
     fb.signInWithEmailAndPassword.mockRejectedValue(
       new FirebaseError('auth/invalid-credential', 'raw')
     )
-    render(<Login />)
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    )
 
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.com')
     await userEvent.type(screen.getByLabelText('Password'), 'wrong')
@@ -118,7 +139,11 @@ describe('Login', () => {
     oauth.signInWithProvider.mockRejectedValue(
       new FirebaseError('auth/popup-closed-by-user', 'raw')
     )
-    render(<Login />)
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    )
 
     await userEvent.click(screen.getByRole('button', { name: /Google/ }))
 

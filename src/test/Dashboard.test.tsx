@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { FirebaseError } from "firebase/app";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Dashboard } from "../pages/Dashboard";
+import { MemoryRouter } from "react-router";
 
 const fb = vi.hoisted(() => ({ signOut: vi.fn() }))
 
@@ -22,13 +23,21 @@ describe('Dashboard', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('prefers the display name over the email', () => {
-    render(<Dashboard />)
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    )
     expect(screen.getByText('TestName')).toBeInTheDocument()
   })
 
   it('signs the user out', async () => {
     fb.signOut.mockResolvedValue(undefined)
-    render(<Dashboard />)
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    )
 
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
 
@@ -39,7 +48,11 @@ describe('Dashboard', () => {
     fb.signOut.mockRejectedValue(
       new FirebaseError('auth/network-request-failed', 'raw')
     )
-    render(<Dashboard />)
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    )
 
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
 
