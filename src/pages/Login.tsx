@@ -17,6 +17,7 @@ import {
 } from "../auth/oauth";
 import type { ProviderId } from "../auth/oauth";
 import { useAuth } from "../auth/useAuth";
+import { Wordmark } from "../components/Wordmark";
 
 type Mode = 'signin' | 'signup' | 'reset'
 type Pending = 'email' | 'reset' | ProviderId | null
@@ -117,6 +118,7 @@ export function Login() {
   return (
     <main className="screen">
       <form className="card" onSubmit={handleSubmit}>
+        <Wordmark />
         <h1>{heading}</h1>
 
         {isReset && (
