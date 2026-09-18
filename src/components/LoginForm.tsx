@@ -24,9 +24,10 @@ type Pending = 'email' | 'reset' | ProviderId | null
 
 type LoginFormProps = {
   initialMode?: Mode
+  showWordmark?: boolean
 }
 
-export function LoginForm({ initialMode = 'signin' }: LoginFormProps) {
+export function LoginForm({ initialMode = 'signin', showWordmark = true }: LoginFormProps) {
     const { refreshUser, redirectError, clearRedirectError } = useAuth()
   const [mode, setMode] = useState<Mode>(initialMode)
   const [name, setName] = useState('')
@@ -121,7 +122,7 @@ export function LoginForm({ initialMode = 'signin' }: LoginFormProps) {
   
   return (
     <form className="card" onSubmit={handleSubmit}>
-      <Wordmark />
+      {showWordmark && <Wordmark />}
       <h1>{heading}</h1>
 
       {isReset && (

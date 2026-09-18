@@ -24,4 +24,9 @@ export const characterStore = {
     localStorage.setItem(keyFor(uid), JSON.stringify(characters))
     return saved
   },
+
+  async remove(uid: string, id: string): Promise<void> {
+    const characters = read(uid).filter((character) => character.id !== id)
+    localStorage.setItem(keyFor(uid), JSON.stringify(characters))
+  }
 }

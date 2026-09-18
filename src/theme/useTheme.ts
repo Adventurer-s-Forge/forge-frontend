@@ -1,36 +1,46 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type Theme = 'light' | 'dark'
 
 const STORAGE_KEY = 'theme'
+const DARK_Q = '(prefers-color-scheme: dark)'
 
-function systemTheme(): Theme {
-  return window.matchMedia('(prefers-color-scheme" dark)').matches ? 'dark' : 'light'
+function storedTheme(): Theme | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored === 'light' || stored === 'dark' ? stored : null
+  } catch {
+    return null
+  }
 }
 
-function initialTheme(): Theme {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  if (stored === 'light' || stored === 'dark') return stored
-  return systemTheme()
+function systemTheme(): Theme {
+  return window.matchMedia(DARK_Q).matches ? 'dark' : 'light'
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(initialTheme)
+  const [choice, setChoice] = useState<Theme | null>(storedTheme)
+  const [system, setSystem] = useState<Theme>(systemTheme)
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY)) return
-    const query = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = () => setTheme(systemTheme())
+    const query = window.matchMedia(DARK_Q)
+    const onChange = () => setSystem(query.matches ? 'dark' : 'light')
     query.addEventListener('change', onChange)
     return () => query.removeEventListener('change', onChange)
   }, [])
 
-  function toggleTheme() {
+  const theme = choice ?? system
+
+  const toggleTheme = useCallback(() => {
     const next = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next)
+    setChoice(next)
     document.documentElement.dataset.theme = next
-    localStorage.setItem(STORAGE_KEY, next)
-  }
+    try {
+      localStorage.setItem(STORAGE_KEY, next)
+    } catch {
+      // 
+    }
+  }, [theme])
 
   return { theme, toggleTheme }
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { Mode } from "./LoginForm";
 import { LoginForm } from "./LoginForm";
 import { useAuth } from "../auth/useAuth";
+import { FiX } from "react-icons/fi";
 
 type AuthModalProps = {
   initialMode: Mode
@@ -10,34 +11,33 @@ type AuthModalProps = {
 
 export function AuthModal({ initialMode, onClose }: AuthModalProps) {
   const { user } = useAuth()
-  const overlayRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDialogElement>(null)
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog || dialog.open) return
+    dialog.showModal()
+    return () => dialog.close()
+  }, [])
 
   useEffect(() => {
     if (user) onClose()
   }, [user, onClose])
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
-
   return (
-    <div
-      className="modal-overlay"
-      ref={overlayRef}
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose()
-      }}
+    <dialog
+      ref={dialogRef} 
+      className="modal" 
+      aria-label="Account" 
+      onCancel={(e) => {e.preventDefault(); onClose()}}
+      onClick={(e) => {if (e.target === dialogRef.current) onClose()}}
     >
       <div className="modal-panel">
         <button type="button" className="modal-close" aria-label="Close" onClick={onClose}>
-          &times;
+          <FiX size={16} />
         </button>
-        <LoginForm initialMode={initialMode} />
+        <LoginForm initialMode={initialMode} showWordmark={false} />
       </div>
-    </div>
+    </dialog>
   )
 }

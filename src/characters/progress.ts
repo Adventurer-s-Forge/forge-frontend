@@ -1,5 +1,5 @@
 import { STEPS } from './character'
-import type { AbilityMethod, AbilityScores, Character, StepId } from './character'
+import type { Ability, AbilityMethod, AbilityScores, Character, StepId } from './character'
 import { ABILITIES, POINT_BUY_BUDGET, POINT_BUY_MIN, pointBuySpent, STD_ARR } from './abilities'
 import { classSkillOptions, getBg, getClass, getRace } from '../data/catalog'
 
@@ -104,4 +104,48 @@ export function setAbilityMethod(c: Character, method: AbilityMethod): Character
   const base: Partial<AbilityScores> =
     method === 'pointbuy' ? { STR: m, DEX: m, CON: m, INT: m, WIS: m, CHA: m } : {}
   return { ...c, abilities: { ...c.abilities, method, base, rolled: [] } }
+}
+
+export function setName(c: Character, name: string): Character {
+  return { ...c, name }
+}
+
+export function setAbilityScore(
+  c: Character,
+  ability: Ability,
+  score: number | undefined,
+): Character {
+  const base = { ...c.abilities.base }
+  if (score === undefined) delete base[ability]
+  else base[ability] = score
+  return { ...c, abilities: { ...c.abilities, base } }
+}
+
+export function setRacialChoices(c: Character, choices: Ability[]): Character {
+  return { ...c, abilities: { ...c.abilities, racialChoices: choices } }
+}
+
+export function setRolledPool(c: Character, rolled: number[]): Character {
+  return { ...c, abilities: { ...c.abilities, rolled, base: {} } }
+}
+
+export function toggleSkill(c: Character, skillId: string, max: number): Character {
+  if (c.skillIds.includes(skillId)) {
+    return { ...c, skillIds: c.skillIds.filter((id) => id !== skillId) }
+  }
+  if (c.skillIds.length >= max) return c
+  return { ...c, skillIds: [...c.skillIds, skillId] }
+}
+
+export function toggleEquipment(c: Character, itemId: string): Character {
+  return c.equipmentIds.includes(itemId)
+    ? { ...c, equipmentIds: c.equipmentIds.filter((id) => id !== itemId) }
+    : { ...c, equipmentIds: [...c.equipmentIds, itemId] }
+}
+
+export function isStepReachable(step: StepId, c: Character): boolean {
+  const index = STEPS.findIndex((s) => s.id === step)
+  return STEPS.slice(0, index).every(
+    (s) => c.completedSteps.includes(s.id) && isStepValid(s.id, c),
+  )
 }

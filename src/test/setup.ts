@@ -2,10 +2,12 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
+export const media = { prefersDark: false }
+
 Object.defineProperty(window, 'matchMedia', {
 	writable: true,
 	value: (query: string) => ({
-		matches: false,
+		matches: query.includes('prefers-color-scheme: dark') ? media.prefersDark : false,
 		media: query,
 		onchange: null,
 		addEventListener: vi.fn(),
@@ -14,4 +16,7 @@ Object.defineProperty(window, 'matchMedia', {
 	}),
 })
 
-afterEach(cleanup)
+afterEach(() => {
+	media.prefersDark = false
+	cleanup()
+})

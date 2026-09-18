@@ -35,5 +35,10 @@ export function useCharacters(uid: string) {
     return saved
   }
 
-  return { characters, loading, error, save }
+  async function remove(id: string): Promise<void> {
+    await characterStore.remove(uid, id)
+    setCharacters((current) => current.filter((character) => character.id !== id))
+  }
+
+  return { characters, loading, error, save, remove }
 }

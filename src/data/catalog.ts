@@ -57,3 +57,5 @@ export function classSkillOptions(cls: CharacterClass, background: Background | 
   const granted = background?.skillIds ?? []
   return pool.filter((id) => !granted.includes(id))
 }
+
+export const getSkill = (id: string) => catalog.skills.find((skill) => skill.id === id)
