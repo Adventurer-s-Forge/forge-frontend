@@ -37,7 +37,7 @@ export function Dashboard() {
   return (
     <div className="app-shell">
       <header className="app-bar">
-        <Wordmark to="/dashboard" />
+        <Wordmark />
         <div className="app-bar-right">
           <ThemeToggle />
           <span className="app-bar-user">{user?.displayName ?? user?.email}</span>
