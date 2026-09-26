@@ -1,10 +1,11 @@
-import { beforeEach,describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { abilityModifier, finalScores, formatModifier, pointBuySpent, roll4d6DropLowest } from "../characters/abilities";
 import { STEPS, createDraft } from "../characters/character";
 import type { Character } from "../characters/character";
 import { completeStep, firstIncompleteStep, isComplete, setClass, setRace } from "../characters/progress";
 import { characterStore } from "../characters/storage";
-import { getRace } from "../data/catalog";
+import { getRace, seedCatalog } from "../data/catalog";
+import { CLASS_SKILL_CHOICES } from "../data/classRules";
 
 function dice(...faces: number[]) {
   let i = 0
@@ -12,9 +13,9 @@ function dice(...faces: number[]) {
 }
 
 function finishedFighter(): Character {
-  let c: Character = { ...createDraft(), name: 'Arkes', backgroundId: 'soldier'}
-  c = setRace(c, 'half-orc')
-  c = setClass(c, 'fighter')
+  let c: Character = { ...createDraft(), name: 'Arkes', backgroundId: 'srd_acolyte'}
+  c = setRace(c, 'srd_half-orc')
+  c = setClass(c, 'srd_fighter')
   c = {
     ...c,
     abilities: {
@@ -28,6 +29,21 @@ function finishedFighter(): Character {
   for (const { id } of STEPS) c = completeStep(c, id)
   return c
 }
+
+beforeAll(() => {
+  seedCatalog({
+    races: [
+      { id: 'srd_half-orc', name: 'Half-Orc', size: 'Medium', speed: 30, abilityBonuses: { STR: 2, CON: 1} },
+      { id: 'srd_half-elf', name: 'Half-Elf', size: 'Medium', speed: 30, abilityBonuses: { CHA: 2 }, abilityChoice: { count: 2, amount: 1, exclude: ['CHA'] } },
+    ],
+    classes: [
+      { id: 'srd_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'], skillChoices: CLASS_SKILL_CHOICES.srd_fighter },
+      { id: 'srd_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'], skillChoices: CLASS_SKILL_CHOICES.srd_wizard },
+    ],
+    backgrounds: [{ id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'] }],
+    items: [],
+  })
+})
 
 describe('ability math', () => {
   it('derives modifiers, rounding down', () => {
@@ -50,8 +66,8 @@ describe('ability math', () => {
 
   it('applies fixed and choses racial bonuses on top of base scores', () => {
     const base = { STR: 15, DEX: 14, CON: 13, INT: 12, WIS: 10, CHA: 8 }
-    expect(finalScores(base, getRace('half-orc'), [])).toMatchObject({ STR: 17, CON: 14 })
-    expect(finalScores(base, getRace('half-elf'), ['DEX', 'CON'])).toMatchObject({ STR: 15, DEX: 15, CON: 14, CHA: 10 })
+    expect(finalScores(base, getRace('srd_half-orc'), [])).toMatchObject({ STR: 17, CON: 14 })
+    expect(finalScores(base, getRace('srd_half-elf'), ['DEX', 'CON'])).toMatchObject({ STR: 15, DEX: 15, CON: 14, CHA: 10 })
   })
 })
 
@@ -61,7 +77,7 @@ describe('character progress', () => {
   })
 
   it('resumes at the first step that was never confirmed', () => {
-    const c = completeStep({ ...createDraft(), name: 'Arkes', raceId: 'half-orc' }, 'name')
+    const c = completeStep({ ...createDraft(), name: 'Arkes', raceId: 'srd_half-orc' }, 'name')
     expect(firstIncompleteStep(c)).toBe('race')
   })
 
@@ -70,13 +86,13 @@ describe('character progress', () => {
   })
 
   it('reopens skills when a class change invalidates them', () => {
-    const c = setClass(finishedFighter(), 'wizard')
+    const c = setClass(finishedFighter(), 'srd_wizard')
     expect(c.skillIds).toEqual([])
     expect(firstIncompleteStep(c)).toBe('skills')
   })
 
   it('reopens attributes when swithcing to a race with ability choices', () => {
-    expect(firstIncompleteStep(setRace(finishedFighter(), 'half-elf'))).toBe('attributes')
+    expect(firstIncompleteStep(setRace(finishedFighter(), 'srd_half-elf'))).toBe('attributes')
   })
 })
 

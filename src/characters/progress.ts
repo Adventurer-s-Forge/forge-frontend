@@ -53,7 +53,7 @@ export function isStepValid(step: StepId, c: Character): boolean {
       return attributesValid(c)
     case 'skills':
       return skillsValid(c)
-    case 'equipment':
+    case 'item':
       return true
   }
 }
@@ -137,10 +137,10 @@ export function toggleSkill(c: Character, skillId: string, max: number): Charact
   return { ...c, skillIds: [...c.skillIds, skillId] }
 }
 
-export function toggleEquipment(c: Character, itemId: string): Character {
-  return c.equipmentIds.includes(itemId)
-    ? { ...c, equipmentIds: c.equipmentIds.filter((id) => id !== itemId) }
-    : { ...c, equipmentIds: [...c.equipmentIds, itemId] }
+export function toggleItem(c: Character, itemId: string): Character {
+  return c.itemIds.includes(itemId)
+    ? { ...c, itemIds: c.itemIds.filter((id) => id !== itemId) }
+    : { ...c, itemIds: [...c.itemIds, itemId] }
 }
 
 export function isStepReachable(step: StepId, c: Character): boolean {

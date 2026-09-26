@@ -11,7 +11,7 @@ import {
   AttributeStep,
   BackgroundStep,
   ClassStep,
-  EquipmentStep,
+  ItemStep,
   NameStep,
   RaceStep,
   SkillsStep,
@@ -26,7 +26,7 @@ const PANELS: Record<StepId, (props: StepProps) => React.ReactElement> = {
   background: BackgroundStep,
   attributes: AttributeStep,
   skills: SkillsStep,
-  equipment: EquipmentStep,
+  item: ItemStep,
 }
 
 type CharacterModalProps = {

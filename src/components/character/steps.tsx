@@ -20,7 +20,7 @@ import {
   setRace,
   setRacialChoices,
   setRolledPool,
-  toggleEquipment,
+  toggleItem,
   toggleSkill,
 } from "../../characters/progress";
 import {
@@ -302,7 +302,7 @@ export function SkillsStep({ character, onChange }: StepProps) {
     <div className="step">
       <p className="step-hint">
         Choose {max} from {cls.name}.{' '}
-        {background && `${background.name} akready grants ${background.skillIds.map((id) => getSkill(id)?.name).join(' and ')}.`}
+        {background && `${background.name} already grants ${background.skillIds.map((id) => getSkill(id)?.name).join(' and ')}.`}
       </p>
 
       <div className="chip-grid">
@@ -335,7 +335,7 @@ export function SkillsStep({ character, onChange }: StepProps) {
 
 const CAT_LABELS = { weapon: 'Weapons', armor: 'Armor', gear: 'Gear' } as const
 
-export function EquipmentStep({ character, onChange }: StepProps) {
+export function ItemStep({ character, onChange }: StepProps) {
   return (
     <div className="step">
       <p className="step-hint">Optional - pick anything your character carries.</p>
@@ -344,8 +344,8 @@ export function EquipmentStep({ character, onChange }: StepProps) {
         <section className="equip-group" key={category}>
           <h3>{CAT_LABELS[category]}</h3>
           <div className="chip-grid">
-            {catalog.equipment.filter((item) => item.category === category).map((item) => {
-              const picked = character.equipmentIds.includes(item.id)
+            {catalog.items.filter((item) => item.category === category).map((item) => {
+              const picked = character.itemIds.includes(item.id)
 
               return (
                 <button
@@ -353,8 +353,8 @@ export function EquipmentStep({ character, onChange }: StepProps) {
                   className={`chip chip-wide${picked ? ' is-chosen' : ''}`}
                   key={item.id}
                   aria-pressed={picked}
-                  title={item.summary}
-                  onClick={() => onChange(toggleEquipment(character, item.id))}
+                  title={item.desc}
+                  onClick={() => onChange(toggleItem(character, item.id))}
                 >
                   {item.name}
                 </button>

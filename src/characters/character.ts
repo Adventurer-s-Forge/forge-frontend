@@ -2,7 +2,7 @@ export type Ability = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA'
 export type AbilityScores = Record<Ability, number>
 export type AbilityMethod = 'standard' | 'pointbuy' | 'roll'
 
-export type StepId = 'name' | 'race' | 'class' | 'background' | 'attributes' | 'skills' | 'equipment'
+export type StepId = 'name' | 'race' | 'class' | 'background' | 'attributes' | 'skills' | 'item'
 
 export const STEPS: readonly { id: StepId; label: string }[] = [
   { id: 'name', label: 'Name' },
@@ -11,7 +11,7 @@ export const STEPS: readonly { id: StepId; label: string }[] = [
   { id: 'background', label: 'Background' },
   { id: 'attributes', label: 'Attributes' },
   { id: 'skills', label: 'Skills' },
-  { id: 'equipment', label: 'Equipment' },
+  { id: 'item', label: 'Items' },
 ]
 
 export type Character = {
@@ -27,7 +27,7 @@ export type Character = {
     racialChoices: Ability[]
   }
   skillIds: string[]
-  equipmentIds: string[]
+  itemIds: string[]
   completedSteps: StepId[]
   createdAt: string
   updatedAt: string
@@ -43,7 +43,7 @@ export function createDraft(): Character {
     backgroundId: null,
     abilities: { method: null, base: {}, rolled: [], racialChoices: [] },
     skillIds: [],
-    equipmentIds: [],
+    itemIds: [],
     completedSteps: [],
     createdAt: now,
     updatedAt: now,
