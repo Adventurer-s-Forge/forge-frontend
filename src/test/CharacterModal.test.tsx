@@ -5,7 +5,6 @@ import { createDraft } from "../characters/character";
 import type { Character } from "../characters/character";
 import { CharacterModal } from "../components/character/CharacterModal";
 import { seedTestCatalog } from './fixtures'
-import { completeStep } from "../characters/progress";
 
 beforeAll(seedTestCatalog)
 
