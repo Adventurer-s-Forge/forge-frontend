@@ -16,6 +16,19 @@ Object.defineProperty(window, 'matchMedia', {
 	}),
 })
 
+if (!HTMLDialogElement.prototype.showModal) {
+	HTMLDialogElement.prototype.show = function () {
+		this.open = true
+	}
+	HTMLDialogElement.prototype.showModal = function () {
+		this.open = true
+	}
+	HTMLDialogElement.prototype.close = function () {
+		this.open = false
+		this.dispatchEvent(new Event('close'))
+	}
+}
+
 afterEach(() => {
 	media.prefersDark = false
 	cleanup()

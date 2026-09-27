@@ -1,8 +1,29 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { abilityModifier, finalScores, formatModifier, pointBuySpent, roll4d6DropLowest } from "../characters/abilities";
+import {
+  POINT_BUY_MIN,
+  abilityModifier,
+  finalScores,
+  formatModifier,
+  pointBuySpent,
+  roll4d6DropLowest,
+} from "../characters/abilities";
 import { STEPS, createDraft } from "../characters/character";
 import type { Character } from "../characters/character";
-import { completeStep, firstIncompleteStep, isComplete, setClass, setRace } from "../characters/progress";
+import {
+  completeStep,
+  firstIncompleteStep,
+  isComplete,
+  isStepReachable,
+  setAbilityMethod,
+  setAbilityScore,
+  setClass,
+  setName,
+  setRace,
+  setRacialChoices,
+  setRolledPool,
+  toggleItem,
+  toggleSkill
+} from "../characters/progress";
 import { characterStore } from "../characters/storage";
 import { getRace, seedCatalog } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
@@ -110,5 +131,65 @@ describe('character storage', () => {
 
     expect(await characterStore.list('u1')).toMatchObject([{ name: 'Arkes the Mighty' }])
     expect(await characterStore.list('u2')).toEqual([])
+  })
+})
+
+describe('character mutations', () => {
+  it('sets the name', () => {
+    expect(setName(createDraft(), 'Nyx').name).toBe('Nyx')
+  })
+
+  it('assigns an ability score and clears it again', () => {
+    const assigned = setAbilityScore(createDraft(), 'STR', 15)
+    expect(assigned.abilities.base.STR).toBe(15)
+    expect(setAbilityScore(assigned, 'STR', undefined).abilities.base).toEqual({})
+  })
+
+  it('seeds point buy at the minimum and empties the other methods', () => {
+    const pointbuy = setAbilityMethod(createDraft(), 'pointbuy')
+    expect(Object.values(pointbuy.abilities.base)).toEqual(Array(6).fill(POINT_BUY_MIN))
+    expect(setAbilityMethod(pointbuy, 'standard').abilities.base).toEqual({})
+  })
+
+  it('discards the previous assignment when a new pool is rolled', () => {
+    const assigned = setAbilityScore(setRolledPool(createDraft(), [15, 14, 13, 12, 10, 8]), 'STR', 15)
+    const rerolled = setRolledPool(assigned, [16, 12, 11, 10, 9, 7])
+
+    expect(rerolled.abilities.rolled).toEqual([16, 12, 11, 10, 9, 7])
+    expect(rerolled.abilities.base).toEqual({})
+  })
+
+  it('caps skill selection and toggles off', () => {
+    let c = toggleSkill(createDraft(), 'stealth', 2)
+    c = toggleSkill(c, 'arcana', 2)
+    c = toggleSkill(c, 'history', 2)
+
+    expect(c.skillIds).toEqual(['stealth', 'arcana'])
+    expect(toggleSkill(c, 'stealth', 2).skillIds).toEqual(['arcana'])
+  })
+
+  it('toggle itemss with no cap', () => {
+    let c = toggleItem(createDraft(), 'srd_dagger')
+    c = toggleItem(c, 'srd_rope')
+
+    expect(c.itemIds).toEqual(['srd_dagger', 'srd_rope'])
+    expect(toggleItem(c, 'srd_dagger').itemIds).toEqual(['srd_rope'])
+  })
+
+  it('clears racial choices when the race change affects them', () => {
+    const chosen = setRacialChoices({ ...createDraft(), raceId: 'srd_half-elf' }, ['DEX', 'CON'])
+    expect(setRace(chosen, 'srd_half-orc').abilities.racialChoices).toEqual([])
+  })
+
+  it('unlocks a step only once every earlier step is confirmed', () => {
+    const draft = createDraft()
+    expect(isStepReachable('name', draft)).toBe(true)
+    expect(isStepReachable('race', draft)).toBe(false)
+    expect(isStepReachable('race', completeStep(setName(draft, 'Nyx'), 'name'))).toBe(true)
+  })
+
+  it('does not re-add a step that is already confirmed', () => {
+    const once = completeStep(createDraft(), 'name')
+    expect(completeStep(once, 'name')).toBe(once)
   })
 })
