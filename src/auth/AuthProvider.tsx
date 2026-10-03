@@ -7,16 +7,34 @@ import { AuthContext } from './AuthContext'
 import { consumePendingCredential, stashPendingCredential } from './oauth'
 import { authErrorMessage, isUserCancelled } from './errors'
 
+const MIN_LOADING_MS = 3000
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<{ user: User | null }>({ user: null })
   const [loading, setLoading] = useState(true)
   const [redirectError, setRedirectError] = useState<string | null>(null)
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (nextUser) => {
+    const startedAt = Date.now()
+    const floor = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : MIN_LOADING_MS
+
+    let timer: number | undefined
+    let settled = false
+    
+    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       setSession({ user: nextUser })
-      setLoading(false)
+
+      if (settled) return
+      settled = true
+
+      const remaining = Math.max(0, floor - (Date.now() - startedAt))
+      timer = window.setTimeout(() => setLoading(false), remaining)
     })
+
+    return () => {
+      unsubscribe()
+      if (timer !== undefined) clearTimeout(timer)
+    }
   }, [])
 
   useEffect(() => {

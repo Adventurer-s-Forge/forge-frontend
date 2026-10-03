@@ -1,0 +1,135 @@
+{
+  "skills": [
+    { "id": "acrobatics", "name": "Acrobatics", "ability": "DEX" },
+    { "id": "animal-handling", "name": "Animal Handling", "ability": "WIS" },
+    { "id": "arcana", "name": "Arcana", "ability": "INT" },
+    { "id": "athletics", "name": "Athletics", "ability": "STR" },
+    { "id": "deception", "name": "Deception", "ability": "CHA" },
+    { "id": "history", "name": "History", "ability": "INT" },
+    { "id": "insight", "name": "Insight", "ability": "WIS" },
+    { "id": "intimidation", "name": "Intimidation", "ability": "CHA" },
+    { "id": "investigation", "name": "Investigation", "ability": "INT" },
+    { "id": "medicine", "name": "Medicine", "ability": "WIS" },
+    { "id": "nature", "name": "Nature", "ability": "INT" },
+    { "id": "perception", "name": "Perception", "ability": "WIS" },
+    { "id": "performance", "name": "Performance", "ability": "CHA" },
+    { "id": "persuasion", "name": "Persuasion", "ability": "CHA" },
+    { "id": "religion", "name": "Religion", "ability": "INT" },
+    { "id": "sleight-of-hand", "name": "Sleight of Hand", "ability": "DEX" },
+    { "id": "stealth", "name": "Stealth", "ability": "DEX" },
+    { "id": "survival", "name": "Survival", "ability": "WIS" }
+  ],
+
+  "races": [
+    { "id": "hill-dwarf", "name": "Hill Dwarf", "size": "Medium", "speed": 25, "abilityBonuses": { "CON": 2, "WIS": 1 } },
+    { "id": "high-elf", "name": "High Elf", "size": "Medium", "speed": 30, "abilityBonuses": { "DEX": 2, "INT": 1 } },
+    { "id": "lightfoot-halfling", "name": "Lightfoot Halfling", "size": "Small", "speed": 25, "abilityBonuses": { "DEX": 2, "CHA": 1 } },
+    { "id": "human", "name": "Human", "size": "Medium", "speed": 30, "abilityBonuses": { "STR": 1, "DEX": 1, "CON": 1, "INT": 1, "WIS": 1, "CHA": 1 } },
+    { "id": "dragonborn", "name": "Dragonborn", "size": "Medium", "speed": 30, "abilityBonuses": { "STR": 2, "CHA": 1 } },
+    { "id": "rock-gnome", "name": "Rock Gnome", "size": "Small", "speed": 25, "abilityBonuses": { "INT": 2, "CON": 1 } },
+    {
+      "id": "half-elf",
+      "name": "Half-Elf",
+      "size": "Medium",
+      "speed": 30,
+      "abilityBonuses": { "CHA": 2 },
+      "abilityChoice": { "count": 2, "amount": 1, "exclude": ["CHA"] }
+    },
+    { "id": "half-orc", "name": "Half-Orc", "size": "Medium", "speed": 30, "abilityBonuses": { "STR": 2, "CON": 1 } },
+    { "id": "tiefling", "name": "Tiefling", "size": "Medium", "speed": 30, "abilityBonuses": { "CHA": 2, "INT": 1 } }
+  ],
+
+  "classes": [
+    {
+      "id": "barbarian", "name": "Barbarian", "hitDie": 12,
+      "primaryAbilities": ["STR"], "savingThrows": ["STR", "CON"],
+      "skillChoices": { "count": 2, "from": ["animal-handling", "athletics", "intimidation", "nature", "perception", "survival"] }
+    },
+    {
+      "id": "bard", "name": "Bard", "hitDie": 8,
+      "primaryAbilities": ["CHA"], "savingThrows": ["DEX", "CHA"],
+      "skillChoices": { "count": 3, "from": "any" }
+    },
+    {
+      "id": "cleric", "name": "Cleric", "hitDie": 8,
+      "primaryAbilities": ["WIS"], "savingThrows": ["WIS", "CHA"],
+      "skillChoices": { "count": 2, "from": ["history", "insight", "medicine", "persuasion", "religion"] }
+    },
+    {
+      "id": "druid", "name": "Druid", "hitDie": 8,
+      "primaryAbilities": ["WIS"], "savingThrows": ["INT", "WIS"],
+      "skillChoices": { "count": 2, "from": ["arcana", "animal-handling", "insight", "medicine", "nature", "perception", "religion", "survival"] }
+    },
+    {
+      "id": "fighter", "name": "Fighter", "hitDie": 10,
+      "primaryAbilities": ["STR", "DEX"], "savingThrows": ["STR", "CON"],
+      "skillChoices": { "count": 2, "from": ["acrobatics", "animal-handling", "athletics", "history", "insight", "intimidation", "perception", "survival"] }
+    },
+    {
+      "id": "monk", "name": "Monk", "hitDie": 8,
+      "primaryAbilities": ["DEX", "WIS"], "savingThrows": ["STR", "DEX"],
+      "skillChoices": { "count": 2, "from": ["acrobatics", "athletics", "history", "insight", "religion", "stealth"] }
+    },
+    {
+      "id": "paladin", "name": "Paladin", "hitDie": 10,
+      "primaryAbilities": ["STR", "CHA"], "savingThrows": ["WIS", "CHA"],
+      "skillChoices": { "count": 2, "from": ["athletics", "insight", "intimidation", "medicine", "persuasion", "religion"] }
+    },
+    {
+      "id": "ranger", "name": "Ranger", "hitDie": 10,
+      "primaryAbilities": ["DEX", "WIS"], "savingThrows": ["STR", "DEX"],
+      "skillChoices": { "count": 3, "from": ["animal-handling", "athletics", "insight", "investigation", "nature", "perception", "stealth", "survival"] }
+    },
+    {
+      "id": "rogue", "name": "Rogue", "hitDie": 8,
+      "primaryAbilities": ["DEX"], "savingThrows": ["DEX", "INT"],
+      "skillChoices": { "count": 4, "from": ["acrobatics", "athletics", "deception", "insight", "intimidation", "investigation", "perception", "performance", "persuasion", "sleight-of-hand", "stealth"] }
+    },
+    {
+      "id": "sorcerer", "name": "Sorcerer", "hitDie": 6,
+      "primaryAbilities": ["CHA"], "savingThrows": ["CON", "CHA"],
+      "skillChoices": { "count": 2, "from": ["arcana", "deception", "insight", "intimidation", "persuasion", "religion"] }
+    },
+    {
+      "id": "warlock", "name": "Warlock", "hitDie": 8,
+      "primaryAbilities": ["CHA"], "savingThrows": ["WIS", "CHA"],
+      "skillChoices": { "count": 2, "from": ["arcana", "deception", "history", "intimidation", "investigation", "nature", "religion"] }
+    },
+    {
+      "id": "wizard", "name": "Wizard", "hitDie": 6,
+      "primaryAbilities": ["INT"], "savingThrows": ["INT", "WIS"],
+      "skillChoices": { "count": 2, "from": ["arcana", "history", "insight", "investigation", "medicine", "religion"] }
+    }
+  ],
+
+  "backgrounds": [
+    { "id": "acolyte", "name": "Acolyte", "skillIds": ["insight", "religion"] },
+    { "id": "criminal", "name": "Criminal", "skillIds": ["sleight-of-hand", "stealth"] },
+    { "id": "sage", "name": "Sage", "skillIds": ["arcana", "history"] },
+    { "id": "soldier", "name": "Soldier", "skillIds": ["athletics", "intimidation"] }
+  ],
+
+  "equipment": [
+    { "id": "club", "name": "Club", "category": "weapon", "summary": "Simple melee · 1d4 bludgeoning · light" },
+    { "id": "dagger", "name": "Dagger", "category": "weapon", "summary": "Simple melee · 1d4 piercing · finesse, light, thrown (20/60)" },
+    { "id": "handaxe", "name": "Handaxe", "category": "weapon", "summary": "Simple melee · 1d6 slashing · light, thrown (20/60)" },
+    { "id": "mace", "name": "Mace", "category": "weapon", "summary": "Simple melee · 1d6 bludgeoning" },
+    { "id": "quarterstaff", "name": "Quarterstaff", "category": "weapon", "summary": "Simple melee · 1d6 bludgeoning · versatile (1d8)" },
+    { "id": "light-crossbow", "name": "Light Crossbow", "category": "weapon", "summary": "Simple ranged · 1d8 piercing · loading, two-handed (80/320)" },
+    { "id": "shortbow", "name": "Shortbow", "category": "weapon", "summary": "Simple ranged · 1d6 piercing · two-handed (80/320)" },
+    { "id": "greataxe", "name": "Greataxe", "category": "weapon", "summary": "Martial melee · 1d12 slashing · heavy, two-handed" },
+    { "id": "longsword", "name": "Longsword", "category": "weapon", "summary": "Martial melee · 1d8 slashing · versatile (1d10)" },
+    { "id": "rapier", "name": "Rapier", "category": "weapon", "summary": "Martial melee · 1d8 piercing · finesse" },
+    { "id": "shortsword", "name": "Shortsword", "category": "weapon", "summary": "Martial melee · 1d6 piercing · finesse, light" },
+    { "id": "longbow", "name": "Longbow", "category": "weapon", "summary": "Martial ranged · 1d8 piercing · heavy, two-handed (150/600)" },
+    { "id": "leather-armor", "name": "Leather Armor", "category": "armor", "summary": "Light · AC 11 + Dex" },
+    { "id": "studded-leather-armor", "name": "Studded Leather Armor", "category": "armor", "summary": "Light · AC 12 + Dex" },
+    { "id": "scale-mail", "name": "Scale Mail", "category": "armor", "summary": "Medium · AC 14 + Dex (max 2) · stealth disadvantage" },
+    { "id": "chain-mail", "name": "Chain Mail", "category": "armor", "summary": "Heavy · AC 16 · Str 13 · stealth disadvantage" },
+    { "id": "shield", "name": "Shield", "category": "armor", "summary": "+2 AC" },
+    { "id": "explorers-pack", "name": "Explorer's Pack", "category": "gear", "summary": "Backpack, bedroll, rations, rope, torches, waterskin" },
+    { "id": "priests-pack", "name": "Priest's Pack", "category": "gear", "summary": "Backpack, blanket, candles, incense, vestments, rations" },
+    { "id": "scholars-pack", "name": "Scholar's Pack", "category": "gear", "summary": "Backpack, book of lore, ink, pen, parchment" },
+    { "id": "thieves-tools", "name": "Thieves' Tools", "category": "gear", "summary": "Pick locks and disarm traps" }
+  ]
+}

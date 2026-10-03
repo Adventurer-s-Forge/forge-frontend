@@ -1,20 +1,28 @@
-import { useAuth } from "./auth/useAuth";
+import { Route, Routes } from "react-router";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
-import './App.css'
+import { ProtectedRoute } from "./routes/ProtectedRoute";
+import { PublicOnlyRoute } from "./routes/PublicOnlyRoute";
+import { Home } from "./pages/Home";
+import { NotFound } from "./pages/NotFound";
+import "./App.css"
 
 function App() {
-  const { user, loading } = useAuth()
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
 
-  if (loading) {
-    return (
-      <main className="screen">
-        <p className="muted">Loading...</p>
-      </main>
-    )
-  }
+      <Route element={<PublicOnlyRoute />}>
+        <Route path="/login" element={<Login />} />
+      </Route>
 
-  return user ? <Dashboard /> : <Login />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Route>
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  )
 }
 
 export default App
