@@ -18,6 +18,15 @@ vi.mock('../auth/useAuth', () => ({
     clearRedirectError: vi.fn(),
   }),
 }))
+vi.mock('../characters/useCharacters', () => ({
+  useCharacters: () => ({
+    characters: [],
+    loading: false,
+    error: null,
+    save: vi.fn(),
+    remove: vi.fn(),
+  }),
+}))
 
 describe('Dashboard', () => {
   beforeEach(() => vi.clearAllMocks())

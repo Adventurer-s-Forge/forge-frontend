@@ -28,15 +28,16 @@ async function toApiError(response:Response, path: string): Promise<ApiError> {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T | null> {
+  const base = baseUrl()
   let response: Response
 
   try {
-    response = await fetch(`${BASE}/${path}`, {
+    response = await fetch(`${base}/${path}`, {
       ...init,
       headers: { ...(await authHeaders()), ...init.headers },
     })
   } catch {
-    throw new ApiError(`Could not reach the service at ${BASE}`)
+    throw new ApiError(`Could not reach the service at ${base}`)
   }
 
   if (response.status === 204) return null
@@ -53,10 +54,13 @@ export const authed = {
 
 const BASE = import.meta.env.VITE_API_BASE_URL
 
-if (!BASE) {
-  throw new Error(
-    'Missing VITE_API_BASE_URL. Copy .env.example to .env.local and restart dev server'
-  )
+function baseUrl(): string {
+  if (!BASE) {
+    throw new ApiError(
+      'Missing VITE_API_BASE_URL. Copy .env.example to .env.local and restart dev server.'
+    )
+  }
+  return BASE
 }
 
 export type Envelope<T> = {
@@ -80,12 +84,13 @@ export class ApiError extends Error {
 }
 
 export async function getCollection<T>(resource: Resource): Promise<Envelope<T>[]> {
+  const base = baseUrl()
   let response: Response
 
   try {
-    response = await fetch(`${BASE}/${resource}`)
+    response = await fetch(`${base}/${resource}`)
   } catch {
-    throw new ApiError(`Could not reach the content service at ${BASE}`)
+    throw new ApiError(`Could not reach the content service at ${base}`)
   }
 
   if (!response.ok) {
