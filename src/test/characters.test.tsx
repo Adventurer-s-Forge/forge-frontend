@@ -27,6 +27,7 @@ import {
 import { characterStore } from "../characters/storage";
 import { getRace, seedCatalog } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
+import { authed } from "../lib/api";
 
 function dice(...faces: number[]) {
   let i = 0
@@ -65,6 +66,16 @@ beforeAll(() => {
     items: [],
   })
 })
+
+vi.mock('../lib/api', () => ({
+  authed: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    del: vi.fn(),
+  },
+  ApiError: class extends Error {}
+}))
 
 describe('ability math', () => {
   it('derives modifiers, rounding down', () => {
@@ -118,19 +129,29 @@ describe('character progress', () => {
 })
 
 describe('character storage', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => vi.clearAllMocks())
 
-  it('refues to save a character without a name', async () => {
-    await expect(characterStore.save('u1', createDraft())).rejects.toThrow('needs a name')
+  it('refuses to save a character without a name', async () => {
+    await expect(characterStore.create(createDraft())).rejects.toThrow('needs a name')
+    expect(authed.post).not.toHaveBeenCalled()
   })
 
-  it('updates in place and keeps each account separate', async () => {
+  it('strips server-owned timestamps from the payload', async () => {
     const draft = { ...createDraft(), name: 'Arkes' }
-    await characterStore.save('u1', draft)
-    await characterStore.save('u1', { ...draft, name: 'Arkes the Mighty' })
+    vi.mocked(authed.post).mockResolvedValue(draft)
 
-    expect(await characterStore.list('u1')).toMatchObject([{ name: 'Arkes the Mighty' }])
-    expect(await characterStore.list('u2')).toEqual([])
+    await characterStore.create(draft)
+
+    const [path, body] = vi.mocked(authed.post).mock.calls[0]
+    expect(path).toBe('characters')
+    expect(body).not.toHaveProperty('createdAt')
+    expect(body).not.toHaveProperty('updatedAt')
+    expect(body).toMatchObject({ name: 'Arkes' })
+  })
+
+  it('returns an empty list rather than failing when the user has none', async () => {
+    vi.mocked(authed.get).mockResolvedValue(null)
+    expect(await characterStore.list()).toEqual([])
   })
 })
 
