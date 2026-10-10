@@ -1,7 +1,6 @@
-import type { Ability, AbilityScores } from "../characters/character"
+import type { Ability } from "../characters/character"
 import { SKILLS } from "./skills"
 import type { Skill } from "./skills"
-
 
 export type { Skill }
 
@@ -12,8 +11,6 @@ export type Race = {
   name: string
   size: 'Small' | 'Medium'
   speed: number
-  abilityBonuses: Partial<AbilityScores>
-  abilityChoice?: { count: number; amount: number; exclude: Ability[] }
 }
 
 export type CharacterClass = {
@@ -32,6 +29,7 @@ export type Background = {
   name: string
   skillIds: string[]
   initiateClassNames: string[]
+  abilityOptions: Ability[]
 }
 
 export type Equipment = {

@@ -40,11 +40,13 @@ describe('NameStep', () => {
 })
 
 describe('RaceStep', () => {
-  it('offers every race with its ability bonuses', () => {
+  it('offers every race with its SIZE AND SPEED', () => {
     render(<RaceStep character={createDraft()} onChange={vi.fn()} />)
 
     expect(screen.getAllByRole('radio')).toHaveLength(2)
-    expect(screen.getByText(/STR \+2/)).toBeInTheDocument()
+    const halfOrc = screen.getByRole('radio', { name: /Half-Orc/ })
+    expect(halfOrc).toHaveTextContent('Medium')
+    expect(halfOrc).toHaveTextContent('30 ft')
   })
 
   it('selects a race when clicked', async () => {
@@ -114,7 +116,7 @@ describe('AttributeStep', () => {
 
   it('stops point buy at the maximum score', async () => {
     const character = fighter({
-      abilities: { method: 'pointbuy', base: { STR: 15, DEX: 8, CON: 8, INT: 8, WIS: 8, CHA: 8 }, rolled: [], racialChoices: [] },
+      abilities: { method: 'pointbuy', base: { STR: 15, DEX: 8, CON: 8, INT: 8, WIS: 8, CHA: 8 }, rolled: [], originBonuses: {} },
     })
     render(<AttributeStep character={character} onChange={vi.fn()} />)
 
@@ -124,22 +126,22 @@ describe('AttributeStep', () => {
 
   it('reports how much of the point-buy budget is spent', () => {
     const character = fighter({
-      abilities: { method: 'pointbuy', base: { STR: 15, DEX: 15, CON: 15, INT: 8, WIS: 8, CHA: 8 }, rolled: [], racialChoices: [] },
+      abilities: { method: 'pointbuy', base: { STR: 15, DEX: 15, CON: 15, INT: 8, WIS: 8, CHA: 8 }, rolled: [], originBonuses: {} },
     })
     render(<AttributeStep character={character} onChange={vi.fn()} />)
 
     expect(screen.getByText('27 / 27 points spent')).toBeInTheDocument()
   })
 
-  it('caps the racial ability choice at the allowed count', () => {
+  it('caps the origin allocation at +3', () => {
     const character = fighter({
-      raceId: 'srd_half-elf',
-      abilities: { method: 'standard', base: {}, rolled: [], racialChoices: ['DEX', 'CON'] },
+      abilities: { method: 'standard', base: {}, rolled: [], originBonuses: { INT: 2, WIS: 1 } },
     })
     render(<AttributeStep character={character} onChange={vi.fn()} />)
 
-    expect(screen.getByRole('button', { name: 'INT' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'DEX' })).toBeEnabled()
+    expect(screen.getByText('3 / 3 assigned')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Increase CHA bonus' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Decrease INT bonus' })).toBeEnabled()
   })
 })
 

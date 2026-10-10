@@ -4,6 +4,7 @@ import {
   abilityModifier,
   finalScores,
   formatModifier,
+  originSpreadValid,
   pointBuySpent,
   roll4d6DropLowest,
 } from "../characters/abilities";
@@ -19,16 +20,17 @@ import {
   setClass,
   setName,
   setRace,
-  setRacialChoices,
   setRolledPool,
   toggleEquipment,
   toggleSkill,
   toggleSpell,
   isStepApplicable,
   nextStep,
+  setOriginBonuses,
+  setBackground,
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
-import { getRace, seedCatalog } from "../data/catalog";
+import { seedCatalog } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
 import { authed } from "../lib/api";
 
@@ -47,7 +49,7 @@ function finishedFighter(): Character {
       method: 'standard',
       base: { STR: 15, DEX: 14, CON: 13, INT: 12, WIS: 10, CHA: 8 },
       rolled: [],
-      racialChoices: [],
+      originBonuses: { INT: 2, WIS: 1 },
     },
     proficientSkillIds: ['perception', 'survival'],
   }
@@ -58,8 +60,8 @@ function finishedFighter(): Character {
 beforeAll(() => {
   seedCatalog({
     races: [
-      { id: 'srd_half-orc', name: 'Half-Orc', size: 'Medium', speed: 30, abilityBonuses: { STR: 2, CON: 1} },
-      { id: 'srd_half-elf', name: 'Half-Elf', size: 'Medium', speed: 30, abilityBonuses: { CHA: 2 }, abilityChoice: { count: 2, amount: 1, exclude: ['CHA'] } },
+      { id: 'srd_half-orc', name: 'Half-Orc', size: 'Medium', speed: 30 },
+      { id: 'srd_half-elf', name: 'Half-Elf', size: 'Medium', speed: 30 },
     ],
     classes: [
       { id: 'srd_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
@@ -67,7 +69,12 @@ beforeAll(() => {
       { id: 'srd_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
         skillChoices: CLASS_SKILL_CHOICES.srd_wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 } },
     ],
-    backgrounds: [{ id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [] }],
+    backgrounds: [
+      { id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
+        abilityOptions: ['INT', 'WIS', 'CHA'] },
+      { id: 'srd_sage', name: 'Sage', skillIds: ['arcana', 'history'], initiateClassNames: ['Wizard'],
+        abilityOptions: ['CON', 'INT', 'WIS'] },
+    ],
     spells: [
       { id: 'srd_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd_wizard'],
         desc: '', concentration: false, ritual: false, castingTime: '', range: '', duration: '' },
@@ -107,10 +114,19 @@ describe('ability math', () => {
     expect(roll4d6DropLowest(dice(6, 1, 5, 3))).toBe(14)
   })
 
-  it('applies fixed and choses racial bonuses on top of base scores', () => {
+  it('adds the origin allocation on top of the base scores', () => {
     const base = { STR: 15, DEX: 14, CON: 13, INT: 12, WIS: 10, CHA: 8 }
-    expect(finalScores(base, getRace('srd_half-orc'), [])).toMatchObject({ STR: 17, CON: 14 })
-    expect(finalScores(base, getRace('srd_half-elf'), ['DEX', 'CON'])).toMatchObject({ STR: 15, DEX: 15, CON: 14, CHA: 10 })
+    expect(finalScores(base, { INT: 2, WIS: 1 })).toMatchObject({ INT: 14, WIS: 11, STR: 15 })
+    expect(finalScores(base, { INT: 1, WIS: 1, CHA: 1})).toMatchObject({ INT: 13, WIS: 11, CHA: 9 })
+  })
+
+  it('accepts only the two legal 2024 spreads', () => {
+    expect(originSpreadValid({ INT: 2, WIS: 1 })).toBe(true)
+    expect(originSpreadValid({ INT: 1, WIS: 1, CHA: 1 })).toBe(true)
+    expect(originSpreadValid({ INT: 3 })).toBe(false)
+    expect(originSpreadValid({ INT: 2, WIS: 2 })).toBe(false)
+    expect(originSpreadValid({ INT: 2 })).toBe(false)
+    expect(originSpreadValid({})).toBe(false)
   })
 })
 
@@ -134,8 +150,10 @@ describe('character progress', () => {
     expect(firstIncompleteStep(c)).toBe('skills')
   })
 
-  it('reopens attributes when swithcing to a race with ability choices', () => {
-    expect(firstIncompleteStep(setRace(finishedFighter(), 'srd_half-elf'))).toBe('attributes')
+  it('reopens attributes when the background changes', () => {
+    const c = setBackground(finishedFighter(), 'srd_sage')
+    expect(c.abilities.originBonuses).toEqual({})
+    expect(firstIncompleteStep(c)).toBe('attributes')
   })
 })
 
@@ -208,9 +226,9 @@ describe('character mutations', () => {
     expect(toggleEquipment(c, 'srd_dagger').equipmentIds).toEqual(['srd_rope'])
   })
 
-  it('clears racial choices when the race change affects them', () => {
-    const chosen = setRacialChoices({ ...createDraft(), raceId: 'srd_half-elf' }, ['DEX', 'CON'])
-    expect(setRace(chosen, 'srd_half-orc').abilities.racialChoices).toEqual([])
+  it('clears the origin allocation when the background changes', () => {
+    const chosen = setOriginBonuses({ ...createDraft(), backgroundId: 'srd_acolyte' }, { INT: 2, WIS: 1})
+    expect(setBackground(chosen, 'srd_sage').abilities.originBonuses).toEqual({})
   })
 
   it('unlocks a step only once every earlier step is confirmed', () => {

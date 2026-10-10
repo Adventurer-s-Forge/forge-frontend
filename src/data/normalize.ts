@@ -12,7 +12,7 @@
  *
  **/
 
-import type { Ability, AbilityScores } from "../characters/character";
+import type { Ability } from "../characters/character";
 import type { Background, CasterType, CharacterClass, Equipment, Race, Spell } from "./catalog";
 import type { Envelope } from "../lib/api";
 import { CLASS_SKILL_CHOICES } from "./classRules";
@@ -56,56 +56,16 @@ const ABILITY_BY_NAME: Record<string, Ability> = {
   charisma: 'CHA',
 }
 
-const ALL_ABILITIES: Ability[] = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
-const WORDS: Record<string, number> = { one: 1, two: 2, three: 3 }
-
 const trait = (traits: Trait[], name: string) => traits.find((t) => t.name === name)?.desc ?? ''
 
 // RACE
 
-function abilityBonuses(desc: string): Partial<AbilityScores> {
-  const each = desc.match(/ability scores each increase by (\d+)/i)
-  if (each) {
-    const amount = Number(each[1])
-    return Object.fromEntries(ALL_ABILITIES.map((a) => [a, amount]))
-  }
-
-  const bonuses: Partial<AbilityScores> = {}
-  for (const match of desc.matchAll(/your (\w+) score increases by (\d+)/gi)) {
-    const ability = ABILITY_BY_NAME[match[1].toLocaleLowerCase()]
-    if (ability) bonuses[ability] = Number(match[2])
-  }
-
-  return bonuses
-}
-
-function abilityChoice(
-  desc: string,
-  fixed: Partial<AbilityScores>,
-): Race['abilityChoice'] {
-  const match = desc.match(
-    /(one|two|three) other ability scores? of your choice increases by (\d+)/i,
-  )
-  if (!match) return undefined
-
-  return {
-    count: WORDS[match[1].toLowerCase()] ?? 1,
-    amount: Number(match[2]),
-    exclude: Object.keys(fixed) as Ability[],
-  }
-}
-
 export function toRace(record: Envelope<RawRace>): Race {
-  const increase = trait(record.data.traits, 'Ability Score Increase')
-  const fixed = abilityBonuses(increase)
-
   return {
     id: record.key,
     name: record.name,
     size: /^\s*small/i.test(trait(record.data.traits, 'Size')) ? 'Small' : 'Medium',
     speed: Number(trait(record.data.traits, 'Speed').match(/(\d+)\s*feet/i)?.[1] ?? 30),
-    abilityBonuses: fixed,
-    abilityChoice: abilityChoice(increase, fixed),
   }
 }
 
@@ -141,6 +101,11 @@ export const isBaseClass = (record: Envelope<RawClass>) => record.data.subclass_
 
 // BACKGROUND
 
+function abilityOptions(benefits: RawBackground['benefits']): Ability[] {
+  const desc = benefits.find((benefit) => benefit.type === 'ability_score')?.desc ?? ''
+  return desc.split(',').map((part) => ABILITY_BY_NAME[part.trim().toLowerCase()]).filter((ability): ability is Ability => ability !== undefined)
+}
+
 function initiateClassNames(benefits: RawBackground['benefits']): string[] {
   return benefits
     .filter((benefit) => benefit.type === 'feat')
@@ -158,6 +123,7 @@ export function toBackground(record: Envelope<RawBackground>): Background {
     name: record.name,
     skillIds: skillIdsFromNames(proficiencies?.desc ?? ''),
     initiateClassNames: initiateClassNames(record.data.benefits),
+    abilityOptions: abilityOptions(record.data.benefits)
   }
 }
 

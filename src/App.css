@@ -871,6 +871,12 @@
   border-color: var(--brass-line);
 }
 
+.wizard-tab.is-unavailable {
+  opacity: 0.4;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
 .wizard-tab-index {
   font-family: var(--mono);
   font-size: 11px;
@@ -1093,14 +1099,14 @@
   color: var(--brass);
 }
 
-.racial-choice {
+.origin-choice {
   margin: 0;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
-.racial-choice legend {
+.origin-choice legend {
   padding: 0 6px;
   font-size: 13.5px;
   color: var(--ink);
@@ -1172,4 +1178,17 @@
   .ability-row {
     grid-template-columns: 46px 1fr 70px;
   }
+}
+
+.spell-group {
+  margin: 0 0 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.spell-group legend {
+  padding: 0 6px;
+  font-size: 13.5px;
+  color: var(--ink);
 }

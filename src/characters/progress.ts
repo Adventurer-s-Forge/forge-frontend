@@ -1,6 +1,6 @@
 import { STEPS } from './character'
 import type { Ability, AbilityMethod, AbilityScores, Character, StepId } from './character'
-import { ABILITIES, POINT_BUY_BUDGET, POINT_BUY_MIN, pointBuySpent, STD_ARR } from './abilities'
+import { ABILITIES, ABILITY_CAP, finalScores, originSpreadValid, POINT_BUY_BUDGET, POINT_BUY_MIN, pointBuySpent, STD_ARR } from './abilities'
 import { classSkillOptions, getBg, getClass, getRace, spellBudget, spellOptions } from '../data/catalog'
 
 function sameValues(a: readonly number[], b: readonly number[]): boolean {
@@ -10,7 +10,7 @@ function sameValues(a: readonly number[], b: readonly number[]): boolean {
 }
 
 function attributesValid(c: Character): boolean {
-  const { method, base, rolled, racialChoices } = c.abilities
+  const { method, base, rolled, originBonuses } = c.abilities
   const scores = ABILITIES.map((ability) => base[ability])
   if (!method || scores.some((score) => score === undefined)) return false
   const assigned = scores as number[]
@@ -19,13 +19,13 @@ function attributesValid(c: Character): boolean {
   if (method === 'roll' && !(rolled.length === 6 && sameValues(assigned, rolled))) return false
   if (method === 'pointbuy' && pointBuySpent(base) > POINT_BUY_BUDGET) return false
 
-  const choice = getRace(c.raceId)?.abilityChoice
-  if (choice) {
-    const distinct = new Set(racialChoices).size === racialChoices.length
-    const allowed = racialChoices.every((ability) => !choice.exclude.includes(ability))
-    if(racialChoices.length !== choice.count || !distinct || !allowed) return false
-  }
-  return true
+  const options = getBg(c.backgroundId)?.abilityOptions ?? []
+  if (options.length === 0) return false
+  if (!ABILITIES.every((a) => originBonuses[a] === undefined || options.includes(a))) return false
+  if (!originSpreadValid(originBonuses)) return false
+
+  const totals = finalScores(base, originBonuses)
+  return ABILITIES.every((ability) => (totals[ability] ?? 0) <= ABILITY_CAP)
 }
 
 function skillsValid(c: Character): boolean {
@@ -104,13 +104,7 @@ export function completeStep(c: Character, step: StepId): Character {
 }
 
 export function setRace(c: Character, raceId: string): Character {
-  if (raceId === c.raceId) return c
-  const choicesAffected = Boolean(getRace(c.raceId)?.abilityChoice || getRace(raceId)?.abilityChoice)
-  return {
-    ...c,
-    raceId,
-    abilities: choicesAffected ? { ...c.abilities, racialChoices: [] } : c.abilities,
-  }
+  return raceId === c.raceId ? c : { ...c, raceId }
 }
 
 function keepOfferedSkills(c: Character): Character {
@@ -133,7 +127,8 @@ export function setClass(c: Character, classId: string): Character {
 
 export function setBackground(c: Character, backgroundId: string): Character {
   if (backgroundId === c.backgroundId) return c
-  return keepLegalSpells(keepOfferedSkills({ ...c, backgroundId }))
+  const next = { ...c, backgroundId, abilities: { ...c.abilities, originBonuses: {} } }
+  return keepLegalSpells(keepOfferedSkills(next))
 }
 
 export function setAbilityMethod(c: Character, method: AbilityMethod): Character {
@@ -159,8 +154,8 @@ export function setAbilityScore(
   return { ...c, abilities: { ...c.abilities, base } }
 }
 
-export function setRacialChoices(c: Character, choices: Ability[]): Character {
-  return { ...c, abilities: { ...c.abilities, racialChoices: choices } }
+export function setOriginBonuses(c: Character, originBonuses: Partial<AbilityScores>): Character {
+  return { ...c, abilities: { ...c.abilities, originBonuses } }
 }
 
 export function setRolledPool(c: Character, rolled: number[]): Character {

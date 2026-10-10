@@ -26,7 +26,7 @@ export type Character = {
     method: AbilityMethod | null
     base: Partial<AbilityScores>
     rolled: number[]
-    racialChoices: Ability[]
+    originBonuses: Partial<AbilityScores> /** Changed naming convention for SRD2024 */
   }
   proficientSkillIds: string[]
   spellIds: string[]
@@ -45,7 +45,7 @@ export function createDraft(): Character {
     raceId: null,
     classId: null,
     backgroundId: null,
-    abilities: { method: null, base: {}, rolled: [], racialChoices: [] },
+    abilities: { method: null, base: {}, rolled: [], originBonuses: {} },
     proficientSkillIds: [],
     spellIds: [],
     equipmentIds: [],

@@ -1,6 +1,7 @@
-import type { Ability, AbilityMethod, Character } from "../../characters/character";
+import type { Ability, AbilityMethod, AbilityScores, Character } from "../../characters/character";
 import { 
   ABILITIES,
+  ORIGIN_TOTAL,
   POINT_BUY_BUDGET,
   POINT_BUY_MAX,
   POINT_BUY_MIN,
@@ -8,6 +9,7 @@ import {
   abilityModifier,
   finalScores,
   formatModifier,
+  originSpreadValid,
   pointBuySpent,
   rollAbilityPool,
 } from "../../characters/abilities";
@@ -17,8 +19,8 @@ import {
   setBackground,
   setClass,
   setName,
+  setOriginBonuses,
   setRace,
-  setRacialChoices,
   setRolledPool,
   toggleEquipment,
   toggleSkill,
@@ -29,7 +31,6 @@ import {
   classSkillOptions,
   getBg,
   getClass,
-  getRace,
   getSkill,
   getSpell,
   spellBudget,
@@ -62,30 +63,24 @@ export function RaceStep({ character, onChange }: StepProps) {
   return (
     <div className="option-list" role="radiogroup" aria-label="Race">
       {catalog.races.map((race) => {
-        const bonuses = Object.entries(race.abilityBonuses)
-          .map(([ability, amount]) => `${ability} +${amount}`)
-          .join(' . ')
-
-          return (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={character.raceId === race.id}
-              className={`option${character.raceId === race.id ? ' is-chosen' : ''}`}
-              key={race.id}
-              onClick={() => onChange(setRace(character, race.id))}
-            >
-              <span className="option-name">{race.name}</span>
-              <span className="option-meta">
-                {bonuses || 'No fixed bonuses'}
-                {race.abilityChoice &&
-                ` · +${race.abilityChoice.amount} to ${race.abilityChoice.count} of your choice`}
-              </span>
-              <span className="option-meta">
-                {race.size} · { race.speed} ft
-              </span>
-            </button>
-          )
+        return (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={character.raceId === race.id}
+            className={`option${character.raceId === race.id ? ' is-chosen' : ''}`}
+            key={race.id}
+            onClick={() => onChange(setRace(character, race.id))}
+          >
+            <span className="option-name">{race.name}</span>
+            <span className="option-meta">
+              {race.size} · {race.speed} ft
+            </span>
+            <span className="option-meta">
+              {race.size} · { race.speed} ft
+            </span>
+          </button>
+        )
       })}
     </div>
   )
@@ -127,6 +122,7 @@ export function BackgroundStep({ character, onChange }: StepProps) {
           onClick={() => onChange(setBackground(character, background.id))}
         >
           <span className="option-name">{background.name}</span>
+          <span className="option-meta">{background.abilityOptions.join(' · ')}</span>
           <span className="option-meta">
             Grants {background.skillIds.map((id) => getSkill(id)?.name).join(' and ')}
           </span>
@@ -158,13 +154,24 @@ function remainingPool(
   return left
 }
 
+function withBonus(
+  bonuses: Partial<AbilityScores>,
+  ability: Ability,
+  amount: number,
+): Partial<AbilityScores> {
+  const next = { ...bonuses }
+  if (amount <= 0) delete next[ability]
+  else next[ability] = amount
+  return next
+}
+
 export function AttributeStep({ character, onChange }: StepProps) {
-  const { method, base, rolled, racialChoices } = character.abilities
-  const race = getRace(character.raceId)
-  const choice = race?.abilityChoice
+  const { method, base, rolled, originBonuses } = character.abilities
+  const background = getBg(character.backgroundId)
   const pool = method === 'standard' ? STD_ARR : rolled
   const spent = pointBuySpent(base)
-  const totals = finalScores(base, race, racialChoices)
+  const totals = finalScores(base, originBonuses)
+  const originSpent = ABILITIES.reduce((sum, a) => sum + (originBonuses[a] ?? 0), 0)
 
   return (
     <div className="step">
@@ -260,33 +267,41 @@ export function AttributeStep({ character, onChange }: StepProps) {
         </ul>
       )}
 
-      {choice && (
-        <fieldset className="racial-choice">
-          <legend>
-            {race?.name}: +{choice.amount} to {choice.count}{' '}
-            {choice.count === 1 ? 'ability' : 'abilities'}
-          </legend>
-          <div className="chip-row">
-            {ABILITIES.filter((ability) => !choice.exclude.includes(ability)).map(
-              (ability) => {
-                const picked = racialChoices.includes(ability)
-                const full = racialChoices.length >= choice.count
-
-                return (
-                  <button
-                    type="button"
-                    className={`chip${picked ? ' is-chosen' : ''}`}
-                    key={ability}
-                    aria-pressed={picked}
-                    disabled={!picked && full}
-                    onClick={() => onChange(setRacialChoices(character, picked ? racialChoices.filter((a) => a !== ability) : [...racialChoices, ability]))}
-                  >
-                    {ability}
-                  </button>
-                )
-              },
-            )}
-          </div>
+      {background && (
+        <fieldset className="origin-choice">
+          <legend>{background.name}: +2 and +1, or +1 to each</legend>
+          <ul className="ability-rows">
+            {background.abilityOptions.map((ability) => {
+              const amount = originBonuses[ability] ?? 0
+              return (
+                <li className="ability-row" key={ability}>
+                  <span className="ability-key">{ability}</span>
+                  <span className="stepper">
+                    <button
+                      type="button"
+                      aria-label={`Decrease ${ability} bonus`}
+                      disabled={amount === 0}
+                      onClick={() => onChange(setOriginBonuses(character, withBonus(originBonuses, ability, amount - 1)))}
+                    >
+                      &minus;
+                    </button>
+                    <span className="stepper-value">+{amount}</span>
+                    <button
+                      type="button"
+                      aria-label={`Increase ${ability} bonus`}
+                      disabled={amount >= 2 || originSpent >= ORIGIN_TOTAL}
+                      onClick={() => onChange(setOriginBonuses(character, withBonus(originBonuses, ability, amount + 1)))}
+                    >
+                      +
+                    </button>
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+          <p className={`budget${originSpreadValid(originBonuses) ? '' : ' is-over'}`}>
+            {originSpent} / {ORIGIN_TOTAL} assigned
+          </p>
         </fieldset>
       )}
     </div>

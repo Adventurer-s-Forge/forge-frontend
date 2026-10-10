@@ -4,8 +4,8 @@ import { CLASS_SKILL_CHOICES } from "../data/classRules";
 export function seedTestCatalog(): void {
   seedCatalog({
     races: [
-      { id: 'srd_half-orc', name: 'Half-Orc', size: 'Medium', speed: 30, abilityBonuses: { STR: 2, CON: 1 } },
-      { id: 'srd_half-elf', name: 'Half-Elf', size: 'Medium', speed: 30, abilityBonuses: { CHA: 2 }, abilityChoice: { count: 2, amount: 1, exclude: ['CHA'] } },
+      { id: 'srd_half-orc', name: 'Half-Orc', size: 'Medium', speed: 30 },
+      { id: 'srd_half-elf', name: 'Half-Elf', size: 'Medium', speed: 30 },
     ],
     classes: [
       { id: 'srd_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
@@ -16,7 +16,8 @@ export function seedTestCatalog(): void {
         casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 } },
     ],
     backgrounds: [
-      { id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [] },
+      { id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
+        abilityOptions: ['INT', 'WIS', 'CHA'] },
     ],
     spells: [
       { id: 'srd_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd_wizard'],
