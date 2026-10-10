@@ -6,15 +6,19 @@ import {
   isStepReachable,
   isStepValid,
   firstIncompleteStep,
+  nextStep,
+  prevStep,
+  isStepApplicable,
 } from "../../characters/progress";
 import {
   AttributeStep,
   BackgroundStep,
   ClassStep,
-  ItemStep,
+  EquipmentStep,
   NameStep,
   RaceStep,
   SkillsStep,
+  SpellsStep,
 } from "./steps";
 import type { StepProps } from "./steps";
 import { FiX } from "react-icons/fi";
@@ -26,7 +30,8 @@ const PANELS: Record<StepId, (props: StepProps) => React.ReactElement> = {
   background: BackgroundStep,
   attributes: AttributeStep,
   skills: SkillsStep,
-  item: ItemStep,
+  spells: SpellsStep,
+  equipment: EquipmentStep,
 }
 
 type CharacterModalProps = {
@@ -50,7 +55,9 @@ export function CharacterModal({ character, onSave, onClose }: CharacterModalPro
   }, [])
 
   const index = STEPS.findIndex((s) => s.id === step)
-  const isLast = index === STEPS.length - 1
+  const next = nextStep(draft, step)
+  const prev = prevStep(draft, step)
+  const isLast = next === null
   const canContinue = isStepValid(step, draft)
   const Panel = PANELS[step]
 
@@ -64,6 +71,7 @@ export function CharacterModal({ character, onSave, onClose }: CharacterModalPro
       const saved = await onSave(confirmed)
       setDraft(saved)
       if (isLast) return onClose()
+      if (next) setStep(next)
       setStep(STEPS[index + 1].id)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save your character.")
@@ -91,8 +99,9 @@ export function CharacterModal({ character, onSave, onClose }: CharacterModalPro
 
         <div className="wizard-tabs" role="tablist" aria-label="Creation steps">
           {STEPS.map(({ id, label}, i) => {
+            const applicable = isStepApplicable(id, draft)
             const reachable = isStepReachable(id, draft)
-            const done = draft.completedSteps.includes(id) && isStepValid(id, draft)
+            const done = applicable && draft.completedSteps.includes(id) && isStepValid(id, draft)
 
             return (
               <button
@@ -102,7 +111,8 @@ export function CharacterModal({ character, onSave, onClose }: CharacterModalPro
                 id={`tab-${id}`}
                 aria-selected={id === step}
                 aria-controls="wizard-panel"
-                className={`wizard-tab${id === step ? ' is-active' : ''}${done ? ' is-done' : ''}`}
+                aria-disabled={!applicable}
+                className={`wizard-tab${id === step ? ' is-active' : ''}${done ? ' is-done' : ''}${applicable ? '' : ' is-unavailable'}`}
                 disabled={!reachable && id !== step}
                 onClick={() => setStep(id)}
               >
@@ -124,7 +134,7 @@ export function CharacterModal({ character, onSave, onClose }: CharacterModalPro
         )}
 
         <footer className="wizard-foot">
-          <button type="button" className="btn btn-quiet" disabled={index === 0 || saving} onClick={() => setStep(STEPS[index - 1].id)}>
+          <button type="button" className="btn btn-quiet" disabled={prev === null || saving} onClick={() => prev && setStep(prev)}>
             Back
           </button>
           <button type="button" className="btn btn-primary" disabled={!canContinue || saving} onClick={handleContinue}>

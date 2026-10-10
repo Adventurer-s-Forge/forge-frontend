@@ -21,8 +21,11 @@ import {
   setRace,
   setRacialChoices,
   setRolledPool,
-  toggleItem,
-  toggleSkill
+  toggleEquipment,
+  toggleSkill,
+  toggleSpell,
+  isStepApplicable,
+  nextStep,
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
 import { getRace, seedCatalog } from "../data/catalog";
@@ -46,7 +49,7 @@ function finishedFighter(): Character {
       rolled: [],
       racialChoices: [],
     },
-    skillIds: ['perception', 'survival'],
+    proficientSkillIds: ['perception', 'survival'],
   }
   for (const { id } of STEPS) c = completeStep(c, id)
   return c
@@ -59,11 +62,19 @@ beforeAll(() => {
       { id: 'srd_half-elf', name: 'Half-Elf', size: 'Medium', speed: 30, abilityBonuses: { CHA: 2 }, abilityChoice: { count: 2, amount: 1, exclude: ['CHA'] } },
     ],
     classes: [
-      { id: 'srd_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'], skillChoices: CLASS_SKILL_CHOICES.srd_fighter },
-      { id: 'srd_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'], skillChoices: CLASS_SKILL_CHOICES.srd_wizard },
+      { id: 'srd_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
+        skillChoices: CLASS_SKILL_CHOICES.srd_fighter, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 } },
+      { id: 'srd_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
+        skillChoices: CLASS_SKILL_CHOICES.srd_wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 } },
     ],
-    backgrounds: [{ id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'] }],
-    items: [],
+    backgrounds: [{ id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [] }],
+    spells: [
+      { id: 'srd_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd_wizard'],
+        desc: '', concentration: false, ritual: false, castingTime: '', range: '', duration: '' },
+      { id: 'srd_shield', name: 'Shield', level: 1, school: 'Abjuration', classIds: ['srd_wizard'],
+        desc: '', concentration: false, ritual: false, castingTime: '', range: '', duration: '' },
+    ],
+    equipment: [],
   })
 })
 
@@ -119,7 +130,7 @@ describe('character progress', () => {
 
   it('reopens skills when a class change invalidates them', () => {
     const c = setClass(finishedFighter(), 'srd_wizard')
-    expect(c.skillIds).toEqual([])
+    expect(c.proficientSkillIds).toEqual([])
     expect(firstIncompleteStep(c)).toBe('skills')
   })
 
@@ -185,16 +196,16 @@ describe('character mutations', () => {
     c = toggleSkill(c, 'arcana', 2)
     c = toggleSkill(c, 'history', 2)
 
-    expect(c.skillIds).toEqual(['stealth', 'arcana'])
-    expect(toggleSkill(c, 'stealth', 2).skillIds).toEqual(['arcana'])
+    expect(c.proficientSkillIds).toEqual(['stealth', 'arcana'])
+    expect(toggleSkill(c, 'stealth', 2).proficientSkillIds).toEqual(['arcana'])
   })
 
   it('toggle itemss with no cap', () => {
-    let c = toggleItem(createDraft(), 'srd_dagger')
-    c = toggleItem(c, 'srd_rope')
+    let c = toggleEquipment(createDraft(), 'srd_dagger')
+    c = toggleEquipment(c, 'srd_rope')
 
-    expect(c.itemIds).toEqual(['srd_dagger', 'srd_rope'])
-    expect(toggleItem(c, 'srd_dagger').itemIds).toEqual(['srd_rope'])
+    expect(c.equipmentIds).toEqual(['srd_dagger', 'srd_rope'])
+    expect(toggleEquipment(c, 'srd_dagger').equipmentIds).toEqual(['srd_rope'])
   })
 
   it('clears racial choices when the race change affects them', () => {
@@ -212,5 +223,27 @@ describe('character mutations', () => {
   it('does not re-add a step that is already confirmed', () => {
     const once = completeStep(createDraft(), 'name')
     expect(completeStep(once, 'name')).toBe(once)
+  })
+
+  it('skips the spells step for a non-caster', () => {
+    const c = setClass(createDraft(), 'srd_fighter')
+    expect(isStepApplicable('spells', c)).toBe(false)
+  })
+
+  it('offers the spells step to a caster', () => {
+    const c = setClass(createDraft(), 'srd_wizard')
+    expect(isStepApplicable('spells', c)).toBe(true)
+    expect(nextStep(c, 'skills')).toBe('spells')
+  })
+
+  it('drops spells the new class cannot cast', () => {
+    let c = setClass(createDraft(), 'srd_wizard')
+    c = toggleSpell(c, 'srd_fire-bolt')
+    expect(setClass(c, 'srd_fighter').spellIds).toEqual([])
+  })
+
+  it('deletes by id', async () => {
+    await characterStore.remove('abc-123')
+    expect(authed.del).toHaveBeenCalledWith('characters/abc-123')
   })
 })

@@ -7,10 +7,11 @@ import {
   AttributeStep,
   BackgroundStep,
   ClassStep,
-  ItemStep,
+  EquipmentStep,
   NameStep,
   RaceStep,
   SkillsStep,
+  SpellsStep,
 } from "../components/character/steps";
 import { seedTestCatalog } from './fixtures'
 
@@ -151,7 +152,7 @@ describe('SkillStep', () => {
   })
 
   it('disables the remaining options once the cap is reached', () => {
-    const character = fighter({ skillIds: ['perception', 'survival'] })
+    const character = fighter({ proficientSkillIds: ['perception', 'survival'] })
     render(<SkillsStep character={character} onChange={vi.fn()} />)
 
     expect(screen.getByText('2 / 2 chosen')).toBeInTheDocument()
@@ -166,9 +167,9 @@ describe('SkillStep', () => {
   })
 })
 
-describe('ItemStep', () => {
+describe('EquipmentStep', () => {
   it('groups items by category', () => {
-    render(<ItemStep character={fighter()} onChange={vi.fn()} />)
+    render(<EquipmentStep character={fighter()} onChange={vi.fn()} />)
 
     expect(screen.getByRole('heading', { name: 'Weapons' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Armor' })).toBeInTheDocument()
@@ -177,12 +178,38 @@ describe('ItemStep', () => {
 
   it('toggles an item', async () => {
     const onChange = vi.fn()
-    render(<ItemStep character={fighter()} onChange={onChange} />)
+    render(<EquipmentStep character={fighter()} onChange={onChange} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Longsword' }))
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ itemIds: ['srd_longsword'] }),
+      expect.objectContaining({ equipmentIds: ['srd_longsword'] }),
     )
+  })
+})
+
+describe('SpellsStep', () => {
+  it('tells a non-caster there is nothing to choose', () => {
+    render(<SpellsStep character={fighter()} onChange={vi.fn()} />)
+    expect(screen.getByText(/cast spells/)).toBeInTheDocument()
+  })
+
+  it('splits cantrips from levelled spells', () => {
+    const wizard = fighter({ classId: 'srd_wizard' })
+    render(<SpellsStep character={wizard} onChange={vi.fn()} />)
+
+    expect(screen.getByText('Cantrips - 0 / 1')).toBeInTheDocument()
+    expect(screen.getByText('1st level - 0 / 1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Fire Bolt/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Shield/ })).toBeInTheDocument()
+  })
+
+  it('reports the chosen spell', async () => {
+    const onChange = vi.fn()
+    render(<SpellsStep character={fighter({ classId: 'srd_wizard' })} onChange={onChange} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /Fire Bolt/ }))
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ spellIds: ['srd_fire-bolt'] }))
   })
 })

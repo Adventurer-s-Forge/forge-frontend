@@ -2,7 +2,7 @@ export type Ability = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA'
 export type AbilityScores = Record<Ability, number>
 export type AbilityMethod = 'standard' | 'pointbuy' | 'roll'
 
-export type StepId = 'name' | 'race' | 'class' | 'background' | 'attributes' | 'skills' | 'item'
+export type StepId = 'name' | 'race' | 'class' | 'background' | 'attributes' | 'skills' | 'spells' | 'equipment'
 
 export const STEPS: readonly { id: StepId; label: string }[] = [
   { id: 'name', label: 'Name' },
@@ -11,12 +11,14 @@ export const STEPS: readonly { id: StepId; label: string }[] = [
   { id: 'background', label: 'Background' },
   { id: 'attributes', label: 'Attributes' },
   { id: 'skills', label: 'Skills' },
-  { id: 'item', label: 'Items' },
+  { id: 'spells', label: 'Spells' },
+  { id: 'equipment', label: 'Equipment' },
 ]
 
 export type Character = {
   id: string
   name: string
+  level: number
   raceId: string | null
   classId: string | null
   backgroundId: string | null
@@ -26,8 +28,9 @@ export type Character = {
     rolled: number[]
     racialChoices: Ability[]
   }
-  skillIds: string[]
-  itemIds: string[]
+  proficientSkillIds: string[]
+  spellIds: string[]
+  equipmentIds: string[]
   completedSteps: StepId[]
   createdAt: string
   updatedAt: string
@@ -38,12 +41,14 @@ export function createDraft(): Character {
   return {
     id: crypto.randomUUID(),
     name: '',
+    level: 1,
     raceId: null,
     classId: null,
     backgroundId: null,
     abilities: { method: null, base: {}, rolled: [], racialChoices: [] },
-    skillIds: [],
-    itemIds: [],
+    proficientSkillIds: [],
+    spellIds: [],
+    equipmentIds: [],
     completedSteps: [],
     createdAt: now,
     updatedAt: now,

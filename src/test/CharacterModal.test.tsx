@@ -20,7 +20,7 @@ describe('CharacterModal', () => {
 
   it('shows all seven steps as tabs', () => {
     renderModal()
-    expect(screen.getAllByRole('tab')).toHaveLength(7)
+    expect(screen.getAllByRole('tab')).toHaveLength(8)
   })
 
   it('locks every step beyond the first for a new draft', () => {
@@ -28,7 +28,7 @@ describe('CharacterModal', () => {
 
     expect(screen.getByRole('tab', { name: /Name/ })).toBeEnabled()
     expect(screen.getByRole('tab', { name: /Race/ })).toBeDisabled()
-    expect(screen.getByRole('tab', { name: /Equipment|Items/ })).toBeDisabled()
+    expect(screen.getByRole('tab', { name: /Equipment/ })).toBeDisabled()
   })
 
   it('keeps Continue disabled until the step is valid', async () => {
@@ -109,5 +109,11 @@ describe('CharacterModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('grays out the spells tab for a non-caster', () => {
+    renderModal({ ...createDraft(), name: 'Arkes', classId: 'srd_fighter' })
+    const tab = screen.getByRole('tab', { name: /Spells/ })
+    expect(tab).toHaveAttribute('aria-disabled', 'true')
   })
 })

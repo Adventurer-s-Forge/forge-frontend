@@ -1,7 +1,7 @@
 import { STEPS } from './character'
 import type { Ability, AbilityMethod, AbilityScores, Character, StepId } from './character'
 import { ABILITIES, POINT_BUY_BUDGET, POINT_BUY_MIN, pointBuySpent, STD_ARR } from './abilities'
-import { classSkillOptions, getBg, getClass, getRace } from '../data/catalog'
+import { classSkillOptions, getBg, getClass, getRace, spellBudget, spellOptions } from '../data/catalog'
 
 function sameValues(a: readonly number[], b: readonly number[]): boolean {
   if (a.length !== b.length) return false
@@ -33,10 +33,25 @@ function skillsValid(c: Character): boolean {
   if (!cls) return false
   const options = classSkillOptions(cls, getBg(c.backgroundId))
   return (
-    c.skillIds.length === cls.skillChoices.count &&
-    new Set(c.skillIds).size === c.skillIds.length &&
-    c.skillIds.every((id) => options.includes(id))
+    c.proficientSkillIds.length === cls.skillChoices.count &&
+    new Set(c.proficientSkillIds).size === c.proficientSkillIds.length &&
+    c.proficientSkillIds.every((id) => options.includes(id))
   )
+}
+
+function spellsValid (c: Character): boolean {
+  const cls = getClass(c.classId)
+  const bg = getBg(c.backgroundId)
+  const options = spellOptions(cls, bg)
+  if (options.length === 0) return true
+
+  if (new Set(c.spellIds).size !== c.spellIds.length) return false
+  const chosen = c.spellIds.map((id) => options.find((spell) => spell.id === id))
+  if (chosen.some((spell) => spell === undefined)) return false
+
+  const budget = spellBudget(cls, bg)
+  const cantrips = chosen.filter((spell) => spell!.level === 0).length
+  return cantrips === budget.cantrips && chosen.length - cantrips === budget.prepared
 }
 
 export function isStepValid(step: StepId, c: Character): boolean {
@@ -53,17 +68,34 @@ export function isStepValid(step: StepId, c: Character): boolean {
       return attributesValid(c)
     case 'skills':
       return skillsValid(c)
-    case 'item':
+    case 'spells':
+      return spellsValid(c)
+    case 'equipment':
       return true
   }
 }
 
 export function firstIncompleteStep(c: Character): StepId | null {
-  return STEPS.find(({ id }) => !c.completedSteps.includes(id) || !isStepValid(id, c))?.id ?? null
+  return (
+    STEPS.find(
+      ({ id }) =>
+        isStepApplicable(id, c) && (!c.completedSteps.includes(id) || !isStepValid(id, c)),
+    )?.id ?? null
+  )
 }
 
 export function isComplete(c: Character): boolean {
   return firstIncompleteStep(c) === null
+}
+
+export function nextStep(c: Character, from: StepId): StepId | null {
+  const index = STEPS.findIndex((s) => s.id === from)
+  return STEPS.slice(index + 1).find((s) => isStepApplicable(s.id, c))?.id ?? null
+}
+
+export function prevStep(c: Character, from: StepId): StepId | null {
+  const index = STEPS.findIndex((s) => s.id === from)
+  return STEPS.slice(0, index).reverse().find((s) => isStepApplicable(s.id, c))?.id ?? null
 }
 
 export function completeStep(c: Character, step: StepId): Character {
@@ -83,19 +115,25 @@ export function setRace(c: Character, raceId: string): Character {
 
 function keepOfferedSkills(c: Character): Character {
   const cls = getClass(c.classId)
-  if (!cls) return { ...c, skillIds: [] }
+  if (!cls) return { ...c, proficientSkillIds: [] }
   const options = classSkillOptions(cls, getBg(c.backgroundId))
-  return { ...c, skillIds: c.skillIds.filter((id) => options.includes(id)) }
+  return { ...c, proficientSkillIds: c.proficientSkillIds.filter((id) => options.includes(id)) }
+}
+
+function keepLegalSpells(c: Character): Character {
+  const options = spellOptions(getClass(c.classId), getBg(c.backgroundId))
+  const legal = c.spellIds.filter((id) => options.some((spell) => spell.id === id))
+  return legal.length === c.spellIds.length ? c : { ...c, spellIds: legal }
 }
 
 export function setClass(c: Character, classId: string): Character {
   if (classId === c.classId) return c
-  return keepOfferedSkills({ ...c, classId })
+  return keepLegalSpells(keepOfferedSkills({ ...c, classId }))
 }
 
 export function setBackground(c: Character, backgroundId: string): Character {
   if (backgroundId === c.backgroundId) return c
-  return keepOfferedSkills({ ...c, backgroundId })
+  return keepLegalSpells(keepOfferedSkills({ ...c, backgroundId }))
 }
 
 export function setAbilityMethod(c: Character, method: AbilityMethod): Character {
@@ -130,22 +168,34 @@ export function setRolledPool(c: Character, rolled: number[]): Character {
 }
 
 export function toggleSkill(c: Character, skillId: string, max: number): Character {
-  if (c.skillIds.includes(skillId)) {
-    return { ...c, skillIds: c.skillIds.filter((id) => id !== skillId) }
+  if (c.proficientSkillIds.includes(skillId)) {
+    return { ...c, proficientSkillIds: c.proficientSkillIds.filter((id) => id !== skillId) }
   }
-  if (c.skillIds.length >= max) return c
-  return { ...c, skillIds: [...c.skillIds, skillId] }
+  if (c.proficientSkillIds.length >= max) return c
+  return { ...c, proficientSkillIds: [...c.proficientSkillIds, skillId] }
 }
 
-export function toggleItem(c: Character, itemId: string): Character {
-  return c.itemIds.includes(itemId)
-    ? { ...c, itemIds: c.itemIds.filter((id) => id !== itemId) }
-    : { ...c, itemIds: [...c.itemIds, itemId] }
+export function toggleSpell(c: Character, spellId: string): Character {
+  return c.spellIds.includes(spellId)
+    ? { ...c, spellIds: c.spellIds.filter((id) => id !== spellId) }
+    : { ...c, spellIds: [...c.spellIds, spellId] }
+}
+
+export function toggleEquipment(c: Character, itemId: string): Character {
+  return c.equipmentIds.includes(itemId)
+    ? { ...c, equipmentIds: c.equipmentIds.filter((id) => id !== itemId) }
+    : { ...c, equipmentIds: [...c.equipmentIds, itemId] }
 }
 
 export function isStepReachable(step: StepId, c: Character): boolean {
+  if (!isStepApplicable(step, c)) return false
   const index = STEPS.findIndex((s) => s.id === step)
-  return STEPS.slice(0, index).every(
-    (s) => c.completedSteps.includes(s.id) && isStepValid(s.id, c),
-  )
+  return STEPS.slice(0, index)
+    .filter((s) => isStepApplicable(s.id, c))
+    .every((s) =>c.completedSteps.includes(s.id) && isStepValid(s.id, c))
+}
+
+export function isStepApplicable(step: StepId, c: Character): boolean {
+  if (step !== 'spells') return true
+  return spellOptions(getClass(c.classId), getBg(c.backgroundId)).length > 0
 }

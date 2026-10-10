@@ -13,7 +13,7 @@
  **/
 
 import type { Ability, AbilityScores } from "../characters/character";
-import type { Background, CharacterClass, Item, Race } from "./catalog";
+import type { Background, CasterType, CharacterClass, Equipment, Race, Spell } from "./catalog";
 import type { Envelope } from "../lib/api";
 import { CLASS_SKILL_CHOICES } from "./classRules";
 import { skillIdsFromNames } from "./skills";
@@ -25,9 +25,22 @@ export type RawClass = {
   hit_dice: string
   saving_throws: { name: string }[]
   subclass_of: string | null
+  caster_type: CasterType | null
+  features: { name: string; data_for_class_tables: { level: number; column_value: string }[] | null }[]
+}
+export type RawSpell = {
+  level: number
+  school: { name: string } | null
+  classes: { name: string; key: string }[] | null
+  desc: string
+  concentration: boolean | null
+  ritual: boolean | null
+  casting_time: string | null
+  range_text: string| null
+  duration: string | null
 }
 export type RawBackground = { benefits: { type: string; desc: string }[] }
-export type RawItem = {
+export type RawEquipment = {
   category: { key: string; name: string }
   desc: string
   weapon: { damage_dice?: string; damage_type?: { name: string } | null; is_martial?: boolean } | null
@@ -89,9 +102,7 @@ export function toRace(record: Envelope<RawRace>): Race {
   return {
     id: record.key,
     name: record.name,
-    size: /your size is small/i.test(trait(record.data.traits, 'Size'))
-      ? 'Small'
-      : 'Medium',
+    size: /^\s*small/i.test(trait(record.data.traits, 'Size')) ? 'Small' : 'Medium',
     speed: Number(trait(record.data.traits, 'Speed').match(/(\d+)\s*feet/i)?.[1] ?? 30),
     abilityBonuses: fixed,
     abilityChoice: abilityChoice(increase, fixed),
@@ -99,6 +110,12 @@ export function toRace(record: Envelope<RawRace>): Race {
 }
 
 // CLASS
+
+function classTableAtLevel1(features: RawClass['features'], column: string): number {
+  const rows = features.find((f) => f.name === column)?.data_for_class_tables ?? []
+  const value = Number(rows.find((row) => row.level === 1)?.column_value)
+  return Number.isFinite(value) ? value : 0
+}
 
 export function toClass(record: Envelope<RawClass>): CharacterClass {
   const choices = CLASS_SKILL_CHOICES[record.key] ?? { count: 2, from: 'any' as const }
@@ -112,12 +129,24 @@ export function toClass(record: Envelope<RawClass>): CharacterClass {
       .filter((ability): ability is Ability => ability !== undefined),
     primaryAbilities: [],
     skillChoices: choices,
+    casterType: record.data.caster_type ?? 'NONE',
+    spellCounts: {
+      cantrips: classTableAtLevel1(record.data.features, 'Cantrips'),
+      prepared: classTableAtLevel1(record.data.features, 'Prepared Spells'),
+    }
   }
 }
 
 export const isBaseClass = (record: Envelope<RawClass>) => record.data.subclass_of === null
 
 // BACKGROUND
+
+function initiateClassNames(benefits: RawBackground['benefits']): string[] {
+  return benefits
+    .filter((benefit) => benefit.type === 'feat')
+    .map((benefit) => /^Magic Initiate \(([^)]+)\)/.exec(benefit.desc)?.[1]?.trim())
+    .filter((name): name is string => name !== undefined)
+}
 
 export function toBackground(record: Envelope<RawBackground>): Background {
   const proficiencies = record.data.benefits.find(
@@ -128,25 +157,44 @@ export function toBackground(record: Envelope<RawBackground>): Background {
     id: record.key,
     name: record.name,
     skillIds: skillIdsFromNames(proficiencies?.desc ?? ''),
+    initiateClassNames: initiateClassNames(record.data.benefits),
   }
 }
 
-// ITEMS
+// EQUIPMENT
 
 const ARMOR_CATEGORIES = new Set(['armor', 'shield'])
 const WEAPON_CATEGORIES = new Set(['weapon', 'ammunition'])
 
-function category(key: string): Item['category'] {
+function category(key: string): Equipment['category'] {
   if (ARMOR_CATEGORIES.has(key)) return 'armor'
   if (WEAPON_CATEGORIES.has(key)) return 'weapon'
   return 'gear'
 }
 
-export function toItem(record: Envelope<RawItem>): Item {
+export function toEquipment(record: Envelope<RawEquipment>): Equipment {
   return {
     id: record.key,
     name: record.name,
     category: category(record.data.category.key),
     desc: record.data.desc,
+  }
+}
+
+// SPELLS
+
+export function toSpell(record: Envelope<RawSpell>): Spell {
+  return {
+    id: record.key,
+    name: record.name,
+    level: record.data.level,
+    school: record.data.school?.name ?? '',
+    classIds: (record.data.classes ?? []).map((cls) => cls.key),
+    desc: record.data.desc,
+    concentration: record.data.concentration ?? false,
+    ritual: record.data.ritual ?? false,
+    castingTime: record.data.casting_time ?? '',
+    range: record.data.range_text ?? '',
+    duration: record.data.duration ?? '',
   }
 }

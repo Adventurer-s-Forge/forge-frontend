@@ -60,3 +60,8 @@ export function finalScores(
   }
   return scores
 }
+
+/** Proficiency bonuses, i.e. +2 at levels 1-4, +3 at 5-8, and so on. */
+export function proficiencyBonus(level: number): number {
+  return Math.floor((level - 1) / 4) + 2
+}

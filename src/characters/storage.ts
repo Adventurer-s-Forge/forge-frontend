@@ -5,12 +5,14 @@ function toPayload(character: Character) {
   return {
     id: character.id,
     name: character.name,
+    level: character.level,
     raceId: character.raceId,
     classId: character.classId,
     backgroundId: character.backgroundId,
     abilities: character.abilities,
-    skillIds: character.skillIds,
-    itemIds: character.itemIds,
+    proficientSkillIds: character.proficientSkillIds,
+    spellIds: character.spellIds,
+    equipmentIds: character.equipmentIds,
     completedSteps: character.completedSteps,
   }
 }

@@ -31,7 +31,7 @@ const BY_NAME = new Map(SKILLS.map((skill) => [skill.name.toLowerCase(), skill.i
 
 export function skillIdsFromNames(csv: string): string[] {
   return csv
-    .split(',')
+    .split(/,|\s+and\s+/)
     .map((part) => BY_NAME.get(part.trim().toLowerCase()))
     .filter((id): id is string => id !== undefined)
 }

@@ -20,8 +20,9 @@ import {
   setRace,
   setRacialChoices,
   setRolledPool,
-  toggleItem,
+  toggleEquipment,
   toggleSkill,
+  toggleSpell,
 } from "../../characters/progress";
 import {
   catalog,
@@ -30,6 +31,9 @@ import {
   getClass,
   getRace,
   getSkill,
+  getSpell,
+  spellBudget,
+  spellOptions,
 } from "../../data/catalog";
 
 export type StepProps = {
@@ -296,7 +300,7 @@ export function SkillsStep({ character, onChange }: StepProps) {
 
   const options = classSkillOptions(cls, background)
   const max = cls.skillChoices.count
-  const full = character.skillIds.length >= max
+  const full = character.proficientSkillIds.length >= max
   
   return (
     <div className="step">
@@ -308,7 +312,7 @@ export function SkillsStep({ character, onChange }: StepProps) {
       <div className="chip-grid">
         {options.map((id) => {
           const skill = getSkill(id)
-          const picked = character.skillIds.includes(id)
+          const picked = character.proficientSkillIds.includes(id)
 
           return (
             <button
@@ -327,15 +331,67 @@ export function SkillsStep({ character, onChange }: StepProps) {
       </div>
 
       <p className="budget">
-        {character.skillIds.length} / {max} chosen
+        {character.proficientSkillIds.length} / {max} chosen
       </p>
+    </div>
+  )
+}
+
+export function SpellsStep({ character, onChange }: StepProps) {
+  const cls = getClass(character.classId)
+  const bg = getBg(character.backgroundId)
+  const options = spellOptions(cls, bg)
+
+  if (options.length === 0) {
+    return <p className="step-hint">This character doesn&rsquo;t cast spells.</p>
+  }
+
+  const budget = spellBudget(cls, bg)
+  const chosenCantrips = character.spellIds.filter((id) => getSpell(id)?.level === 0).length
+
+  const groups = [
+    { label: 'Cantrips', list: options.filter((s) => s.level === 0), have: chosenCantrips, want: budget.cantrips },
+    { label: '1st level', list: options.filter((s) => s.level > 0), have: character.spellIds.length - chosenCantrips, want: budget.prepared},
+  ]
+
+  return (
+    <div className="step">
+      <p className="step-hint">
+        Choose {budget.cantrips} cantrips and {budget.prepared} 1st-level spells.
+      </p>
+
+      {groups.map(({ label, list, have, want }) =>
+        list.length === 0 || want === 0 ? null : (
+          <fieldset className="spell-group" key={label}>
+            <legend>{label} - {have} / {want}</legend>
+            <div className="chip-grid">
+              {list.map((spell) => {
+                const picked = character.spellIds.includes(spell.id)
+                return (
+                  <button
+                    type="button"
+                    className={`chip chip-wide${picked ? ' is-chosen' : ''}`}
+                    key={spell.id}
+                    aria-pressed={picked}
+                    disabled={!picked && have >= want}
+                    onClick={() => onChange(toggleSpell(character, spell.id))}
+                  >
+                    {spell.name}
+                    <span className="chip-meta">{spell.school}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+        )
+      )}
     </div>
   )
 }
 
 const CAT_LABELS = { weapon: 'Weapons', armor: 'Armor', gear: 'Gear' } as const
 
-export function ItemStep({ character, onChange }: StepProps) {
+export function EquipmentStep({ character, onChange }: StepProps) {
   return (
     <div className="step">
       <p className="step-hint">Optional - pick anything your character carries.</p>
@@ -344,19 +400,19 @@ export function ItemStep({ character, onChange }: StepProps) {
         <section className="equip-group" key={category}>
           <h3>{CAT_LABELS[category]}</h3>
           <div className="chip-grid">
-            {catalog.items.filter((item) => item.category === category).map((item) => {
-              const picked = character.itemIds.includes(item.id)
+            {catalog.equipment.filter((eq) => eq.category === category).map((eq) => {
+              const picked = character.equipmentIds.includes(eq.id)
 
               return (
                 <button
                   type="button"
                   className={`chip chip-wide${picked ? ' is-chosen' : ''}`}
-                  key={item.id}
+                  key={eq.id}
                   aria-pressed={picked}
-                  title={item.desc}
-                  onClick={() => onChange(toggleItem(character, item.id))}
+                  title={eq.desc}
+                  onClick={() => onChange(toggleEquipment(character, eq.id))}
                 >
-                  {item.name}
+                  {eq.name}
                 </button>
               )
             })}
