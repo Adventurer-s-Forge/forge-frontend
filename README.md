@@ -57,7 +57,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credential=True,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 ```
@@ -65,6 +65,63 @@ app.add_middleware(
 ### 5. Run
 ```sh
 npm run dev
+```
+
+## Character Persistence
+
+Game content is read anonymously. Characters are per-user and require authentication.
+
+> **Status:** not yet implemented backend-side. `POST /characters` currently accepts only
+> `{character_name, user_name}`, `PUT /characters/{id}` and `DELETE /characters/{id}` do not exist,
+> and the API requires an `X-User-Id` header rather than the bearer token the client sends.
+> The client code below is in plkace and will work once the routes match.
+
+### Endpoints
+
+| Method | Path | Used by |
+|--------|------|---------|
+| `GET`  | `/characters` | Dashboard, on load |
+| `POST` | `/characters` | First save of a new character -- the Name step |
+| `PUT`  | `/characters/{id}` | Every later step, full replace |
+| `DELETE` | `/characters/{id}` | The delete button on a character card |
+
+### Lifecycle
+
+The wizard saves on every `Continue`, so partial progress survives a refresh and the dashboard
+can show which step a character is on. One character **1 POST + up to 7 PUTs**.
+
+1. **Name step** -- `POST /characters` with the full payload. The **client** generates the `id` (`crypto.randomUUID()`),
+so a retried POST is safe; the server should `409` on a collision rather than mint a second record.
+2. **Every later step** -- `PUT /characters/{id}` with the full payload again.
+3. There are no per-step routes. Steps cascade: changing class prunes skills and spells, changing background also clears the
+ability allocation. The client computes the whole consistent document and replaces it, so the server never has to re-drive the rules.
+
+Drafts are saved incomplete. At the Name step `classId` is `null` and `abilities.base` is `{}`. The server valdiates shape,
+not completeness -- rule validation lives in `src/characters/progress.ts`
+
+### Payload
+
+`src/characters/storage.ts` sends an explicit allow-list, because the server uses `extra="forbid"`:
+
+```json
+{
+  "id": "0f8c1a7e-3d52-4b91-a7c8-6e2f91b40d35",
+  "name": "Gandalf",
+  "level": 1,
+  "raceId": "srd-2024_gnome",
+  "classId": "srd-2024_wizard",
+  "backgroundId": "srd-2024_sage",
+  "abilities": {
+    "method": "standard",
+    "base": { "STR": 10, "DEX": 12, "CON": 14, "INT": 15, "WIS": 13, "CHA": 8 },
+    "rolled": [],
+    "originBonuses": { "INT": 2, "CON": 1 }
+  },
+  "proficientSkillIds": ["arcana", "history"],
+  "spellIds": ["srd-2024_fire-bolt", "srd-2024_shield"],
+  "equipmentIds": ["srd-2024_quarterstaff"],
+  "completedSteps": ["name", "race", "class", "background", "attributes", "skills", "spells", "equipment"]
+}
 ```
 
 ## Scripts
