@@ -1,7 +1,7 @@
 import { STEPS } from './character'
 import type { Ability, AbilityMethod, AbilityScores, Character, StepId } from './character'
 import { ABILITIES, ABILITY_CAP, finalScores, originSpreadValid, POINT_BUY_BUDGET, POINT_BUY_MIN, pointBuySpent, STD_ARR } from './abilities'
-import { classSkillOptions, getBg, getClass, getRace, spellBudget, spellOptions } from '../data/catalog'
+import { classSkillOptions, getBg, getClass, getRace, spellBudget, spellOptions, type Size } from '../data/catalog'
 
 function sameValues(a: readonly number[], b: readonly number[]): boolean {
   if (a.length !== b.length) return false
@@ -104,7 +104,11 @@ export function completeStep(c: Character, step: StepId): Character {
 }
 
 export function setRace(c: Character, raceId: string): Character {
-  return raceId === c.raceId ? c : { ...c, raceId }
+  return raceId === c.raceId ? c : { ...c, raceId, sizeChoice: null }
+}
+
+export function setSizeChoice(c: Character, sizeChoice: Size): Character {
+  return { ...c, abilities: c.abilities, sizeChoice }
 }
 
 function keepOfferedSkills(c: Character): Character {

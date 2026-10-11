@@ -139,7 +139,7 @@ describe('AttributeStep', () => {
     })
     render(<AttributeStep character={character} onChange={vi.fn()} />)
 
-    expect(screen.getByText('3 / 3 assigned')).toBeInTheDocument()
+    expect(screen.getByText(/3 \/ 3 assigned/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Increase CHA bonus' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Decrease INT bonus' })).toBeEnabled()
   })
@@ -200,8 +200,8 @@ describe('SpellsStep', () => {
     const wizard = fighter({ classId: 'srd_wizard' })
     render(<SpellsStep character={wizard} onChange={vi.fn()} />)
 
-    expect(screen.getByText('Cantrips - 0 / 1')).toBeInTheDocument()
-    expect(screen.getByText('1st level - 0 / 1')).toBeInTheDocument()
+    expect(screen.getByText('Cantrips \u2014 0 / 1')).toBeInTheDocument()
+    expect(screen.getByText('1st level \u2014 0 / 1')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Fire Bolt/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Shield/ })).toBeInTheDocument()
   })

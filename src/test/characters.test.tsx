@@ -60,14 +60,14 @@ function finishedFighter(): Character {
 beforeAll(() => {
   seedCatalog({
     races: [
-      { id: 'srd_half-orc', name: 'Half-Orc', size: 'Medium', speed: 30 },
-      { id: 'srd_half-elf', name: 'Half-Elf', size: 'Medium', speed: 30 },
+      { id: 'srd_half-orc', name: 'Half-Orc', sizes: ['Medium', 'Small'], speed: 30 },
+      { id: 'srd_half-elf', name: 'Half-Elf', sizes: ['Medium'], speed: 30 },
     ],
     classes: [
       { id: 'srd_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
-        skillChoices: CLASS_SKILL_CHOICES.srd_fighter, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 } },
+        skillChoices: CLASS_SKILL_CHOICES.fighter, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0 },
       { id: 'srd_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
-        skillChoices: CLASS_SKILL_CHOICES.srd_wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 } },
+        skillChoices: CLASS_SKILL_CHOICES.wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2 },
     ],
     backgrounds: [
       { id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],

@@ -1,3 +1,5 @@
+import type { Size } from "../data/catalog"
+
 export type Ability = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA'
 export type AbilityScores = Record<Ability, number>
 export type AbilityMethod = 'standard' | 'pointbuy' | 'roll'
@@ -20,6 +22,7 @@ export type Character = {
   name: string
   level: number
   raceId: string | null
+  sizeChoice: Size | null
   classId: string | null
   backgroundId: string | null
   abilities: {
@@ -43,6 +46,7 @@ export function createDraft(): Character {
     name: '',
     level: 1,
     raceId: null,
+    sizeChoice: null,
     classId: null,
     backgroundId: null,
     abilities: { method: null, base: {}, rolled: [], originBonuses: {} },

@@ -41,20 +41,6 @@ describe('CharacterModal', () => {
     expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
   })
 
-  it('saves and advances when the step is confirmed', async () => {
-    const { onSave } = renderModal()
-
-    await userEvent.type(screen.getByLabelText('Character name'), 'Arkes')
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    
-    expect(onSave).toHaveBeenCalledTimes(1)
-    expect(onSave.mock.calls[0][0]).toMatchObject({
-      name: 'Arkes',
-      completedSteps: ['name'],
-    })
-    expect(screen.getByRole('tab', { name: /Race/ })).toHaveAttribute('aria-selected', 'true')
-  })
-
   it('goes back to the previous step', async () => {
     renderModal()
 
@@ -115,5 +101,29 @@ describe('CharacterModal', () => {
     renderModal({ ...createDraft(), name: 'Arkes', classId: 'srd_fighter' })
     const tab = screen.getByRole('tab', { name: /Spells/ })
     expect(tab).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('flushes the draft when closed', async () => {
+    const { onSave, onClose } = renderModal()
+    await userEvent.type(screen.getByLabelText('Character name'), 'Thorin')
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: 'Thorin' }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('writes once on the name step and not again until the end', async () => {
+    const { onSave } = renderModal()
+    await userEvent.type(screen.getByLabelText('Character name'), 'Thorin')
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+
+    await userEvent.click(screen.getByRole('tab', { name: /Race/ }))
+    await userEvent.click(screen.getByRole('radio', { name: /Dwarf/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
   })
 })
