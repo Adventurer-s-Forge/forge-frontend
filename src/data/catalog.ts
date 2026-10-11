@@ -6,10 +6,13 @@ export type { Skill }
 
 export type CasterType = 'NONE' | 'FULL' | 'HALF' | 'PACT'
 
+export const SIZES = ['Small', 'Medium']  as const
+export type Size = (typeof SIZES)[number]
+
 export type Race = {
   id: string
   name: string
-  size: 'Small' | 'Medium'
+  sizes: Size[]
   speed: number
 }
 
@@ -22,6 +25,7 @@ export type CharacterClass = {
   skillChoices: { count: number; from: string[] | 'any' }
   casterType: CasterType
   spellCounts: { cantrips: number; prepared: number }
+  spellSlots: number
 }
 
 export type Background = {
@@ -37,6 +41,7 @@ export type Equipment = {
   name: string
   category: 'weapon' | 'armor' | 'gear'
   desc: string
+  armor?: { base: number; addDex: boolean; capDex: number | null }
 }
 
 export type Spell = {
