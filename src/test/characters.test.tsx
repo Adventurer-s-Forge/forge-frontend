@@ -40,9 +40,9 @@ function dice(...faces: number[]) {
 }
 
 function finishedFighter(): Character {
-  let c: Character = { ...createDraft(), name: 'Arkes', backgroundId: 'srd_acolyte'}
-  c = setRace(c, 'srd_half-orc')
-  c = setClass(c, 'srd_fighter')
+  let c: Character = { ...createDraft(), name: 'Arkes', backgroundId: 'srd-2024_acolyte'}
+  c = setRace(c, 'srd-2024_dwarf')
+  c = setClass(c, 'srd-2024_fighter')
   c = {
     ...c,
     abilities: {
@@ -60,25 +60,25 @@ function finishedFighter(): Character {
 beforeAll(() => {
   seedCatalog({
     races: [
-      { id: 'srd_half-orc', name: 'Half-Orc', sizes: ['Medium', 'Small'], speed: 30 },
-      { id: 'srd_half-elf', name: 'Half-Elf', sizes: ['Medium'], speed: 30 },
+      { id: 'srd-2024_human', name: 'Human', sizes: ['Medium', 'Small'], speed: 30 },
+      { id: 'srd-2024_dwarf', name: 'Dwarf', sizes: ['Medium'], speed: 30 },
     ],
     classes: [
-      { id: 'srd_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
+      { id: 'srd-2024_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
         skillChoices: CLASS_SKILL_CHOICES.fighter, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0 },
-      { id: 'srd_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
+      { id: 'srd-2024_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
         skillChoices: CLASS_SKILL_CHOICES.wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2 },
     ],
     backgrounds: [
-      { id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
+      { id: 'srd-2024_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
         abilityOptions: ['INT', 'WIS', 'CHA'] },
-      { id: 'srd_sage', name: 'Sage', skillIds: ['arcana', 'history'], initiateClassNames: ['Wizard'],
+      { id: 'srd-2024_sage', name: 'Sage', skillIds: ['arcana', 'history'], initiateClassNames: ['Wizard'],
         abilityOptions: ['CON', 'INT', 'WIS'] },
     ],
     spells: [
-      { id: 'srd_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd_wizard'],
+      { id: 'srd-2024_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd-2024_wizard'],
         desc: '', concentration: false, ritual: false, castingTime: '', range: '', duration: '' },
-      { id: 'srd_shield', name: 'Shield', level: 1, school: 'Abjuration', classIds: ['srd_wizard'],
+      { id: 'srd-2024_shield', name: 'Shield', level: 1, school: 'Abjuration', classIds: ['srd-2024_wizard'],
         desc: '', concentration: false, ritual: false, castingTime: '', range: '', duration: '' },
     ],
     equipment: [],
@@ -136,7 +136,7 @@ describe('character progress', () => {
   })
 
   it('resumes at the first step that was never confirmed', () => {
-    const c = completeStep({ ...createDraft(), name: 'Arkes', raceId: 'srd_half-orc' }, 'name')
+    const c = completeStep({ ...createDraft(), name: 'Arkes', raceId: 'srd-2024_dwarf' }, 'name')
     expect(firstIncompleteStep(c)).toBe('race')
   })
 
@@ -145,13 +145,13 @@ describe('character progress', () => {
   })
 
   it('reopens skills when a class change invalidates them', () => {
-    const c = setClass(finishedFighter(), 'srd_wizard')
+    const c = setClass(finishedFighter(), 'srd-2024_wizard')
     expect(c.proficientSkillIds).toEqual([])
     expect(firstIncompleteStep(c)).toBe('skills')
   })
 
   it('reopens attributes when the background changes', () => {
-    const c = setBackground(finishedFighter(), 'srd_sage')
+    const c = setBackground(finishedFighter(), 'srd-2024_sage')
     expect(c.abilities.originBonuses).toEqual({})
     expect(firstIncompleteStep(c)).toBe('attributes')
   })
@@ -219,16 +219,16 @@ describe('character mutations', () => {
   })
 
   it('toggle itemss with no cap', () => {
-    let c = toggleEquipment(createDraft(), 'srd_dagger')
-    c = toggleEquipment(c, 'srd_rope')
+    let c = toggleEquipment(createDraft(), 'srd-2024_dagger')
+    c = toggleEquipment(c, 'srd-2024_rope')
 
-    expect(c.equipmentIds).toEqual(['srd_dagger', 'srd_rope'])
-    expect(toggleEquipment(c, 'srd_dagger').equipmentIds).toEqual(['srd_rope'])
+    expect(c.equipmentIds).toEqual(['srd-2024_dagger', 'srd-2024_rope'])
+    expect(toggleEquipment(c, 'srd-2024_dagger').equipmentIds).toEqual(['srd-2024_rope'])
   })
 
   it('clears the origin allocation when the background changes', () => {
-    const chosen = setOriginBonuses({ ...createDraft(), backgroundId: 'srd_acolyte' }, { INT: 2, WIS: 1})
-    expect(setBackground(chosen, 'srd_sage').abilities.originBonuses).toEqual({})
+    const chosen = setOriginBonuses({ ...createDraft(), backgroundId: 'srd-2024_acolyte' }, { INT: 2, WIS: 1})
+    expect(setBackground(chosen, 'srd-2024_sage').abilities.originBonuses).toEqual({})
   })
 
   it('unlocks a step only once every earlier step is confirmed', () => {
@@ -244,20 +244,20 @@ describe('character mutations', () => {
   })
 
   it('skips the spells step for a non-caster', () => {
-    const c = setClass(createDraft(), 'srd_fighter')
+    const c = setClass(createDraft(), 'srd-2024_fighter')
     expect(isStepApplicable('spells', c)).toBe(false)
   })
 
   it('offers the spells step to a caster', () => {
-    const c = setClass(createDraft(), 'srd_wizard')
+    const c = setClass(createDraft(), 'srd-2024_wizard')
     expect(isStepApplicable('spells', c)).toBe(true)
     expect(nextStep(c, 'skills')).toBe('spells')
   })
 
   it('drops spells the new class cannot cast', () => {
-    let c = setClass(createDraft(), 'srd_wizard')
-    c = toggleSpell(c, 'srd_fire-bolt')
-    expect(setClass(c, 'srd_fighter').spellIds).toEqual([])
+    let c = setClass(createDraft(), 'srd-2024_wizard')
+    c = toggleSpell(c, 'srd-2024_fire-bolt')
+    expect(setClass(c, 'srd-2024_fighter').spellIds).toEqual([])
   })
 
   it('deletes by id', async () => {

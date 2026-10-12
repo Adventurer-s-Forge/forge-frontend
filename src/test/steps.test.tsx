@@ -21,9 +21,9 @@ function fighter(overrides: Partial<Character> = {}): Character {
   return {
     ...createDraft(),
     name: 'Arkes',
-    raceId: 'srd_half-orc',
-    classId: 'srd_fighter',
-    backgroundId: 'srd_acolyte',
+    raceId: 'srd-2024_human',
+    classId: 'srd-2024_fighter',
+    backgroundId: 'srd-2024_acolyte',
     ...overrides,
   }
 }
@@ -44,7 +44,7 @@ describe('RaceStep', () => {
     render(<RaceStep character={createDraft()} onChange={vi.fn()} />)
 
     expect(screen.getAllByRole('radio')).toHaveLength(2)
-    const halfOrc = screen.getByRole('radio', { name: /Half-Orc/ })
+    const halfOrc = screen.getByRole('radio', { name: /Human/ })
     expect(halfOrc).toHaveTextContent('Medium')
     expect(halfOrc).toHaveTextContent('30 ft')
   })
@@ -53,17 +53,17 @@ describe('RaceStep', () => {
     const onChange = vi.fn()
     render(<RaceStep character={createDraft()} onChange={onChange} />)
 
-    await userEvent.click(screen.getByRole('radio', { name: /Half-Elf/ }))
+    await userEvent.click(screen.getByRole('radio', { name: /Dwarf/ }))
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ raceId: 'srd_half-elf' }),
+      expect.objectContaining({ raceId: 'srd-2024_dwarf' }),
     )
   })
 
   it('marks the chosen race as checked', () => {
     render(<RaceStep character={fighter()} onChange={vi.fn()} />)
 
-    expect(screen.getByRole('radio', { name: /Half-Orc/ })).toHaveAttribute(
+    expect(screen.getByRole('radio', { name: /Human/ })).toHaveAttribute(
       'aria-checked',
       'true',
     )
@@ -80,7 +80,7 @@ describe('ClassStep', () => {
     await userEvent.click(screen.getByRole('radio', { name: /Wizard/ }))
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ classId: 'srd_wizard' })
+      expect.objectContaining({ classId: 'srd-2024_wizard' })
     )
   })
 })
@@ -95,7 +95,7 @@ describe('BackgroundStep', () => {
     await userEvent.click(screen.getByRole('radio', { name: /Acolyte/ }))
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ backgroundId: 'srd_acolyte' })
+      expect.objectContaining({ backgroundId: 'srd-2024_acolyte' })
     )
   })
 })
@@ -157,7 +157,7 @@ describe('SkillStep', () => {
     const character = fighter({ proficientSkillIds: ['perception', 'survival'] })
     render(<SkillsStep character={character} onChange={vi.fn()} />)
 
-    expect(screen.getByText('2 / 2 chosen')).toBeInTheDocument()
+    expect(screen.getByText(/choose 2 \u2014 2 \/ 2/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Athletics/ })).toBeDisabled()
     expect(screen.getByRole('button', { name: /Perception/ })).toBeEnabled()
   })
@@ -185,7 +185,7 @@ describe('EquipmentStep', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Longsword' }))
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ equipmentIds: ['srd_longsword'] }),
+      expect.objectContaining({ equipmentIds: ['srd-2024_longsword'] }),
     )
   })
 })
@@ -197,7 +197,7 @@ describe('SpellsStep', () => {
   })
 
   it('splits cantrips from levelled spells', () => {
-    const wizard = fighter({ classId: 'srd_wizard' })
+    const wizard = fighter({ classId: 'srd-2024_wizard' })
     render(<SpellsStep character={wizard} onChange={vi.fn()} />)
 
     expect(screen.getByText('Cantrips \u2014 0 / 1')).toBeInTheDocument()
@@ -208,10 +208,10 @@ describe('SpellsStep', () => {
 
   it('reports the chosen spell', async () => {
     const onChange = vi.fn()
-    render(<SpellsStep character={fighter({ classId: 'srd_wizard' })} onChange={onChange} />)
+    render(<SpellsStep character={fighter({ classId: 'srd-2024_wizard' })} onChange={onChange} />)
 
     await userEvent.click(screen.getByRole('button', { name: /Fire Bolt/ }))
 
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ spellIds: ['srd_fire-bolt'] }))
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ spellIds: ['srd-2024_fire-bolt'] }))
   })
 })

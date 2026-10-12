@@ -60,7 +60,7 @@ describe('CharacterModal', () => {
     const resumed: Character = {
       ...createDraft(),
       name: 'Arkes',
-      raceId: 'srd_half-orc',
+      raceId: 'srd-2024_human',
       completedSteps: ['name'],
     }
     renderModal(resumed)
@@ -98,18 +98,22 @@ describe('CharacterModal', () => {
   })
 
   it('grays out the spells tab for a non-caster', () => {
-    renderModal({ ...createDraft(), name: 'Arkes', classId: 'srd_fighter' })
+    renderModal({ ...createDraft(), name: 'Arkes', classId: 'srd-2024_fighter' })
     const tab = screen.getByRole('tab', { name: /Spells/ })
     expect(tab).toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('flushes the draft when closed', async () => {
+  it('offers to save when closed with unsaved steps', async () => {
     const { onSave, onClose } = renderModal()
     await userEvent.type(screen.getByLabelText('Character name'), 'Thorin')
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
 
-    expect(onSave).toHaveBeenCalledTimes(1)
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: 'Thorin' }))
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save and close' }))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: 'Thorin'}))
     expect(onClose).toHaveBeenCalled()
   })
 
@@ -125,5 +129,15 @@ describe('CharacterModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
 
     expect(onSave).toHaveBeenCalledTimes(1)
+  })
+
+  it('discards without saving when asked to', async () => {
+    const { onSave, onClose } = renderModal()
+    await userEvent.type(screen.getByLabelText('Character name'), 'Thorin')
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
+
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
   })
 })
