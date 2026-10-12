@@ -12,6 +12,7 @@ import {
   rollAbilityPool,
 } from "../../characters/abilities";
 import {
+  isStepApplicable,
   setAbilityMethod,
   setAbilityScore,
   setBackground,
@@ -36,7 +37,7 @@ import {
   spellBudget,
   spellOptions,
 } from "../../data/catalog";
-import { abilityRows, derived, spellDerived } from "./sheets";
+import { abilityRows, armorStealthDisadvantage, derived, skillRows, spellDerived } from "./sheets";
 
 export type StepProps = {
   character: Character
@@ -391,38 +392,127 @@ export function SkillsStep({ character, onChange }: StepProps) {
   const max = cls.skillChoices.count
   const full = character.proficientSkillIds.length >= max
 
+  const granted = background?.skillIds ?? []
+  const rows = skillRows(character)
+  const d = derived(character)
+  const stealthArmor = armorStealthDisadvantage(character)
+  const proficientCount = rows.filter((row) => row.source !== null).length
+
   return (
-    <div className="step">
-      <p className="step-hint">
-        Choose {max} from {cls.name}.{' '}
-        {background &&
-          `${background.name} already grants ${background.skillIds.map((id) => getSkill(id)?.name).join(' and ')}.`}
-      </p>
+    <div className="step step-split">
+      <div className="step-main">
+        <fieldset className="origin-choice">
+          <legend>
+            {cls.name} &mdash; choose {max} &mdash; {character.proficientSkillIds.length} / {max}
+          </legend>
+          <div className="chip-grid">
+            {options.map((id) => {
+              const skill = getSkill(id)
+              const picked = character.proficientSkillIds.includes(id)
 
-      <div className="chip-grid">
-        {options.map((id) => {
-          const skill = getSkill(id)
-          const picked = character.proficientSkillIds.includes(id)
+              return (
+                <button
+                  type="button"
+                  className={`chip chip-wide${picked ? ' is-chosen' : ''}`}
+                  key={id}
+                  aria-pressed={picked}
+                  disabled={!picked && full}
+                  onClick={() => onChange(toggleSkill(character, id, max))}
+                >
+                  {skill?.name}
+                  <span className="chip-meta">{skill?.ability}</span>
+                </button>
+              )
+            })}
+          </div>
+          {full && <p className="step-hint">Full. Deselect one to swap.</p>}
+        </fieldset>
 
-          return (
-            <button
-              type="button"
-              className={`chip chip-wide${picked ? ' is-chosen' : ''}`}
-              key={id}
-              aria-pressed={picked}
-              disabled={!picked && full}
-              onClick={() => onChange(toggleSkill(character, id, max))}
-            >
-              {skill?.name}
-              <span className="chip-meta">{skill?.ability}</span>
-            </button>
-          )
-        })}
+        {granted.length > 0 && background && (
+          <fieldset className="origin-choice">
+            <legend>Granted &mdash; not choosable</legend>
+            <div className="chip-grid">
+              {granted.map((id) => (
+                <span className="chip chip-wide is-locked" key={id}>
+                  {getSkill(id)?.name}
+                </span>
+              ))}
+            </div>
+            <p className="step-hint">
+              Already granted by {background.name}, so they are removed from {cls.name} picks above and no choice is wasted.
+            </p>
+          </fieldset>
+        )}
+
+        <fieldset className="origin-choice">
+          <legend>Where proficiencies come from</legend>
+          <dl className="source-list">
+            <dt>Race &middot; {getRace(character.raceId)?.name ?? '\u2014'}</dt>
+            <dd>none</dd>
+            <dt>Class &middot; {cls.name}</dt>
+            <dd>{max} of {options.length} &middot; player picks</dd>
+            <dt>Background &middot; {background?.name ?? '\u2014'}</dt>
+            <dd>
+              {granted.length >0
+                ? `${granted.map((id) => getSkill(id)?.name).join(', ')} \u00b7 fixed`
+                : 'none'}
+            </dd>
+          </dl>
+          <p className="step-hint">
+            Changing class or background on an earlier step clears the {cls.name} picks and re-asks.
+          </p>
+        </fieldset>
       </div>
 
-      <p className="budget">
-        {character.proficientSkillIds.length} / {max} chosen
-      </p>
+      <aside className="derived-panel">
+        <p className="derived-title">Calculated for you</p>
+        <p className="derived-intro">
+          Skill bonus = ability modifier, plus {formatModifier(d.proficiencyBonus)} proficiency if proficient. Nothing here is stored.
+        </p>
+
+        <table className="ability-table skill-table">
+          <thead>
+            <tr>
+              <th scope="col">Skill</th>
+              <th scope="col">Abilit</th>
+              <th scope="col">Proficient via</th>
+              <th scope="col">Math</th>
+              <th scope="col">Bonus</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className={row.source ? 'is-proficient' : undefined}>
+                <th scope="row">{row.name}</th>
+                <td>{row.ability}</td>
+                <td className="is-origin">{row.source?.label ?? '\u2014'}</td>
+                <td className="is-math">
+                  {row.math}
+                  {row.stealthDisadvantage && <span className="is-warn"> &middot; disadv.</span>}
+                </td>
+                <td className="is-mod">{row.bonus === undefined ? '\u2014' : formatModifier(row.bonus)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="derived-grid">
+          <DerivedCard
+            source="Perception"
+            label="Passive Perception"
+            value={d.passivePerception}
+            note={d.passivePerception === undefined ? undefined : `10 + ${d.passivePerception - 10}`}
+          />
+          {stealthArmor && (
+            <DerivedCard source="Equipment" label="Stealth checks" value="Disadv." note={stealthArmor} />
+          )}
+        </div>
+
+        <p className="budget">
+          {proficientCount} proficient skills
+          {!isStepApplicable('spells', character) && ` \u00b7 Spells skipped for ${cls.name}`}
+        </p>
+      </aside>
     </div>
   )
 }

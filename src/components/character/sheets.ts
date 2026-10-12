@@ -1,5 +1,5 @@
 import type { Ability, Character } from "../../characters/character";
-import { ABILITIES, abilityModifier, finalScores, proficiencyBonus } from "../../characters/abilities";
+import { ABILITIES, abilityModifier, finalScores, formatModifier, proficiencyBonus } from "../../characters/abilities";
 import { catalog, getBg, getClass, getRace, getSkill } from "../../data/catalog";
 import { SPELLCASTING_ABILITY, classKey } from "../../data/classRules";
 
@@ -9,6 +9,17 @@ export type AbilityRow = {
   origin: number
   total?: number
   modifier?: number
+}
+
+export type SkillRow = {
+  id: string
+  name: string
+  ability: Ability
+  source: SkillSource
+  abilityMod?: number
+  bonus?: number
+  math: string
+  stealthDisadvantage: boolean
 }
 
 export function abilityRows(c: Character): AbilityRow[] {
@@ -25,10 +36,23 @@ export function abilityRows(c: Character): AbilityRow[] {
   })
 }
 
-export function isSkillProficient(c: Character, skillId: string): boolean {
-  const granted = getBg(c.backgroundId)?.skillIds ?? []
-  return c.proficientSkillIds.includes(skillId) || granted.includes(skillId)
+/** Skills Section */
+
+export type SkillSource = { kind: 'pick' | 'background'; label: string } | null
+
+export function skillSource(c: Character, skillId: string): SkillSource {
+  if (c.proficientSkillIds.includes(skillId)) {
+    return { kind: 'pick', label: `${getClass(c.classId)?.name ?? 'Class'} pick`}
+  }
+  const background = getBg(c.backgroundId)
+  if (background?.skillIds.includes(skillId)) {
+    return { kind: 'background', label: background.name }
+  }
+  return null
 }
+
+export const isSkillProficient = (c: Character, skillId: string) =>
+  skillSource(c, skillId) !== null
 
 export function skillModifier(c: Character, skillId: string): number | undefined {
   const skill = getSkill(skillId)
@@ -36,6 +60,45 @@ export function skillModifier(c: Character, skillId: string): number | undefined
   const score = finalScores(c.abilities.base, c.abilities.originBonuses)[skill.ability]
   if (score === undefined) return undefined
   return abilityModifier(score) + (isSkillProficient(c, skillId) ? proficiencyBonus(c.level) : 0)
+}
+
+export function skillRows(c: Character): SkillRow[] {
+  const totals = finalScores(c.abilities.base, c.abilities.originBonuses)
+  const pb = proficiencyBonus(c.level)
+  const stealthPenalty = armorStealthDisadvantage(c)
+
+  return catalog.skills.map((skill) => {
+    const score = totals[skill.ability]
+    const source = skillSource(c, skill.id)
+    const abilityMod = score === undefined ? undefined : abilityModifier(score)
+    const bonus = abilityMod === undefined ? undefined : abilityMod + (source ? pb: 0)
+
+    const math =
+      abilityMod === undefined
+        ? '\u2014'
+        : source
+          ? `${formatModifier(abilityMod)} ${formatModifier(pb)}`
+          : formatModifier(abilityMod)
+
+    return {
+      id: skill.id,
+      name: skill.name,
+      ability: skill.ability,
+      source,
+      abilityMod,
+      bonus,
+      math,
+      stealthDisadvantage: skill.id === 'stealth' && stealthPenalty !== null,
+    }
+  })
+}
+
+export function armorStealthDisadvantage(c: Character): string | null {
+  for (const id of c.equipmentIds) {
+    const item = catalog.equipment.find((eq) => eq.id === id)
+    if (item?.armor?.stealthDisadvantage) return item.name
+  }
+  return null
 }
 
 /** Armor sets a base Armor Class (AC) rating and a shield adds to it. */
@@ -102,6 +165,8 @@ export function derived(c: Character): Derived {
     }),
   }
 }
+
+/** Spells */
 
 function spellcastingAbility(c: Character): Ability | undefined {
   const cls = getClass(c.classId)

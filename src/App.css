@@ -1220,6 +1220,13 @@
   color: var(--muted);
 }
 
+.chip.is-locked {
+  cursor: default;
+  color: var(--ink);
+  background: var(--brass-soft);
+  border-color: var(--brass-line);
+}
+
 .equip-group {
   display: flex;
   flex-direction: column;
@@ -1260,6 +1267,10 @@
   flex-wrap: wrap;
   gap: 20px;
   align-items: flex-start;
+}
+
+.step-split > .derived-panel {
+  flex: 999 1 520px;
 }
 
 .step-main {
@@ -1453,4 +1464,49 @@
   .derived-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Skill Step */
+
+.skill-table thead th:nth-child(2),
+.skill-table tbody td:nth-child(2) {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.skill-table .is-math {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.skill-table tbody tr.is-proficient th,
+.skill-table tbody tr.is-proficient .is-mod {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.skill-table .is-warn {
+  color: var(--oxblood);
+}
+
+.source-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.source-list dt {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+;
+.source-list dd {
+  margin: 0;
+  color: var(--ink-2);
 }

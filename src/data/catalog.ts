@@ -41,7 +41,7 @@ export type Equipment = {
   name: string
   category: 'weapon' | 'armor' | 'gear'
   desc: string
-  armor?: { base: number; addDex: boolean; capDex: number | null }
+  armor?: { base: number; addDex: boolean; capDex: number | null; stealthDisadvantage: boolean }
 }
 
 export type Spell = {

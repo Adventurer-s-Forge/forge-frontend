@@ -44,7 +44,7 @@ export type RawEquipment = {
   category: { key: string; name: string }
   desc: string
   weapon: { damage_dice?: string; damage_type?: { name: string } | null; is_martial?: boolean } | null
-  armor: { ac_base?: number; ac_add_dexmod?: boolean; ac_cap_dexmod?: number | null } | null
+  armor: { ac_base?: number; ac_add_dexmod?: boolean; ac_cap_dexmod?: number | null; grants_stealth_disadvantage?: boolean } | null
 }
 
 const ABILITY_BY_NAME: Record<string, Ability> = {
@@ -157,7 +157,12 @@ export function toEquipment(record: Envelope<RawEquipment>): Equipment {
     armor:
       armor?.ac_base === undefined
         ? undefined
-        : { base: armor.ac_base, addDex: armor.ac_add_dexmod ?? false, capDex: armor.ac_cap_dexmod ?? null }
+        : {
+          base: armor.ac_base,
+          addDex: armor.ac_add_dexmod ?? false,
+          capDex: armor.ac_cap_dexmod ?? null,
+          stealthDisadvantage: armor.grants_stealth_disadvantage ?? false,
+        }
   }
 }
 
