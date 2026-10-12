@@ -38,6 +38,7 @@ import {
   spellOptions,
 } from "../../data/catalog";
 import { abilityRows, armorStealthDisadvantage, derived, skillRows, spellDerived } from "./sheets";
+import { FiCheck } from "react-icons/fi";
 
 export type StepProps = {
   character: Character
@@ -474,8 +475,8 @@ export function SkillsStep({ character, onChange }: StepProps) {
           <thead>
             <tr>
               <th scope="col">Skill</th>
-              <th scope="col">Abilit</th>
-              <th scope="col">Proficient via</th>
+              <th scope="col">Ability</th>
+              <th scope="col">Proficient</th>
               <th scope="col">Math</th>
               <th scope="col">Bonus</th>
             </tr>
@@ -485,7 +486,13 @@ export function SkillsStep({ character, onChange }: StepProps) {
               <tr key={row.id} className={row.source ? 'is-proficient' : undefined}>
                 <th scope="row">{row.name}</th>
                 <td>{row.ability}</td>
-                <td className="is-origin">{row.source?.label ?? '\u2014'}</td>
+                <td className="is-origin">
+                  {row.source ? (
+                    <FiCheck size={18} strokeWidth={3} role="img" aria-label={`Proficient via ${row.source.label}`} />
+                  ) : (
+                    <span aria-hidden="true">&mdash;</span>
+                  )}
+                </td>
                 <td className="is-math">
                   {row.math}
                   {row.stealthDisadvantage && <span className="is-warn"> &middot; disadv.</span>}

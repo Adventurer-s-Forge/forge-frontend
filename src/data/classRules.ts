@@ -1,13 +1,13 @@
 import type { Ability } from "../characters/character";
 
-export const classKey = (id: string) => id.replace(/^[^_]*/, '')
+export const classKey = (id: string) => id.replace(/^[^_]*_/, '')
 
 export const CLASS_SKILL_CHOICES: Record<string, { count: number; from: string[] | 'any' }> = {
   barbarian: { count: 2, from: ['animal-handling', 'athletics', 'intimidation', 'nature', 'perception', 'survival'] },
   bard: { count: 3, from: 'any' },
   cleric: { count: 2, from: ['history', 'insight', 'medicine', 'persuasion', 'religion'] },
   druid: { count: 2, from: ['arcana', 'animal-handling', 'insight', 'medicine', 'nature', 'perception', 'religion', 'survival'] },
-  fighter: { count: 2, from: ['acrobatics', 'animal-handing', 'athletics', 'history', 'insight', 'intimidation', 'perception', 'survival'] },
+  fighter: { count: 2, from: ['acrobatics', 'animal-handling', 'athletics', 'history', 'insight', 'intimidation', 'perception', 'survival'] },
   monk: { count: 2, from: ['acrobatics', 'athletics', 'history', 'insight', 'religion', 'stealth'] },
   paladin: { count: 2, from: ['athletics', 'insight', 'intimidation', 'medicine', 'persuasion', 'religion'] },
   ranger: { count: 3, from: ['animal-handling', 'athletics', 'insight', 'investigation', 'nature', 'perception', 'stealth', 'survival'] },
