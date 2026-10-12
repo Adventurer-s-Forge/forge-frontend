@@ -26,6 +26,7 @@ export type CharacterClass = {
   casterType: CasterType
   spellCounts: { cantrips: number; prepared: number }
   spellSlots: number
+  startingEquipment: EquipmentOption[]
 }
 
 export type Background = {
@@ -34,6 +35,7 @@ export type Background = {
   skillIds: string[]
   initiateClassNames: string[]
   abilityOptions: Ability[]
+  startingEquipment: EquipmentOption[]
 }
 
 export type Equipment = {
@@ -41,6 +43,7 @@ export type Equipment = {
   name: string
   category: 'weapon' | 'armor' | 'gear'
   desc: string
+  costCp: number
   armor?: { base: number; addDex: boolean; capDex: number | null; stealthDisadvantage: boolean }
 }
 
@@ -67,6 +70,20 @@ export type Catalog = {
   equipment: Equipment[]
 }
 
+export type EquipmentGrant = {
+  text: string
+  quantity: number
+  itemId: string | null
+  choosableFrom: string | null
+}
+
+export type EquipmentOption = {
+  key: string
+  label: string
+  grants: EquipmentGrant[]
+  goldCp: number
+}
+
 export const catalog: Catalog = {
   skills: SKILLS,
   races: [],
@@ -89,6 +106,7 @@ export const getClass = (id: string | null) => catalog.classes.find((cls) => cls
 export const getBg = (id: string | null) => catalog.backgrounds.find((bg) => bg.id === id)
 export const getSkill = (id: string) => catalog.skills.find((skill) => skill.id === id)
 export const getSpell = (id: string) => catalog.spells.find((spell) => spell.id === id)
+export const purchaseableEquipment = () => catalog.equipment.filter((eq) => eq.costCp > 0)
 
 export function classSkillOptions(cls: CharacterClass, background: Background | undefined): string[] {
   const pool = cls.skillChoices.from === 'any' ? catalog.skills.map((skill) => skill.id) : cls.skillChoices.from

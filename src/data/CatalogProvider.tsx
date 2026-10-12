@@ -34,12 +34,14 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        const equipmentList = equipments.map(toEquipment)
+
         seedCatalog({
           races: races.map(toRace),
-          classes: classes.filter(isBaseClass).map(toClass),
-          backgrounds: backgrounds.map(toBackground),
+          classes: classes.filter(isBaseClass).map((c) => toClass(c, equipmentList)),
+          backgrounds: backgrounds.map((b) => toBackground(b, equipmentList)),
           spells: spells.map(toSpell),
-          equipment: equipments.map(toEquipment),
+          equipment: equipmentList,
         })
 
         setState({ status: 'ready' })

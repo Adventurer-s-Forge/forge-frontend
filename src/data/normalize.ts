@@ -13,10 +13,11 @@
  **/
 
 import type { Ability } from "../characters/character";
-import type { Background, CasterType, CharacterClass, Equipment, Race, Size, Spell } from "./catalog";
+import type { Background, CasterType, CharacterClass, Equipment, EquipmentGrant, EquipmentOption, Race, Size, Spell } from "./catalog";
 import type { Envelope } from "../lib/api";
 import { CLASS_SKILL_CHOICES, classKey } from "./classRules";
 import { skillIdsFromNames } from "./skills";
+import { gpToCp, parseCostCp } from "../characters/currency";
 
 type Trait = { name: string; desc: string }
 
@@ -26,7 +27,7 @@ export type RawClass = {
   saving_throws: { name: string }[]
   subclass_of: string | null
   caster_type: CasterType | null
-  features: { name: string; data_for_class_table: { level: number; column_value: string }[] | null }[]
+  features: { name: string; desc: string; data_for_class_table: { level: number; column_value: string }[] | null }[]
 }
 export type RawSpell = {
   level: number
@@ -44,6 +45,7 @@ export type RawEquipment = {
   category: { key: string; name: string }
   desc: string
   weapon: { damage_dice?: string; damage_type?: { name: string } | null; is_martial?: boolean } | null
+  cost: string | null
   armor: { ac_base?: number; ac_add_dexmod?: boolean; ac_cap_dexmod?: number | null; grants_stealth_disadvantage?: boolean } | null
 }
 
@@ -57,6 +59,20 @@ const ABILITY_BY_NAME: Record<string, Ability> = {
 }
 
 const trait = (traits: Trait[], name: string) => traits.find((t) => t.name === name)?.desc ?? ''
+
+/** To normalize parenthesis in equipment data and item value such as Arrows (20) = 20 pcs of arrows */
+const strip = (s: string) => s.replace(/\([^/)]*\)/g, '')
+const itemKey = (s: string) => strip(s).toLowerCase().replace(/[^a-z0-9]/g, '')
+
+/** To fix inverted names found in data. */
+const itemTokens = (s: string) => [...strip(s).toLowerCase().matchAll(/[a-z0-9]+/g)].map((m) => m[0]).sort().join(' ')
+
+const CAT_IDS: Record<string, string> = {
+  holysymbol: '^srd-2024_holy-symbol-',
+  druidicfocus: '^srd-2024_druidic-focus-',
+  musicalinstrument: '^srd-2024_musical-instrument-',
+  gamingset: '^srd-2024_gaming-set-',
+}
 
 // RACE
 
@@ -83,7 +99,7 @@ function classTableAtLevel1(features: RawClass['features'], column: string): num
   return Number.isFinite(value) ? value : 0
 }
 
-export function toClass(record: Envelope<RawClass>): CharacterClass {
+export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): CharacterClass {
   const choices = CLASS_SKILL_CHOICES[classKey(record.key)] ?? { count: 2, from: 'any' as const }
 
   return {
@@ -103,6 +119,7 @@ export function toClass(record: Envelope<RawClass>): CharacterClass {
     spellSlots:
       classTableAtLevel1(record.data.features, '1st') ||
       classTableAtLevel1(record.data.features, 'Spell Slots'),
+    startingEquipment: parseStartingEquipment(coreTraitRow(record.data.features, 'Starting Equipment'), equipment),
   }
 }
 
@@ -122,7 +139,7 @@ function initiateClassNames(benefits: RawBackground['benefits']): string[] {
     .filter((name): name is string => name !== undefined)
 }
 
-export function toBackground(record: Envelope<RawBackground>): Background {
+export function toBackground(record: Envelope<RawBackground>, equipment: Equipment[]): Background {
   const proficiencies = record.data.benefits.find(
     (benefit) => benefit.type === 'skill_proficiency',
   )
@@ -132,11 +149,59 @@ export function toBackground(record: Envelope<RawBackground>): Background {
     name: record.name,
     skillIds: skillIdsFromNames(proficiencies?.desc ?? ''),
     initiateClassNames: initiateClassNames(record.data.benefits),
-    abilityOptions: abilityOptions(record.data.benefits)
+    abilityOptions: abilityOptions(record.data.benefits),
+    startingEquipment: parseStartingEquipment(
+      record.data.benefits.find((b) => b.type === 'equipment')?.desc ?? '', equipment)
   }
 }
 
 // EQUIPMENT
+
+function resolverGrant(text: string, equipment: Equipment[]): EquipmentGrant {
+  const quantity = Number(text.match(/^(d+)\s/)?.[1] ?? 1)
+  const bare = text.replace(/^\s*\d+\s*/, '')
+  const key = itemKey(bare)
+
+  const byKey = [key, key.replace(/es$/, ''), key.replace(/s$/, '')]
+    .map((k) => equipment.find((eq) => itemKey(eq.name) === k))
+    .find(Boolean)
+
+  const found = byKey ?? equipment.find((eq) => itemTokens(eq.name) === itemTokens(bare))
+
+  if (found) {
+    // "Arrows (20)" already is twenty, so 20 Arrows is one of them
+    const bundled = Number(found.name.match(/\((\d+)\)/)?.[1] ?? 0)
+    return { text, quantity: bundled === quantity ? 1 : quantity, itemId: found.id, choosableFrom: null }
+  }
+
+  const category = Object.entries(CAT_IDS).find(([name]) => key.includes(name))
+  return { text, quantity, itemId: null, choosableFrom: category?.[1] ?? null }
+}
+
+export function parseStartingEquipment(text: string, equipment: Equipment[]): EquipmentOption[] {
+  const body = text.replace(/^\**Choose[^:]*\**/i, '').trim()
+
+  return [...body.matchAll(/\(([A-Z])\)\s*([^;]*)/g)].map(([, key, raw]) => {
+    const label = raw.replace(/^or\s+/i, '').trim().replace(/[.,;]$/, '')
+    const goldCp = gpToCp(Number(label.match(/(\d+)\s*GP/i)?.[1] ?? 0))
+
+    const grants = label
+      .split(',')
+      .map((entry) => entry.replace(/\band\b/gi, '').trim())
+      .filter((entry) => entry && !/^\d+\s*GP$/i.test(entry))
+      .map((entry) => resolverGrant(entry, equipment))
+
+    return { key, label, grants, goldCp }
+  })
+}
+
+function coreTraitRow(features: RawClass['features'], label: string): string {
+  for (const feature of features) {
+    const row = (feature.desc ?? '').match(new RegExp(`\\|${label}\\|([^|]*)\\|`))
+    if (row) return row[1].trim()
+  }
+  return ''
+}
 
 const ARMOR_CATEGORIES = new Set(['armor', 'shield'])
 const WEAPON_CATEGORIES = new Set(['weapon', 'ammunition'])
@@ -154,6 +219,7 @@ export function toEquipment(record: Envelope<RawEquipment>): Equipment {
     name: record.name,
     category: category(record.data.category.key),
     desc: record.data.desc,
+    costCp: parseCostCp(record.data.cost),
     armor:
       armor?.ac_base === undefined
         ? undefined
