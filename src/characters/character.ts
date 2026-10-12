@@ -11,10 +11,10 @@ export const STEPS: readonly { id: StepId; label: string }[] = [
   { id: 'race', label: 'Race' },
   { id: 'class', label: 'Class' },
   { id: 'background', label: 'Background' },
+  { id: 'equipment', label: 'Equipment' },
   { id: 'attributes', label: 'Attributes' },
   { id: 'skills', label: 'Skills' },
   { id: 'spells', label: 'Spells' },
-  { id: 'equipment', label: 'Equipment' },
 ]
 
 export type Character = {
@@ -33,7 +33,8 @@ export type Character = {
   }
   proficientSkillIds: string[]
   spellIds: string[]
-  equipmentIds: string[]
+  equipmentChoice: { class: string | null; background: string | null }
+  purchasedItemIds: string[]
   completedSteps: StepId[]
   createdAt: string
   updatedAt: string
@@ -52,7 +53,8 @@ export function createDraft(): Character {
     abilities: { method: null, base: {}, rolled: [], originBonuses: {} },
     proficientSkillIds: [],
     spellIds: [],
-    equipmentIds: [],
+    equipmentChoice: { class: null, background: null },
+    purchasedItemIds: [],
     completedSteps: [],
     createdAt: now,
     updatedAt: now,

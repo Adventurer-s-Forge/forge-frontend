@@ -1,4 +1,4 @@
-import type { Character } from "./character";
+import { createDraft, type Character } from "./character";
 import { authed } from "../lib/api";
 
 function toPayload(character: Character) {
@@ -13,7 +13,8 @@ function toPayload(character: Character) {
     abilities: character.abilities,
     proficientSkillIds: character.proficientSkillIds,
     spellIds: character.spellIds,
-    equipmentIds: character.equipmentIds,
+    equipmentChoice: character.equipmentChoice,
+    purchasedItemIds: character.purchasedItemIds,
     completedSteps: character.completedSteps,
   }
 }
@@ -27,7 +28,7 @@ function requireName(character: Character): void {
 
 export const characterStore = {
   async list(): Promise<Character[]> {
-    return (await authed.get<Character[]>('characters')) ?? []
+    return ((await authed.get<Character[]>('characters')) ?? []).map(fromResponse)
   },
 
   async create(character: Character): Promise<Character> {
@@ -50,4 +51,14 @@ export const characterStore = {
   async remove(id: string): Promise<void> {
     await authed.del(`characters/${id}`)
   },
+}
+
+function fromResponse(raw: Character): Character {
+  return {
+    ...createDraft(),
+    ...raw,
+    abilities: { ...createDraft().abilities, ...raw.abilities },
+    equipmentChoice: raw.equipmentChoice ?? { class: null, background: null },
+    purchasedItemIds: raw.purchasedItemIds ?? [],
+  }
 }

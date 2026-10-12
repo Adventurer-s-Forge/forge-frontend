@@ -5,6 +5,7 @@ type ConfirmDeleteProps = {
   body: string
   confirmLabel: string
   busyLabel: string
+  secondary?: { label: string; onClick: () => void }
   onConfirm: () => Promise<void> | void
   onClose: () => void
 }
@@ -14,6 +15,7 @@ export function ConfirmDelete({
   body,
   confirmLabel,
   busyLabel,
+  secondary,
   onConfirm,
   onClose,
 } : ConfirmDeleteProps) {
@@ -63,6 +65,16 @@ export function ConfirmDelete({
           <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>
             Cancel
           </button>
+          {secondary && (
+            <button
+              type="button"
+              className="btn btn-quiet"
+              disabled={busy}
+              onClick={() => { secondary.onClick(); onClose() }}
+            >
+              {secondary.label}
+            </button>
+          )}
           <button type="button" className="btn btn-danger" onClick={handleConfirm} disabled={busy}>
             {busy ? busyLabel : confirmLabel}
           </button>

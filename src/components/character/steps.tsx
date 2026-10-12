@@ -12,17 +12,20 @@ import {
   rollAbilityPool,
 } from "../../characters/abilities";
 import {
+  buyItem,
   isStepApplicable,
+  resetMarket,
+  sellItem,
   setAbilityMethod,
   setAbilityScore,
   setBackground,
   setClass,
+  setEquipmentChoice,
   setName,
   setOriginBonuses,
   setRace,
   setRolledPool,
   setSizeChoice,
-  toggleEquipment,
   toggleSkill,
   toggleSpell,
 } from "../../characters/progress";
@@ -34,11 +37,15 @@ import {
   getRace,
   getSkill,
   getSpell,
+  purchaseableEquipment,
   spellBudget,
   spellOptions,
 } from "../../data/catalog";
-import { abilityRows, armorStealthDisadvantage, derived, skillRows, spellDerived } from "./sheets";
-import { FiCheck } from "react-icons/fi";
+import { abilityRows, armorStealthDisadvantage, derived, purseCp, skillRows, spellDerived, spentCp } from "./sheets";
+import { FiCheck, FiX } from "react-icons/fi";
+import { useState } from "react";
+import { ConfirmDelete } from "../ConfirmDelete";
+import { formatCoins } from "../../characters/currency";
 
 export type StepProps = {
   character: Character
@@ -111,23 +118,50 @@ export function RaceStep({ character, onChange }: StepProps) {
 }
 
 export function ClassStep({ character, onChange }: StepProps) {
+  const [pending, setPending] = useState<string | null>(null)
+
+  function choose(classId: string) {
+    if (classId === character.classId) return
+    const next = setClass(character, classId)
+    if (purseCp(next) < 0) return setPending(classId)
+    onChange(next)
+  }
+
+
   return (
-    <div className="option-list" role="radiogroup" aria-label="Class">
-      {catalog.classes.map((cls) => (
-        <button
-          type="button"
-          role="radio"
-          aria-checked={character.classId === cls.id}
-          className={`option${character.classId === cls.id ? ' is-chosen' : ''}`}
-          key={cls.id}
-          onClick={() => onChange(setClass(character, cls.id))}
-        >
-          <span className="option-name">{cls.name}</span>
-          <span className="option-meta">Dice: d{cls.hitDie} hit die</span>
-          <span className="option-meta">Saves: {cls.savingThrows.join(', ')}</span>
-          <span className="option-meta">Skills: {cls.skillChoices.count}</span>
-        </button>
-      ))}
+    <div className="step">
+      <div className="option-list" role="radiogroup" aria-label="Class">
+        {catalog.classes.map((cls) => (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={character.classId === cls.id}
+            className={`option${character.classId === cls.id ? ' is-chosen' : ''}`}
+            key={cls.id}
+            onClick={() => choose(cls.id)}
+          >
+            <span className="option-name">{cls.name}</span>
+            <span className="option-meta">Dice: d{cls.hitDie} hit die</span>
+            <span className="option-meta">Saves: {cls.savingThrows.join(', ')}</span>
+            <span className="option-meta">Skills: {cls.skillChoices.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {pending && (
+        <ConfirmDelete
+          title="This class grants less starting gold"
+          body={`You have spent ${formatCoins(spentCp(character))} at the market. Changing class clears it equipment choice, which would leave you overdrawn until you pick a new one`}
+          confirmLabel="Change and reset market"
+          busyLabel="Changing\u2026"
+          secondary={{
+            label: 'Change and keep purchases',
+            onClick: () => onChange(setClass(character, pending))
+          }}
+          onConfirm={() => onChange(resetMarket(setClass(character, pending)))}
+          onClose={() => setPending(null)}
+        />
+      )}
     </div>
   )
 }
@@ -614,36 +648,126 @@ export function SpellsStep({ character, onChange }: StepProps) {
   )
 }
 
-const CAT_LABELS = { weapon: 'Weapons', armor: 'Armor', gear: 'Gear' } as const
-
 export function EquipmentStep({ character, onChange }: StepProps) {
+  const [query, setQuery] = useState('')
+  const cls = getClass(character.classId)
+  const bg = getBg(character.backgroundId)
+  if (!cls || !bg) return <p className="step-hint">Choose a class and background first.</p>
+
+  const purse = purseCp(character)
+
+  const counts = new Map<string, number>()
+  for (const id of character.purchasedItemIds) {
+    counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+
+  const sources = [
+    { source: 'class' as const, name: cls.name, options: cls.startingEquipment, picked: character.equipmentChoice.class },
+    { source: 'background' as const, name: bg.name, options: bg.startingEquipment, picked: character.equipmentChoice.background },
+  ]
+
+  const stock = purchaseableEquipment()
+  const needle = query.trim().toLowerCase()
+  const shown = stock.filter((item) => item.name.toLowerCase().includes(needle))
+  
   return (
     <div className="step">
-      <p className="step-hint">Optional - pick anything your character carries.</p>
+      {sources.map(({ source, name, options, picked}) => 
+        options.length === 0 ? null : (
+          <fieldset className="origin-choice" key={source}>
+            <legend>
+              {name} &mdash; choose {options.map((option) => option.key).join(' or ')}
+            </legend>
+            <div className="equip-options">
+              {options.map((option) => (
+                <button
+                  type="button"
+                  className={`equip-option${picked === option.key ? ' is-chosen' : ''}`}
+                  key={option.key}
+                  aria-pressed={picked === option.key}
+                  onClick={() => onChange(setEquipmentChoice(character, source, picked === option.key ? null : option.key))}
+                >
+                  <span className="equip-option-key">{option.key}</span>
+                  <span className="equip-option-key">{option.label}</span>
+                  {option.goldCp > 0 && (
+                    <span className="equip-option-gold">{formatCoins(option.goldCp)}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        ),
+      )}
 
-      {(['weapon', 'armor', 'gear'] as const).map((category) => (
-        <section className="equip-group" key={category}>
-          <h3>{CAT_LABELS[category]}</h3>
-          <div className="chip-grid">
-            {catalog.equipment.filter((eq) => eq.category === category).map((eq) => {
-              const picked = character.equipmentIds.includes(eq.id)
+      <fieldset className="origin-choice">
+        <legend>
+          Market &mdash; {formatCoins(purse)} left{purse < 0 && ' \u2014 overspent'}
+        </legend>
+
+        {counts.size > 0 && (
+          <div className="cart">
+            {[...counts].map(([id, count]) => {
+              const item = catalog.equipment.find((eq) => eq.id === id)
 
               return (
                 <button
                   type="button"
-                  className={`chip chip-wide${picked ? ' is-chosen' : ''}`}
-                  key={eq.id}
-                  aria-pressed={picked}
-                  title={eq.desc}
-                  onClick={() => onChange(toggleEquipment(character, eq.id))}
+                  className="chip cart-item"
+                  key={id}
+                  aria-label={`Sell back one ${item?.name}`}
+                  onClick={() => onChange(sellItem(character, id))}
                 >
-                  {eq.name}
+                  {count > 1 && <span className="cart-count">{count}&times;</span>}
+                  {item?.name}
+                  <FiX size={13} aria-hidden="true" />
                 </button>
               )
             })}
           </div>
-        </section>
-      ))}
+        )}
+
+        <div className="shop-search">
+          <label htmlFor="shop-query">Search</label>
+          <input
+            id="shop-query"
+            type="search"
+            value={query}
+            placeholder="rope, dagger, lantern&hellip;"
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <span className="shop-count">
+            {shown.length} of {purchaseableEquipment().length}
+          </span>
+        </div>
+
+        {shown.length === 0 ? (
+          <p className="step-hint">Nothing matches &ldquo;{query}&rdquo;</p>
+        ) : (
+          <div className="shop-grid">
+            {shown.map((item) => {
+              const owned = counts.get(item.id) ?? 0
+
+              return (
+                <button
+                  type="button"
+                  className={`shop-item${owned > 0 ? ' is-chosen' : ''}`}
+                  key={item.id}
+                  title={item.desc}
+                  disabled={item.costCp > purse}
+                  onClick={() => onChange(buyItem(character, item.id))}
+                >
+                  <span className="shop-name">{item.name}</span>
+                  <span className="shop-cost">{formatCoins(item.costCp)}</span>
+                  {owned > 0 && <span className="shop-owned">{owned}</span>}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        <p className="step-hint">
+          Click an item to buy one. Click it above to sell it back.
+        </p>
+      </fieldset>
     </div>
   )
 }

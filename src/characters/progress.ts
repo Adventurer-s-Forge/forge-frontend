@@ -2,6 +2,7 @@ import { STEPS } from './character'
 import type { Ability, AbilityMethod, AbilityScores, Character, StepId } from './character'
 import { ABILITIES, ABILITY_CAP, finalScores, originSpreadValid, POINT_BUY_BUDGET, POINT_BUY_MIN, pointBuySpent, STD_ARR } from './abilities'
 import { classSkillOptions, getBg, getClass, getRace, spellBudget, spellOptions, type Size } from '../data/catalog'
+import { purseCp } from '../components/character/sheets'
 
 function sameValues(a: readonly number[], b: readonly number[]): boolean {
   if (a.length !== b.length) return false
@@ -71,7 +72,7 @@ export function isStepValid(step: StepId, c: Character): boolean {
     case 'spells':
       return spellsValid(c)
     case 'equipment':
-      return true
+      return equipmentValid(c)
   }
 }
 
@@ -126,12 +127,18 @@ function keepLegalSpells(c: Character): Character {
 
 export function setClass(c: Character, classId: string): Character {
   if (classId === c.classId) return c
-  return keepLegalSpells(keepOfferedSkills({ ...c, classId }))
+  const next = { ...c, classId, equipmentChoice: { ...c.equipmentChoice, class: null } }
+  return keepLegalSpells(keepOfferedSkills(next))
 }
 
 export function setBackground(c: Character, backgroundId: string): Character {
   if (backgroundId === c.backgroundId) return c
-  const next = { ...c, backgroundId, abilities: { ...c.abilities, originBonuses: {} } }
+  const next = {
+    ...c,
+    backgroundId,
+    abilities: { ...c.abilities, originBonuses: {} },
+    equipmentChoice: { ...c.equipmentChoice, background: null }
+  }
   return keepLegalSpells(keepOfferedSkills(next))
 }
 
@@ -180,10 +187,37 @@ export function toggleSpell(c: Character, spellId: string): Character {
     : { ...c, spellIds: [...c.spellIds, spellId] }
 }
 
-export function toggleEquipment(c: Character, itemId: string): Character {
-  return c.equipmentIds.includes(itemId)
-    ? { ...c, equipmentIds: c.equipmentIds.filter((id) => id !== itemId) }
-    : { ...c, equipmentIds: [...c.equipmentIds, itemId] }
+export function setEquipmentChoice(
+  c: Character,
+  source: 'class' | 'background',
+  key: string | null,
+): Character {
+  return { ...c, equipmentChoice: { ...c.equipmentChoice, [source]: key } }
+}
+
+export function buyItem(c: Character, itemId: string): Character {
+  return{ ...c, purchasedItemIds: [...c.purchasedItemIds, itemId]}
+}
+
+export function sellItem(c: Character, itemId: string): Character {
+  const at = c.purchasedItemIds.lastIndexOf(itemId)
+  if (at === -1) return c
+  return {
+    ...c,
+    purchasedItemIds: [...c.purchasedItemIds.slice(0, at), ...c.purchasedItemIds.slice(at + 1)],
+  }
+}
+
+export function resetMarket(c: Character): Character {
+  return c.purchasedItemIds.length === 0 ? c : { ...c, purchasedItemIds: [] }
+}
+
+function equipmentValid(c: Character): boolean {
+  const cls = getClass(c.classId)
+  const bg = getBg(c.backgroundId)
+  if (cls && cls.startingEquipment.length > 0 && c.equipmentChoice.class === null) return false
+  if (bg && bg.startingEquipment.length > 0 && c.equipmentChoice.background === null) return false
+  return purseCp(c) >= 0
 }
 
 export function isStepReachable(step: StepId, c: Character): boolean {

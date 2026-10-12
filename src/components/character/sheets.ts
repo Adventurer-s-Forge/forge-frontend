@@ -93,8 +93,39 @@ export function skillRows(c: Character): SkillRow[] {
   })
 }
 
+const chosenOptions = (c: Character, source: 'class' | 'background') => {
+  const options =
+    source === 'class'
+      ? getClass(c.classId)?.startingEquipment
+      : getBg(c.backgroundId)?.startingEquipment
+  return options?.find((option) => option.key === c.equipmentChoice[source])
+}
+
+export function startingCp(c: Character): number {
+  return (chosenOptions(c, 'class')?.goldCp ?? 0) + (chosenOptions(c, 'background')?.goldCp ?? 0)
+}
+
+export function spentCp(c: Character): number {
+  return c.purchasedItemIds.reduce(
+    (sum, id) => sum + (catalog.equipment.find((eq) => eq.id === id)?.costCp ?? 0),
+    0,
+  )
+}
+
+export const purseCp = (c: Character) => startingCp(c) - spentCp(c)
+
+/** Granted by the chosen option, expanded by qty, plus anything bought */
+export function ownedItemIds(c: Character): string[] {
+  const granted = (['class', 'background'] as const).flatMap((source) =>
+    (chosenOptions(c, source)?.grants ?? []).flatMap((grant) =>
+      grant.itemId === null ? [] : (Array(grant.quantity).fill(grant.itemId) as string[]),
+    ),
+  )
+  return [...granted, ...c.purchasedItemIds]
+}
+
 export function armorStealthDisadvantage(c: Character): string | null {
-  for (const id of c.equipmentIds) {
+  for (const id of ownedItemIds(c)) {
     const item = catalog.equipment.find((eq) => eq.id === id)
     if (item?.armor?.stealthDisadvantage) return item.name
   }
@@ -107,7 +138,7 @@ function armorClass(c: Character, dexMod: number): number {
   let base = 10 + dexMod
   let bonus = 0
 
-  for (const id of c.equipmentIds) {
+  for (const id of ownedItemIds(c)) {
     const armor = catalog.equipment.find((eq) => eq.id === id)?.armor
     if (!armor) continue
 
