@@ -85,19 +85,24 @@ Game content is read anonymously. Characters are per-user and require authentica
 | `PUT`  | `/characters/{id}` | Every later step, full replace |
 | `DELETE` | `/characters/{id}` | The delete button on a character card |
 
-### Lifecycle
+### Lifecycle (New change 10/12)
 
-The wizard saves on every `Continue`, so partial progress survives a refresh and the dashboard
-can show which step a character is on. One character **1 POST + up to 7 PUTs**.
+The wizard writes **twice**: once on the Name step, so the character exists and can be resumed,
+and once at the end. The six steps between do not touch the network anymore.
 
-1. **Name step** -- `POST /characters` with the full payload. The **client** generates the `id` (`crypto.randomUUID()`),
-so a retried POST is safe; the server should `409` on a collision rather than mint a second record.
-2. **Every later step** -- `PUT /characters/{id}` with the full payload again.
-3. There are no per-step routes. Steps cascade: changing class prunes skills and spells, changing background also clears the
-ability allocation. The client computes the whole consistent document and replaces it, so the server never has to re-drive the rules.
+1. **Name step** -- `POST /characters` with the full payload. The **client** generates the `id`
+  (`crypto.randomUUID()`), so a retried POST is safe; the server should `409` on a collision
+  rather than mint a second record.
+2. **Steps 2-7** -- no requests. The draft lives in React state.
+3. **Finish, or "Save and close" from the exit prompt** -- one `PUT /characters/{id}`
 
-Drafts are saved incomplete. At the Name step `classId` is `null` and `abilities.base` is `{}`. The server valdiates shape,
-not completeness -- rule validation lives in `src/characters/progress.ts`
+Dismissing the wizard with unsaved steps prompts rather than discarding: save and close, discard,
+or keep editing. A PUT may therefore arrive **partial** -- closing on step 4 sends `classId` set 
+and `spellIds` still empty.
+
+There are no per-step routes. Steps cascade: changing class prunes skills and spells, changing
+background also clears the allocation and the equipment choice. The client computes the whole
+consistent document and replaces it.
 
 ### Payload
 
@@ -109,6 +114,7 @@ not completeness -- rule validation lives in `src/characters/progress.ts`
   "name": "Gandalf",
   "level": 1,
   "raceId": "srd-2024_gnome",
+  "sizeChoice": "Small",
   "classId": "srd-2024_wizard",
   "backgroundId": "srd-2024_sage",
   "abilities": {
@@ -119,10 +125,29 @@ not completeness -- rule validation lives in `src/characters/progress.ts`
   },
   "proficientSkillIds": ["arcana", "history"],
   "spellIds": ["srd-2024_fire-bolt", "srd-2024_shield"],
-  "equipmentIds": ["srd-2024_quarterstaff"],
-  "completedSteps": ["name", "race", "class", "background", "attributes", "skills", "spells", "equipment"]
+  "equipmentChoice": { "class": "A", "background": "B" },
+  "purchasedItemIds": ["srd-2024_rope", "srd-2024_rope"],
+  "completedSteps": ["name", "race", "class", "background", "equipment", "attributes", "skills", "spells"]
 }
+
 ```
+
+`proficientSkillIds` holds **class picks only** -- background-granted are derived from `backgroundId`,
+so a class change can prune picks without destroying grants.
+
+`equipmentChoice` records which starting-equipment option was taken from each source; the items
+themselves are derived from it.
+
+`purchaseItemIds` is a multiset -- buying two of something lists it twice.
+
+Derived values are never stores: ability totals and modifiers, the proficiency bonus, every skill
+modifier, armor class, hit points, the spell save DC, and the coin purse are all computed on render.
+Money is held as integer copper (`src/character/currency.ts`)
+
+`completedSteps` is not a completion flag. It can be **shorter than the step list on a finished character**
+-- a non-caster never vists Spells, so a complete Fighter has seven entries and no "`spells`".
+
+Server-owned and never sent: `ownerUid`, `createdAt`, `updatedAt`, `schemaVersion`.
 
 ## Scripts
 | Command | Does |
@@ -137,7 +162,7 @@ not completeness -- rule validation lives in `src/characters/progress.ts`
 ```
 src/
   auth/         Firebase auth: provider, context, error mapping, OAuth + linking
-  characters/   Rules engine -- ability maths, step validation, storage
+  characters/   Rules engine -- ability maths, step validation, currency, storage
   components/   Shared UI; character/ holds the creation wizard
   data/         Content catalog, API adapter, local SRD rules
   lib/          Firebase init and the typed API client
