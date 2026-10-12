@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createDraft } from "../characters/character";
@@ -170,25 +170,65 @@ describe('SkillStep', () => {
 })
 
 describe('EquipmentStep', () => {
-  it('groups items by category', () => {
-    render(<EquipmentStep character={fighter()} onChange={vi.fn()} />)
+  const classGroup = () => screen.getByRole('group', { name: /Fighter/ })
+  const market = () => screen.getByRole('group', { name: /Market/ })
 
-    expect(screen.getByRole('heading', { name: 'Weapons' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Armor' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Gear' })).toBeInTheDocument()
-  })
-
-  it('toggles an item', async () => {
+  it('offers the class options and records the pick', async () => {
     const onChange = vi.fn()
     render(<EquipmentStep character={fighter()} onChange={onChange} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'Longsword' }))
+    await userEvent.click(within(classGroup()).getByRole('button', { name: /75 GP/ }))
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ equipmentIds: ['srd-2024_longsword'] }),
+      expect.objectContaining({ equipmentChoice: expect.objectContaining({ class: 'B' }) }),
     )
   })
+
+  it('deselects an option that is clicked again', async () => {
+    const onChange = vi.fn()
+    render(
+      <EquipmentStep
+        character={fighter({ equipmentChoice: { class: 'B', background: null } })}
+        onChange={onChange}
+      />,
+    )
+
+    await userEvent.click(within(classGroup()).getByRole('button', { name: /75 GP/ }))
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ equipmentChoice: expect.objectContaining({ class: null }) }),
+    )
+  })
+
+  it('narrows the market to the search text', async () => {
+    render(
+      <EquipmentStep
+        character={fighter({ equipmentChoice: { class: 'B', background: null } })}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(within(market()).getByRole('button', { name: /Longsword/ })).toBeInTheDocument()
+
+    await userEvent.type(screen.getByLabelText('Search'), 'rope')
+
+    expect(within(market()).queryByRole('button', { name: /Longsword/ })).not.toBeInTheDocument()
+    expect(within(market()).getByRole('button', { name: /Rope/ })).toBeInTheDocument()
+  })
+
+  it('disables what the purse cannot cover', () => {
+    render(
+      <EquipmentStep
+        character={fighter({ equipmentChoice: { class: 'A', background: null } })}
+        onChange={vi.fn()}
+      />,
+    )
+
+    // Option A grants 5 GP, so chain mail at 75 GP is out of reach.
+    expect(within(market()).getByRole('button', { name: /Chain mail/ })).toBeDisabled()
+  })
 })
+
 
 describe('SpellsStep', () => {
   it('tells a non-caster there is nothing to choose', () => {
