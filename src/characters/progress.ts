@@ -190,7 +190,7 @@ export function setRolledPool(c: Character, rolled: number[]): Character {
 
 export function toggleSkill(c: Character, skillId: string, max: number): Character {
   if (c.proficientSkillIds.includes(skillId)) {
-    return { ...c, proficientSkillIds: c.proficientSkillIds.filter((id) => id !== skillId) }
+    return keepLegalExpertise({ ...c, proficientSkillIds : c.proficientSkillIds.filter((id) => id !== skillId)})
   }
   if (c.proficientSkillIds.length >= max) return c
   return { ...c, proficientSkillIds: [...c.proficientSkillIds, skillId] }
