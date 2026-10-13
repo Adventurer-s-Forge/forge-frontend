@@ -26,12 +26,14 @@ import {
   setRace,
   setRolledPool,
   setSizeChoice,
+  toggleExpertise,
   toggleSkill,
   toggleSpell,
 } from "../../characters/progress";
 import {
   catalog,
   classSkillOptions,
+  expertiseCounts,
   getBg,
   getClass,
   getRace,
@@ -42,7 +44,7 @@ import {
   spellOptions,
 } from "../../data/catalog";
 import { abilityRows, armorStealthDisadvantage, derived, purseCp, skillRows, spellDerived, spentCp } from "./sheets";
-import { FiCheck, FiX } from "react-icons/fi";
+import { FiCheck, FiCheckCircle, FiX } from "react-icons/fi";
 import { useState } from "react";
 import { ConfirmDelete } from "../ConfirmDelete";
 import { formatCoins } from "../../characters/currency";
@@ -433,6 +435,10 @@ export function SkillsStep({ character, onChange }: StepProps) {
   const stealthArmor = armorStealthDisadvantage(character)
   const proficientCount = rows.filter((row) => row.source !== null).length
 
+  const wantExpertise = expertiseCounts(cls, character.level)
+  const proficient = [...character.proficientSkillIds, ...granted]
+  const expertiseFull = character.expertiseIds.length >= wantExpertise
+
   return (
     <div className="step step-split">
       <div className="step-main">
@@ -475,6 +481,39 @@ export function SkillsStep({ character, onChange }: StepProps) {
             </div>
             <p className="step-hint">
               Already granted by {background.name}, so they are removed from {cls.name} picks above and no choice is wasted.
+            </p>
+          </fieldset>
+        )}
+
+        {wantExpertise > 0 && (
+          <fieldset className="origin-choice">
+            <legend>
+              Expertise &mdash; choose {wantExpertise} &mdash;{' '}
+              {character.expertiseIds.length} / {wantExpertise}
+            </legend>
+            <div className="chip-grid">
+              {proficient.map((id) => {
+                const picked = character.expertiseIds.includes(id)
+
+                return (
+                  <button
+                    type="button"
+                    className={`chip chip-wide${picked ? ' is-chosen' : ''}`}
+                    key={id}
+                    aria-pressed={picked}
+                    disabled={!picked && expertiseFull}
+                    onClick={() => onChange(toggleExpertise(character, id, wantExpertise))}
+                  >
+                    {getSkill(id)?.name}
+                    <span className="chip-meta">{getSkill(id)?.ability}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="step-hint">
+              Expertise doubles the proficiency bonus, so {formatModifier(d.proficiencyBonus)}{' '}
+              becomes {formatModifier(d.proficiencyBonus * 2)}. Any proficiency qualifies, including
+              the ones {background?.name ?? 'your background'} grants.
             </p>
           </fieldset>
         )}
@@ -522,7 +561,11 @@ export function SkillsStep({ character, onChange }: StepProps) {
                 <td>{row.ability}</td>
                 <td className="is-origin">
                   {row.source ? (
-                    <FiCheck size={18} strokeWidth={3} role="img" aria-label={`Proficient via ${row.source.label}`} />
+                    row.source.expert ? (
+                      <FiCheckCircle size={18} strokeWidth={3} role="img" aria-label={`Expertise via ${row.source.label}`} /> 
+                    ) : (
+                      <FiCheck size={18} strokeWidth={3} role="img" aria-label={`Proficient via ${row.source.label}`} />
+                    ) 
                   ) : (
                     <span aria-hidden="true">&mdash;</span>
                   )}

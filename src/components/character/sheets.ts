@@ -38,15 +38,17 @@ export function abilityRows(c: Character): AbilityRow[] {
 
 /** Skills Section */
 
-export type SkillSource = { kind: 'pick' | 'background'; label: string } | null
+export type SkillSource = { kind: 'pick' | 'background'; label: string; expert: boolean } | null
 
 export function skillSource(c: Character, skillId: string): SkillSource {
+  const expert = c.expertiseIds.includes(skillId)
+
   if (c.proficientSkillIds.includes(skillId)) {
-    return { kind: 'pick', label: `${getClass(c.classId)?.name ?? 'Class'} pick`}
+    return { kind: 'pick', label: `${getClass(c.classId)?.name ?? 'Class'} pick`, expert }
   }
   const background = getBg(c.backgroundId)
   if (background?.skillIds.includes(skillId)) {
-    return { kind: 'background', label: background.name }
+    return { kind: 'background', label: background.name, expert }
   }
   return null
 }
@@ -57,9 +59,13 @@ export const isSkillProficient = (c: Character, skillId: string) =>
 export function skillModifier(c: Character, skillId: string): number | undefined {
   const skill = getSkill(skillId)
   if (!skill) return undefined
+
   const score = finalScores(c.abilities.base, c.abilities.originBonuses)[skill.ability]
   if (score === undefined) return undefined
-  return abilityModifier(score) + (isSkillProficient(c, skillId) ? proficiencyBonus(c.level) : 0)
+
+  const source = skillSource(c, skillId)
+  const multiplier = source ? (source.expert ? 2 : 1) : 0
+  return abilityModifier(score) + proficiencyBonus(c.level) * multiplier
 }
 
 export function skillRows(c: Character): SkillRow[] {
@@ -70,15 +76,16 @@ export function skillRows(c: Character): SkillRow[] {
   return catalog.skills.map((skill) => {
     const score = totals[skill.ability]
     const source = skillSource(c, skill.id)
+    const multiplier = source ? (source.expert ? 2 : 1) : 0
     const abilityMod = score === undefined ? undefined : abilityModifier(score)
-    const bonus = abilityMod === undefined ? undefined : abilityMod + (source ? pb: 0)
+    const bonus = abilityMod === undefined ? undefined : abilityMod + pb * multiplier
 
     const math =
       abilityMod === undefined
         ? '\u2014'
-        : source
-          ? `${formatModifier(abilityMod)} ${formatModifier(pb)}`
-          : formatModifier(abilityMod)
+        : multiplier === 0
+          ? formatModifier(abilityMod)
+          : `${formatModifier(abilityMod)} ${formatModifier(pb * multiplier)}`
 
     return {
       id: skill.id,

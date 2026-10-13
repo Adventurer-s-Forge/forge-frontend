@@ -124,6 +124,7 @@ consistent document and replaces it.
     "originBonuses": { "INT": 2, "CON": 1 }
   },
   "proficientSkillIds": ["arcana", "history"],
+  "expertiseIds": [], // Rogue Class is the only one that allows expertise at Level 1
   "spellIds": ["srd-2024_fire-bolt", "srd-2024_shield"],
   "equipmentChoice": { "class": "A", "background": "B" },
   "purchasedItemIds": ["srd-2024_rope", "srd-2024_rope"],
@@ -134,6 +135,10 @@ consistent document and replaces it.
 
 `proficientSkillIds` holds **class picks only** -- background-granted are derived from `backgroundId`,
 so a class change can prune picks without destroying grants.
+
+`expertiseIds` records which proficiencies the player choose to double, and expertise can double 
+background grated skills -- so an id may appear there while being absent from `proficientSkillIds`. Only
+Rogue qualifies at level 1; the level comes from the class data's `Expertise` feature rather than a local table.
 
 `equipmentChoice` records which starting-equipment option was taken from each source; the items
 themselves are derived from it.

@@ -23,6 +23,7 @@ export type CharacterClass = {
   primaryAbilities: Ability[]
   savingThrows: Ability[]
   skillChoices: { count: number; from: string[] | 'any' }
+  expertiseAt: number | null
   casterType: CasterType
   spellCounts: { cantrips: number; prepared: number }
   spellSlots: number
@@ -147,4 +148,11 @@ export function spellBudget(
   const own = cls && cls.casterType !== 'NONE' ? cls.spellCounts : { cantrips: 0, prepared: 0 }
   const initiates = bg?.initiateClassNames.length ?? 0
   return { cantrips : own.cantrips + initiates * 2, prepared: own.prepared + initiates }
+}
+
+export const EXPERTISE_PICKS = 2
+
+export function expertiseCounts(cls: CharacterClass | undefined, level: number): number {
+  if (!cls || cls.expertiseAt === null || level < cls.expertiseAt) return 0
+  return EXPERTISE_PICKS
 }

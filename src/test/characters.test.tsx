@@ -36,7 +36,7 @@ import { characterStore } from "../characters/storage";
 import { seedCatalog } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
 import { authed } from "../lib/api";
-import { derived, ownedItemIds, purseCp } from "../components/character/sheets";
+import { derived, ownedItemIds, purseCp, skillModifier, skillSource } from "../components/character/sheets";
 
 function dice(...faces: number[]) {
   let i = 0
@@ -62,6 +62,22 @@ function finishedFighter(): Character {
   return c
 }
 
+function rogueWithSkills(): Character {
+  return {
+    ...createDraft(),
+    name: 'Lil Goo',
+    classId: 'srd-2024_rogue',
+    backgroundId: 'srd-2024_criminal',
+    proficientSkillIds: ['acrobatics', 'deception', 'investigation', 'persuasion'],
+    abilities: {
+      method: 'standard',
+      base: { STR: 10, DEX: 15, CON: 12, INT: 8, WIS: 13, CHA: 14 },
+      rolled: [],
+      originBonuses: { DEX: 2, INT: 1 },
+    },
+  }
+}
+
 beforeAll(() => {
   seedCatalog({
     races: [
@@ -79,16 +95,21 @@ beforeAll(() => {
             ],
             goldCp: 500 },
           { key: 'B', label: '75 GP', grants: [], goldCp: 7500 },
-        ] },
+        ], expertiseAt: null },
       { id: 'srd-2024_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
         skillChoices: CLASS_SKILL_CHOICES.wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2,
-      startingEquipment: [] },
+      startingEquipment: [], expertiseAt: null },
+      { id: 'srd-2024_rogue', name: 'Rogue', hitDie: 8, primaryAbilities: [], savingThrows: ['DEX', 'INT'], 
+        skillChoices: CLASS_SKILL_CHOICES.rogue, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
+        startingEquipment: [], expertiseAt: 1 },
     ],
     backgrounds: [
       { id: 'srd-2024_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
         abilityOptions: ['INT', 'WIS', 'CHA'], startingEquipment: [] },
       { id: 'srd-2024_sage', name: 'Sage', skillIds: ['arcana', 'history'], initiateClassNames: ['Wizard'],
         abilityOptions: ['CON', 'INT', 'WIS'], startingEquipment: [] },
+      { id: 'srd-2024_criminal', name: 'Criminal', skillIds: ['sleight-of-hand', 'stealth'],
+        initiateClassNames: [], abilityOptions: ['DEX', 'CON', 'INT'], startingEquipment: [] },
     ],
     spells: [
       { id: 'srd-2024_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd-2024_wizard'],
@@ -174,6 +195,11 @@ describe('character progress', () => {
     const c = setBackground(finishedFighter(), 'srd-2024_sage')
     expect(c.abilities.originBonuses).toEqual({})
     expect(firstIncompleteStep(c)).toBe('attributes')
+  })
+
+  it('requires the full expertise allowance before the step is valid', () => {
+    const c = setClass({ ...createDraft(), backgroundId: 'srd-2024_acolyte' }, 'srd-2024_rogue')
+    expect(isStepValid('skills', { ...c, expertiseIds: ['insight'] })).toBe(false)
   })
 })
 
@@ -283,6 +309,25 @@ describe('character mutations', () => {
   it('deletes by id', async () => {
     await characterStore.remove('abc-123')
     expect(authed.del).toHaveBeenCalledWith('characters/abc-123')
+  })
+
+  it('doubles the proficiency bonus for an expert skill', () => {
+    const c = { ...rogueWithSkills(), expertiseIds: ['stealth'] }
+    expect(skillModifier(c, 'stealth')).toBe(7)
+    expect(skillModifier(c, 'persuasion')).toBe(4)
+  })
+
+  it('allows expertise in a background grant, not just a class pick', () => {
+    const c = setClass({ ...createDraft(), backgroundId: 'srd-2024_acolyte' }, 'srd-2024_rogue')
+    expect(skillSource({ ...c, expertiseIds: ['insight'] }, 'insight')).toMatchObject({
+      kind: 'background', expert: true,
+    })
+  })
+
+  it('drops expertise when its proficiency goes', () => {
+    let c = setClass(createDraft(), 'srd-2024_rogue')
+    c = { ...c, proficientSkillIds: ['stealth'], expertiseIds: ['stealth'] }
+    expect(setClass(c, 'srd-2024_fighter').expertiseIds).toEqual([])
   })
 })
 

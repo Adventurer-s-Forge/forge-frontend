@@ -27,7 +27,12 @@ export type RawClass = {
   saving_throws: { name: string }[]
   subclass_of: string | null
   caster_type: CasterType | null
-  features: { name: string; desc: string; data_for_class_table: { level: number; column_value: string }[] | null }[]
+  features: {
+    name: string
+    desc: string
+    gained_at: { level: number | null }[] | null
+    data_for_class_table: { level: number; column_value: string }[] | null
+  }[]
 }
 export type RawSpell = {
   level: number
@@ -99,6 +104,13 @@ function classTableAtLevel1(features: RawClass['features'], column: string): num
   return Number.isFinite(value) ? value : 0
 }
 
+function featureLevel(features: RawClass['features'], name: string): number | null {
+  const levels= (features.find((feature) => feature.name === name)?.gained_at ?? [])
+    .map((entry) => entry.level)
+    .filter((level): level is number => typeof level === 'number')
+  return levels.length > 0 ? Math.min(...levels) : null
+}
+
 export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): CharacterClass {
   const choices = CLASS_SKILL_CHOICES[classKey(record.key)] ?? { count: 2, from: 'any' as const }
 
@@ -111,6 +123,7 @@ export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): Cha
       .filter((ability): ability is Ability => ability !== undefined),
     primaryAbilities: [],
     skillChoices: choices,
+    expertiseAt: featureLevel(record.data.features, 'Expertise'),
     casterType: record.data.caster_type ?? 'NONE',
     spellCounts: {
       cantrips: classTableAtLevel1(record.data.features, 'Cantrips'),

@@ -1,7 +1,7 @@
 import { STEPS } from './character'
 import type { Ability, AbilityMethod, AbilityScores, Character, StepId } from './character'
 import { ABILITIES, ABILITY_CAP, finalScores, originSpreadValid, POINT_BUY_BUDGET, POINT_BUY_MIN, pointBuySpent, STD_ARR } from './abilities'
-import { classSkillOptions, getBg, getClass, getRace, spellBudget, spellOptions, type Size } from '../data/catalog'
+import { classSkillOptions, expertiseCounts, getBg, getClass, getRace, spellBudget, spellOptions, type Size } from '../data/catalog'
 import { purseCp } from '../components/character/sheets'
 
 function sameValues(a: readonly number[], b: readonly number[]): boolean {
@@ -32,11 +32,22 @@ function attributesValid(c: Character): boolean {
 function skillsValid(c: Character): boolean {
   const cls = getClass(c.classId)
   if (!cls) return false
+
   const options = classSkillOptions(cls, getBg(c.backgroundId))
+  if (
+    c.proficientSkillIds.length !== cls.skillChoices.count ||
+    new Set(c.proficientSkillIds).size !== c.proficientSkillIds.length ||
+    !c.proficientSkillIds.every((id) => options.includes(id))
+  ) {
+    return false
+  }
+
+  const want = expertiseCounts(cls, c.level)
+  const granted = getBg(c.backgroundId)?.skillIds ?? []
   return (
-    c.proficientSkillIds.length === cls.skillChoices.count &&
-    new Set(c.proficientSkillIds).size === c.proficientSkillIds.length &&
-    c.proficientSkillIds.every((id) => options.includes(id))
+    c.expertiseIds.length === want &&
+    new Set(c.expertiseIds).size === c.expertiseIds.length &&
+    c.expertiseIds.every((id) => c.proficientSkillIds.includes(id) || granted.includes(id))
   )
 }
 
@@ -115,8 +126,12 @@ export function setSizeChoice(c: Character, sizeChoice: Size): Character {
 function keepOfferedSkills(c: Character): Character {
   const cls = getClass(c.classId)
   if (!cls) return { ...c, proficientSkillIds: [] }
+
   const options = classSkillOptions(cls, getBg(c.backgroundId))
-  return { ...c, proficientSkillIds: c.proficientSkillIds.filter((id) => options.includes(id)) }
+  return keepLegalExpertise({
+    ...c,
+    proficientSkillIds: c.proficientSkillIds.filter((id) => options.includes(id))
+  })
 }
 
 function keepLegalSpells(c: Character): Character {
@@ -231,4 +246,20 @@ export function isStepReachable(step: StepId, c: Character): boolean {
 export function isStepApplicable(step: StepId, c: Character): boolean {
   if (step !== 'spells') return true
   return spellOptions(getClass(c.classId), getBg(c.backgroundId)).length > 0
+}
+
+export function toggleExpertise(c: Character, skillId: string, max: number): Character {
+  if (c.expertiseIds.includes(skillId)) {
+    return { ...c, expertiseIds: c.expertiseIds.filter((id) => id !== skillId) }
+  }
+  if (c.expertiseIds.length >= max) return c
+  return { ...c, expertiseIds: [...c.expertiseIds, skillId] }
+}
+
+function keepLegalExpertise(c: Character): Character {
+  const granted = getBg(c.backgroundId)?.skillIds ?? []
+  const legal = c.expertiseIds.filter(
+    (id) => c.proficientSkillIds.includes(id) || granted.includes(id),
+  )
+  return legal.length === c.expertiseIds.length ? c : { ...c, expertiseIds: legal }
 }

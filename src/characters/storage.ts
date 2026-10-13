@@ -12,6 +12,7 @@ function toPayload(character: Character) {
     backgroundId: character.backgroundId,
     abilities: character.abilities,
     proficientSkillIds: character.proficientSkillIds,
+    expertiseIds: character.expertiseIds,
     spellIds: character.spellIds,
     equipmentChoice: character.equipmentChoice,
     purchasedItemIds: character.purchasedItemIds,
@@ -60,5 +61,6 @@ function fromResponse(raw: Character): Character {
     abilities: { ...createDraft().abilities, ...raw.abilities },
     equipmentChoice: raw.equipmentChoice ?? { class: null, background: null },
     purchasedItemIds: raw.purchasedItemIds ?? [],
+    expertiseIds: raw.expertiseIds ?? [],
   }
 }
