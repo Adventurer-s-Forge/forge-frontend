@@ -21,7 +21,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           getCollection<RawClass>('classes'),
           getCollection<RawBackground>('backgrounds'),
           getCollection<RawSpell>('spells'),
-          getCollection<RawEquipment>('items'),
+          getCollection<RawEquipment>('equipment'),
         ])
 
         if (cancelled) return

@@ -71,7 +71,7 @@ export type Envelope<T> = {
   data: T
 }
 
-export type Resource = 'races' | 'classes' | 'backgrounds' | 'items' | 'spells'
+export type Resource = 'races' | 'classes' | 'backgrounds' | 'equipment' | 'spells'
 
 export class ApiError extends Error {
   status?: number
