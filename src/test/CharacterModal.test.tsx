@@ -20,7 +20,7 @@ describe('CharacterModal', () => {
 
   it('shows all seven steps as tabs', () => {
     renderModal()
-    expect(screen.getAllByRole('tab')).toHaveLength(7)
+    expect(screen.getAllByRole('tab')).toHaveLength(8)
   })
 
   it('locks every step beyond the first for a new draft', () => {
@@ -28,7 +28,7 @@ describe('CharacterModal', () => {
 
     expect(screen.getByRole('tab', { name: /Name/ })).toBeEnabled()
     expect(screen.getByRole('tab', { name: /Race/ })).toBeDisabled()
-    expect(screen.getByRole('tab', { name: /Equipment|Items/ })).toBeDisabled()
+    expect(screen.getByRole('tab', { name: /Equipment/ })).toBeDisabled()
   })
 
   it('keeps Continue disabled until the step is valid', async () => {
@@ -39,20 +39,6 @@ describe('CharacterModal', () => {
     await userEvent.type(screen.getByLabelText('Character name'), 'Arkes')
 
     expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
-  })
-
-  it('saves and advances when the step is confirmed', async () => {
-    const { onSave } = renderModal()
-
-    await userEvent.type(screen.getByLabelText('Character name'), 'Arkes')
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
-    
-    expect(onSave).toHaveBeenCalledTimes(1)
-    expect(onSave.mock.calls[0][0]).toMatchObject({
-      name: 'Arkes',
-      completedSteps: ['name'],
-    })
-    expect(screen.getByRole('tab', { name: /Race/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('goes back to the previous step', async () => {
@@ -74,7 +60,7 @@ describe('CharacterModal', () => {
     const resumed: Character = {
       ...createDraft(),
       name: 'Arkes',
-      raceId: 'srd_half-orc',
+      raceId: 'srd-2024_human',
       completedSteps: ['name'],
     }
     renderModal(resumed)
@@ -108,6 +94,50 @@ describe('CharacterModal', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
 
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('grays out the spells tab for a non-caster', () => {
+    renderModal({ ...createDraft(), name: 'Arkes', classId: 'srd-2024_fighter' })
+    const tab = screen.getByRole('tab', { name: /Spells/ })
+    expect(tab).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('offers to save when closed with unsaved steps', async () => {
+    const { onSave, onClose } = renderModal()
+    await userEvent.type(screen.getByLabelText('Character name'), 'Thorin')
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save and close' }))
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: 'Thorin'}))
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('writes once on the name step and not again until the end', async () => {
+    const { onSave } = renderModal()
+    await userEvent.type(screen.getByLabelText('Character name'), 'Thorin')
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+
+    await userEvent.click(screen.getByRole('tab', { name: /Race/ }))
+    await userEvent.click(screen.getByRole('radio', { name: /Dwarf/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+  })
+
+  it('discards without saving when asked to', async () => {
+    const { onSave, onClose } = renderModal()
+    await userEvent.type(screen.getByLabelText('Character name'), 'Thorin')
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
+
+    expect(onSave).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
   })
 })

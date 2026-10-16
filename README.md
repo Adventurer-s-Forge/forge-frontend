@@ -57,7 +57,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credential=True,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 ```
@@ -66,6 +66,93 @@ app.add_middleware(
 ```sh
 npm run dev
 ```
+
+## Character Persistence
+
+Game content is read anonymously. Characters are per-user and require authentication.
+
+> **Status:** not yet implemented backend-side. `POST /characters` currently accepts only
+> `{character_name, user_name}`, `PUT /characters/{id}` and `DELETE /characters/{id}` do not exist,
+> and the API requires an `X-User-Id` header rather than the bearer token the client sends.
+> The client code below is in plkace and will work once the routes match.
+
+### Endpoints
+
+| Method | Path | Used by |
+|--------|------|---------|
+| `GET`  | `/characters` | Dashboard, on load |
+| `POST` | `/characters` | First save of a new character -- the Name step |
+| `PUT`  | `/characters/{id}` | Every later step, full replace |
+| `DELETE` | `/characters/{id}` | The delete button on a character card |
+
+### Lifecycle (New change 10/12)
+
+The wizard writes **twice**: once on the Name step, so the character exists and can be resumed,
+and once at the end. The six steps between do not touch the network anymore.
+
+1. **Name step** -- `POST /characters` with the full payload. The **client** generates the `id`
+  (`crypto.randomUUID()`), so a retried POST is safe; the server should `409` on a collision
+  rather than mint a second record.
+2. **Steps 2-7** -- no requests. The draft lives in React state.
+3. **Finish, or "Save and close" from the exit prompt** -- one `PUT /characters/{id}`
+
+Dismissing the wizard with unsaved steps prompts rather than discarding: save and close, discard,
+or keep editing. A PUT may therefore arrive **partial** -- closing on step 4 sends `classId` set 
+and `spellIds` still empty.
+
+There are no per-step routes. Steps cascade: changing class prunes skills and spells, changing
+background also clears the allocation and the equipment choice. The client computes the whole
+consistent document and replaces it.
+
+### Payload
+
+`src/characters/storage.ts` sends an explicit allow-list, because the server uses `extra="forbid"`:
+
+```json
+{
+  "id": "0f8c1a7e-3d52-4b91-a7c8-6e2f91b40d35",
+  "name": "Gandalf",
+  "level": 1,
+  "raceId": "srd-2024_gnome",
+  "sizeChoice": "Small",
+  "classId": "srd-2024_wizard",
+  "backgroundId": "srd-2024_sage",
+  "abilities": {
+    "method": "standard",
+    "base": { "STR": 10, "DEX": 12, "CON": 14, "INT": 15, "WIS": 13, "CHA": 8 },
+    "rolled": [],
+    "originBonuses": { "INT": 2, "CON": 1 }
+  },
+  "proficientSkillIds": ["arcana", "history"],
+  "expertiseIds": [], // Rogue Class is the only one that allows expertise at Level 1
+  "spellIds": ["srd-2024_fire-bolt", "srd-2024_shield"],
+  "equipmentChoice": { "class": "A", "background": "B" },
+  "purchasedItemIds": ["srd-2024_rope", "srd-2024_rope"],
+  "completedSteps": ["name", "race", "class", "background", "equipment", "attributes", "skills", "spells"]
+}
+
+```
+
+`proficientSkillIds` holds **class picks only** -- background-granted are derived from `backgroundId`,
+so a class change can prune picks without destroying grants.
+
+`expertiseIds` records which proficiencies the player choose to double, and expertise can double 
+background grated skills -- so an id may appear there while being absent from `proficientSkillIds`. Only
+Rogue qualifies at level 1; the level comes from the class data's `Expertise` feature rather than a local table.
+
+`equipmentChoice` records which starting-equipment option was taken from each source; the items
+themselves are derived from it.
+
+`purchaseItemIds` is a multiset -- buying two of something lists it twice.
+
+Derived values are never stores: ability totals and modifiers, the proficiency bonus, every skill
+modifier, armor class, hit points, the spell save DC, and the coin purse are all computed on render.
+Money is held as integer copper (`src/character/currency.ts`)
+
+`completedSteps` is not a completion flag. It can be **shorter than the step list on a finished character**
+-- a non-caster never vists Spells, so a complete Fighter has seven entries and no "`spells`".
+
+Server-owned and never sent: `ownerUid`, `createdAt`, `updatedAt`, `schemaVersion`.
 
 ## Scripts
 | Command | Does |
@@ -80,7 +167,7 @@ npm run dev
 ```
 src/
   auth/         Firebase auth: provider, context, error mapping, OAuth + linking
-  characters/   Rules engine -- ability maths, step validation, storage
+  characters/   Rules engine -- ability maths, step validation, currency, storage
   components/   Shared UI; character/ holds the creation wizard
   data/         Content catalog, API adapter, local SRD rules
   lib/          Firebase init and the typed API client

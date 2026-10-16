@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { getCollection } from "../lib/api";
 import { seedCatalog } from "./catalog";
-import { isBaseClass, toBackground, toClass, toItem, toRace } from "./normalize";
-import type { RawBackground, RawClass, RawItem, RawRace } from "./normalize";
+import { isBaseClass, toBackground, toClass, toEquipment, toRace, toSpell } from "./normalize";
+import type { RawBackground, RawClass, RawEquipment, RawRace, RawSpell } from "./normalize";
 import { PageLoader } from "../components/PageLoader";
 
 type State = { status: 'loading' } | { status: 'ready' } | { status: 'failed'; message: string }
@@ -16,11 +16,12 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     
     async function load() {
       try {
-        const [races, classes, backgrounds, items] = await Promise.all([
+        const [races, classes, backgrounds, spells, equipments] = await Promise.all([
           getCollection<RawRace>('races'),
           getCollection<RawClass>('classes'),
           getCollection<RawBackground>('backgrounds'),
-          getCollection<RawItem>('items'),
+          getCollection<RawSpell>('spells'),
+          getCollection<RawEquipment>('equipment'),
         ])
 
         if (cancelled) return
@@ -33,11 +34,14 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        const equipmentList = equipments.map(toEquipment)
+
         seedCatalog({
           races: races.map(toRace),
-          classes: classes.filter(isBaseClass).map(toClass),
-          backgrounds: backgrounds.map(toBackground),
-          items: items.map(toItem),
+          classes: classes.filter(isBaseClass).map((c) => toClass(c, equipmentList)),
+          backgrounds: backgrounds.map((b) => toBackground(b, equipmentList)),
+          spells: spells.map(toSpell),
+          equipment: equipmentList,
         })
 
         setState({ status: 'ready' })

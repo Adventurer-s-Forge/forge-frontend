@@ -4,6 +4,7 @@ import {
   abilityModifier,
   finalScores,
   formatModifier,
+  originSpreadValid,
   pointBuySpent,
   roll4d6DropLowest,
 } from "../characters/abilities";
@@ -19,14 +20,23 @@ import {
   setClass,
   setName,
   setRace,
-  setRacialChoices,
   setRolledPool,
-  toggleItem,
-  toggleSkill
+  toggleSkill,
+  toggleSpell,
+  isStepApplicable,
+  nextStep,
+  setOriginBonuses,
+  setBackground,
+  buyItem,
+  sellItem,
+  setEquipmentChoice,
+  isStepValid,
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
-import { getRace, seedCatalog } from "../data/catalog";
+import { seedCatalog } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
+import { authed } from "../lib/api";
+import { derived, ownedItemIds, purseCp, skillModifier, skillSource } from "../components/character/sheets";
 
 function dice(...faces: number[]) {
   let i = 0
@@ -34,37 +44,97 @@ function dice(...faces: number[]) {
 }
 
 function finishedFighter(): Character {
-  let c: Character = { ...createDraft(), name: 'Arkes', backgroundId: 'srd_acolyte'}
-  c = setRace(c, 'srd_half-orc')
-  c = setClass(c, 'srd_fighter')
+  let c: Character = { ...createDraft(), name: 'Arkes', backgroundId: 'srd-2024_acolyte'}
+  c = setRace(c, 'srd-2024_dwarf')
+  c = setClass(c, 'srd-2024_fighter')
+  c = setEquipmentChoice(c, 'class', 'B')
   c = {
     ...c,
     abilities: {
       method: 'standard',
       base: { STR: 15, DEX: 14, CON: 13, INT: 12, WIS: 10, CHA: 8 },
       rolled: [],
-      racialChoices: [],
+      originBonuses: { INT: 2, WIS: 1 },
     },
-    skillIds: ['perception', 'survival'],
+    proficientSkillIds: ['perception', 'survival'],
   }
   for (const { id } of STEPS) c = completeStep(c, id)
   return c
 }
 
+function rogueWithSkills(): Character {
+  return {
+    ...createDraft(),
+    name: 'Lil Goo',
+    classId: 'srd-2024_rogue',
+    backgroundId: 'srd-2024_criminal',
+    proficientSkillIds: ['acrobatics', 'deception', 'investigation', 'persuasion'],
+    abilities: {
+      method: 'standard',
+      base: { STR: 10, DEX: 15, CON: 12, INT: 8, WIS: 13, CHA: 14 },
+      rolled: [],
+      originBonuses: { DEX: 2, INT: 1 },
+    },
+  }
+}
+
 beforeAll(() => {
   seedCatalog({
     races: [
-      { id: 'srd_half-orc', name: 'Half-Orc', size: 'Medium', speed: 30, abilityBonuses: { STR: 2, CON: 1} },
-      { id: 'srd_half-elf', name: 'Half-Elf', size: 'Medium', speed: 30, abilityBonuses: { CHA: 2 }, abilityChoice: { count: 2, amount: 1, exclude: ['CHA'] } },
+      { id: 'srd-2024_human', name: 'Human', sizes: ['Medium', 'Small'], speed: 30 },
+      { id: 'srd-2024_dwarf', name: 'Dwarf', sizes: ['Medium'], speed: 30 },
     ],
     classes: [
-      { id: 'srd_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'], skillChoices: CLASS_SKILL_CHOICES.srd_fighter },
-      { id: 'srd_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'], skillChoices: CLASS_SKILL_CHOICES.srd_wizard },
+      { id: 'srd-2024_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
+        skillChoices: CLASS_SKILL_CHOICES.fighter, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0, 
+        startingEquipment: [
+          { key: 'A', label: 'Chain mail, Longsword, and 5 GP',
+            grants: [
+              { text: 'Chain mail', quantity: 1, itemId: 'srd-2024_chain-mail', choosableFrom: null },
+              { text: 'Longsword', quantity: 1, itemId: 'srd-2024_longsword', choosableFrom: null },
+            ],
+            goldCp: 500 },
+          { key: 'B', label: '75 GP', grants: [], goldCp: 7500 },
+        ], expertiseAt: null },
+      { id: 'srd-2024_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
+        skillChoices: CLASS_SKILL_CHOICES.wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2,
+      startingEquipment: [], expertiseAt: null },
+      { id: 'srd-2024_rogue', name: 'Rogue', hitDie: 8, primaryAbilities: [], savingThrows: ['DEX', 'INT'], 
+        skillChoices: CLASS_SKILL_CHOICES.rogue, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
+        startingEquipment: [], expertiseAt: 1 },
     ],
-    backgrounds: [{ id: 'srd_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'] }],
-    items: [],
+    backgrounds: [
+      { id: 'srd-2024_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
+        abilityOptions: ['INT', 'WIS', 'CHA'], startingEquipment: [] },
+      { id: 'srd-2024_sage', name: 'Sage', skillIds: ['arcana', 'history'], initiateClassNames: ['Wizard'],
+        abilityOptions: ['CON', 'INT', 'WIS'], startingEquipment: [] },
+      { id: 'srd-2024_criminal', name: 'Criminal', skillIds: ['sleight-of-hand', 'stealth'],
+        initiateClassNames: [], abilityOptions: ['DEX', 'CON', 'INT'], startingEquipment: [] },
+    ],
+    spells: [
+      { id: 'srd-2024_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd-2024_wizard'],
+        desc: '', concentration: false, ritual: false, castingTime: '', range: '', duration: '' },
+      { id: 'srd-2024_shield', name: 'Shield', level: 1, school: 'Abjuration', classIds: ['srd-2024_wizard'],
+        desc: '', concentration: false, ritual: false, castingTime: '', range: '', duration: '' },
+    ],
+    equipment: [
+      { id: 'srd-2024_longsword', name: 'Longsword', category: 'weapon', desc: 'A versatile blade.', costCp: 1500 },
+      { id: 'srd-2024_chain-mail', name: 'Chain mail', category: 'armor', desc: 'Heavy interlocking rings.', costCp: 7500,
+        armor: { base: 16, addDex: false, capDex: null, stealthDisadvantage: true } },
+      { id: 'srd-2024_rope', name: 'Rope (50 feet)', category: 'gear', desc: 'Hempen rope.', costCp: 100 },
+    ],
   })
 })
+
+vi.mock('../lib/api', () => ({
+  authed: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    del: vi.fn(),
+  },
+  ApiError: class extends Error {}
+}))
 
 describe('ability math', () => {
   it('derives modifiers, rounding down', () => {
@@ -85,10 +155,19 @@ describe('ability math', () => {
     expect(roll4d6DropLowest(dice(6, 1, 5, 3))).toBe(14)
   })
 
-  it('applies fixed and choses racial bonuses on top of base scores', () => {
+  it('adds the origin allocation on top of the base scores', () => {
     const base = { STR: 15, DEX: 14, CON: 13, INT: 12, WIS: 10, CHA: 8 }
-    expect(finalScores(base, getRace('srd_half-orc'), [])).toMatchObject({ STR: 17, CON: 14 })
-    expect(finalScores(base, getRace('srd_half-elf'), ['DEX', 'CON'])).toMatchObject({ STR: 15, DEX: 15, CON: 14, CHA: 10 })
+    expect(finalScores(base, { INT: 2, WIS: 1 })).toMatchObject({ INT: 14, WIS: 11, STR: 15 })
+    expect(finalScores(base, { INT: 1, WIS: 1, CHA: 1})).toMatchObject({ INT: 13, WIS: 11, CHA: 9 })
+  })
+
+  it('accepts only the two legal 2024 spreads', () => {
+    expect(originSpreadValid({ INT: 2, WIS: 1 })).toBe(true)
+    expect(originSpreadValid({ INT: 1, WIS: 1, CHA: 1 })).toBe(true)
+    expect(originSpreadValid({ INT: 3 })).toBe(false)
+    expect(originSpreadValid({ INT: 2, WIS: 2 })).toBe(false)
+    expect(originSpreadValid({ INT: 2 })).toBe(false)
+    expect(originSpreadValid({})).toBe(false)
   })
 })
 
@@ -98,7 +177,7 @@ describe('character progress', () => {
   })
 
   it('resumes at the first step that was never confirmed', () => {
-    const c = completeStep({ ...createDraft(), name: 'Arkes', raceId: 'srd_half-orc' }, 'name')
+    const c = completeStep({ ...createDraft(), name: 'Arkes', raceId: 'srd-2024_dwarf' }, 'name')
     expect(firstIncompleteStep(c)).toBe('race')
   })
 
@@ -107,30 +186,47 @@ describe('character progress', () => {
   })
 
   it('reopens skills when a class change invalidates them', () => {
-    const c = setClass(finishedFighter(), 'srd_wizard')
-    expect(c.skillIds).toEqual([])
+    const c = setClass(finishedFighter(), 'srd-2024_wizard')
+    expect(c.proficientSkillIds).toEqual([])
     expect(firstIncompleteStep(c)).toBe('skills')
   })
 
-  it('reopens attributes when swithcing to a race with ability choices', () => {
-    expect(firstIncompleteStep(setRace(finishedFighter(), 'srd_half-elf'))).toBe('attributes')
+  it('reopens attributes when the background changes', () => {
+    const c = setBackground(finishedFighter(), 'srd-2024_sage')
+    expect(c.abilities.originBonuses).toEqual({})
+    expect(firstIncompleteStep(c)).toBe('attributes')
+  })
+
+  it('requires the full expertise allowance before the step is valid', () => {
+    const c = setClass({ ...createDraft(), backgroundId: 'srd-2024_acolyte' }, 'srd-2024_rogue')
+    expect(isStepValid('skills', { ...c, expertiseIds: ['insight'] })).toBe(false)
   })
 })
 
 describe('character storage', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => vi.clearAllMocks())
 
-  it('refues to save a character without a name', async () => {
-    await expect(characterStore.save('u1', createDraft())).rejects.toThrow('needs a name')
+  it('refuses to save a character without a name', async () => {
+    await expect(characterStore.create(createDraft())).rejects.toThrow('needs a name')
+    expect(authed.post).not.toHaveBeenCalled()
   })
 
-  it('updates in place and keeps each account separate', async () => {
+  it('strips server-owned timestamps from the payload', async () => {
     const draft = { ...createDraft(), name: 'Arkes' }
-    await characterStore.save('u1', draft)
-    await characterStore.save('u1', { ...draft, name: 'Arkes the Mighty' })
+    vi.mocked(authed.post).mockResolvedValue(draft)
 
-    expect(await characterStore.list('u1')).toMatchObject([{ name: 'Arkes the Mighty' }])
-    expect(await characterStore.list('u2')).toEqual([])
+    await characterStore.create(draft)
+
+    const [path, body] = vi.mocked(authed.post).mock.calls[0]
+    expect(path).toBe('characters')
+    expect(body).not.toHaveProperty('createdAt')
+    expect(body).not.toHaveProperty('updatedAt')
+    expect(body).toMatchObject({ name: 'Arkes' })
+  })
+
+  it('returns an empty list rather than failing when the user has none', async () => {
+    vi.mocked(authed.get).mockResolvedValue(null)
+    expect(await characterStore.list()).toEqual([])
   })
 })
 
@@ -164,21 +260,20 @@ describe('character mutations', () => {
     c = toggleSkill(c, 'arcana', 2)
     c = toggleSkill(c, 'history', 2)
 
-    expect(c.skillIds).toEqual(['stealth', 'arcana'])
-    expect(toggleSkill(c, 'stealth', 2).skillIds).toEqual(['arcana'])
+    expect(c.proficientSkillIds).toEqual(['stealth', 'arcana'])
+    expect(toggleSkill(c, 'stealth', 2).proficientSkillIds).toEqual(['arcana'])
   })
 
-  it('toggle itemss with no cap', () => {
-    let c = toggleItem(createDraft(), 'srd_dagger')
-    c = toggleItem(c, 'srd_rope')
-
-    expect(c.itemIds).toEqual(['srd_dagger', 'srd_rope'])
-    expect(toggleItem(c, 'srd_dagger').itemIds).toEqual(['srd_rope'])
+  it('buys the same item twice and sells one back', () => {
+    let c = buyItem(createDraft(), 'srd-2024_longsword') 
+    c = buyItem(c, 'srd-2024_longsword')
+    expect(c.purchasedItemIds).toEqual(['srd-2024_longsword', 'srd-2024_longsword'])
+    expect(sellItem(c, 'srd-2024_longsword').purchasedItemIds).toEqual(['srd-2024_longsword'])
   })
 
-  it('clears racial choices when the race change affects them', () => {
-    const chosen = setRacialChoices({ ...createDraft(), raceId: 'srd_half-elf' }, ['DEX', 'CON'])
-    expect(setRace(chosen, 'srd_half-orc').abilities.racialChoices).toEqual([])
+  it('clears the origin allocation when the background changes', () => {
+    const chosen = setOriginBonuses({ ...createDraft(), backgroundId: 'srd-2024_acolyte' }, { INT: 2, WIS: 1})
+    expect(setBackground(chosen, 'srd-2024_sage').abilities.originBonuses).toEqual({})
   })
 
   it('unlocks a step only once every earlier step is confirmed', () => {
@@ -191,5 +286,79 @@ describe('character mutations', () => {
   it('does not re-add a step that is already confirmed', () => {
     const once = completeStep(createDraft(), 'name')
     expect(completeStep(once, 'name')).toBe(once)
+  })
+
+  it('ends a non-caster at the skills step', () => {
+    const c = setClass(createDraft(), 'srd-2024_fighter')
+    expect(nextStep(c, 'skills')).toBeNull()
+    expect(nextStep(c, 'background')).toBe('equipment')
+  })
+
+  it('offers the spells step to a caster', () => {
+    const c = setClass(createDraft(), 'srd-2024_wizard')
+    expect(isStepApplicable('spells', c)).toBe(true)
+    expect(nextStep(c, 'skills')).toBe('spells')
+  })
+
+  it('drops spells the new class cannot cast', () => {
+    let c = setClass(createDraft(), 'srd-2024_wizard')
+    c = toggleSpell(c, 'srd-2024_fire-bolt')
+    expect(setClass(c, 'srd-2024_fighter').spellIds).toEqual([])
+  })
+
+  it('deletes by id', async () => {
+    await characterStore.remove('abc-123')
+    expect(authed.del).toHaveBeenCalledWith('characters/abc-123')
+  })
+
+  it('doubles the proficiency bonus for an expert skill', () => {
+    const c = { ...rogueWithSkills(), expertiseIds: ['stealth'] }
+    expect(skillModifier(c, 'stealth')).toBe(7)
+    expect(skillModifier(c, 'persuasion')).toBe(4)
+  })
+
+  it('allows expertise in a background grant, not just a class pick', () => {
+    const c = setClass({ ...createDraft(), backgroundId: 'srd-2024_acolyte' }, 'srd-2024_rogue')
+    expect(skillSource({ ...c, expertiseIds: ['insight'] }, 'insight')).toMatchObject({
+      kind: 'background', expert: true,
+    })
+  })
+
+  it('drops expertise when its proficiency goes', () => {
+    let c = setClass(createDraft(), 'srd-2024_rogue')
+    c = { ...c, proficientSkillIds: ['stealth'], expertiseIds: ['stealth'] }
+    expect(setClass(c, 'srd-2024_fighter').expertiseIds).toEqual([])
+  })
+})
+
+describe('character equipment', () => {
+    it('tracks the purse as starting gold minus purchases', () => {
+    let c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
+    expect(purseCp(c)).toBe(7500)
+
+    c = buyItem(c, 'srd-2024_chain-mail')
+    expect(purseCp(c)).toBe(0)
+    expect(purseCp(buyItem(c, 'srd-2024_rope'))).toBe(-100)
+  })
+
+  it('blocks the equipment step while overdrawn or unchosen', () => {
+    const base = { ...createDraft(), classId: 'srd-2024_fighter', backgroundId: 'srd-2024_acolyte' }
+    expect(isStepValid('equipment', base)).toBe(false)
+
+    const chosen = setEquipmentChoice(base, 'class', 'B')
+    expect(isStepValid('equipment', chosen)).toBe(true)
+    expect(isStepValid('equipment', buyItem(buyItem(chosen, 'srd-2024_chain-mail'), 'srd-2024_rope'))).toBe(false)
+  })
+
+  it('expands granted items by quantity and counts them for armour class', () => {
+    const c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'A')
+    expect(ownedItemIds(c)).toContain('srd-2024_chain-mail')
+    expect(derived({ ...c, abilities: { ...c.abilities, base: { DEX: 13 } } }).armorClass).toBe(16)
+  })
+
+  it('clears only its own equipment choice when a source changes', () => {
+    let c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
+    c = setEquipmentChoice(c, 'background', 'A')
+    expect(setClass(c, 'srd-2024_wizard').equipmentChoice).toEqual({ class: null, background: 'A' })
   })
 })
