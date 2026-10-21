@@ -85,6 +85,10 @@ export type EquipmentOption = {
   goldCp: number
 }
 
+/** A frozen copy of the option the player took. Saves the loadout into the backend shape.
+ * Makes a saved record stay readable. */
+export type EquipmentPick = EquipmentOption
+
 export const catalog: Catalog = {
   skills: SKILLS,
   races: [],
@@ -108,6 +112,7 @@ export const getBg = (id: string | null) => catalog.backgrounds.find((bg) => bg.
 export const getSkill = (id: string) => catalog.skills.find((skill) => skill.id === id)
 export const getSpell = (id: string) => catalog.spells.find((spell) => spell.id === id)
 export const purchaseableEquipment = () => catalog.equipment.filter((eq) => eq.costCp > 0)
+export const getEquipment = (id: string) => catalog.equipment.find((eq) => eq.id === id)
 
 export function classSkillOptions(cls: CharacterClass, background: Background | undefined): string[] {
   const pool = cls.skillChoices.from === 'any' ? catalog.skills.map((skill) => skill.id) : cls.skillChoices.from

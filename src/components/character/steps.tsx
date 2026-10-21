@@ -705,8 +705,8 @@ export function EquipmentStep({ character, onChange }: StepProps) {
   }
 
   const sources = [
-    { source: 'class' as const, name: cls.name, options: cls.startingEquipment, picked: character.equipmentChoice.class },
-    { source: 'background' as const, name: bg.name, options: bg.startingEquipment, picked: character.equipmentChoice.background },
+    { source: 'class' as const, name: cls.name, options: cls.startingEquipment, picked: character.equipmentChoice.class?.key ?? null },
+    { source: 'background' as const, name: bg.name, options: bg.startingEquipment, picked: character.equipmentChoice.background?.key ?? null },
   ]
 
   const stock = purchaseableEquipment()

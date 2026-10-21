@@ -1,4 +1,4 @@
-import type { Size } from "../data/catalog"
+import type { Size, EquipmentPick } from "../data/catalog"
 
 export type Ability = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA'
 export type AbilityScores = Record<Ability, number>
@@ -34,8 +34,9 @@ export type Character = {
   proficientSkillIds: string[]
   expertiseIds: string[]
   spellIds: string[]
-  equipmentChoice: { class: string | null; background: string | null }
+  equipmentChoice: { class: EquipmentPick | null; background: EquipmentPick | null }
   purchasedItemIds: string[]
+  walletCp: number
   completedSteps: StepId[]
   createdAt: string
   updatedAt: string
@@ -57,6 +58,7 @@ export function createDraft(): Character {
     spellIds: [],
     equipmentChoice: { class: null, background: null },
     purchasedItemIds: [],
+    walletCp: 0,
     completedSteps: [],
     createdAt: now,
     updatedAt: now,

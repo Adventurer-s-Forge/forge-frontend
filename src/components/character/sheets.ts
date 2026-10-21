@@ -1,6 +1,6 @@
 import type { Ability, Character } from "../../characters/character";
 import { ABILITIES, abilityModifier, finalScores, formatModifier, proficiencyBonus } from "../../characters/abilities";
-import { catalog, getBg, getClass, getRace, getSkill } from "../../data/catalog";
+import { catalog, getBg, getClass, getEquipment, getRace, getSkill } from "../../data/catalog";
 import { SPELLCASTING_ABILITY, classKey } from "../../data/classRules";
 
 export type AbilityRow = {
@@ -100,31 +100,18 @@ export function skillRows(c: Character): SkillRow[] {
   })
 }
 
-const chosenOptions = (c: Character, source: 'class' | 'background') => {
-  const options =
-    source === 'class'
-      ? getClass(c.classId)?.startingEquipment
-      : getBg(c.backgroundId)?.startingEquipment
-  return options?.find((option) => option.key === c.equipmentChoice[source])
-}
-
-export function startingCp(c: Character): number {
-  return (chosenOptions(c, 'class')?.goldCp ?? 0) + (chosenOptions(c, 'background')?.goldCp ?? 0)
-}
+export const startingCp = (c: Character) => (c.equipmentChoice.class?.goldCp ?? 0) + (c.equipmentChoice.background?.goldCp ?? 0)
 
 export function spentCp(c: Character): number {
-  return c.purchasedItemIds.reduce(
-    (sum, id) => sum + (catalog.equipment.find((eq) => eq.id === id)?.costCp ?? 0),
-    0,
-  )
+  return c.purchasedItemIds.reduce((sum, id) => sum + (getEquipment(id)?.costCp ?? 0), 0)
 }
 
-export const purseCp = (c: Character) => startingCp(c) - spentCp(c)
+export const purseCp = (c: Character) => c.walletCp
 
 /** Granted by the chosen option, expanded by qty, plus anything bought */
 export function ownedItemIds(c: Character): string[] {
   const granted = (['class', 'background'] as const).flatMap((source) =>
-    (chosenOptions(c, source)?.grants ?? []).flatMap((grant) =>
+    (c.equipmentChoice[source]?.grants ?? []).flatMap((grant) =>
       grant.itemId === null ? [] : (Array(grant.quantity).fill(grant.itemId) as string[]),
     ),
   )
