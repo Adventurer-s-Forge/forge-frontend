@@ -106,17 +106,55 @@ describe('RaceStep', () => {
 })
 
 describe('ClassStep', () => {
-  it('shows the hit die and saving throws, and selects on click', async () => {
+  it('shows the hit die and saves, and selects on click', async () => {
     const onChange = vi.fn()
     render(<ClassStep character={createDraft()} onChange={onChange} />)
 
-    expect(screen.getByText(/d10 hit die/)).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Fighter/ })).toHaveTextContent('d10 · STR/CON')
 
     await userEvent.click(screen.getByRole('radio', { name: /Wizard/ }))
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ classId: 'srd-2024_wizard' })
     )
+  })
+
+  it('tags caster and leaves non-casters untagged', () => {
+    render(<ClassStep character={createDraft()} onChange={vi.fn()} />)
+
+    expect(screen.getByRole('radio', { name: /Wizard/ })).toHaveTextContent('Caster')
+    expect(screen.getByRole('radio', { name: /Fighter/ })).not.toHaveTextContent('Caster')
+  })
+
+  it('offers a fighting style for a fighter and records the pick', async () => {
+    const onChange = vi.fn()
+    render(<ClassStep character={fighter()} onChange={onChange} />)
+
+    await userEvent.selectOptions(screen.getByLabelText(/Fighting Style/), 'defense')
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ fightingStyleId: 'defense' })
+    )
+  })
+
+  it('offers no fighting style for a class that has none', () => {
+    render(<ClassStep character={fighter({ classId: 'srd-2024_wizard' })} onChange={vi.fn()} />)
+
+    expect(screen.queryByLabelText(/Fighting Style/)).not.toBeInTheDocument()
+  })
+
+  it('shows the startign equipment options beside the stats', () => {
+    render(<ClassStep character={fighter()} onChange={vi.fn()} />)
+
+    expect(screen.getByText('Chain mail, Longsword, and 5 GP')).toBeInTheDocument()
+    expect(screen.getByText('75 GP')).toBeInTheDocument()
+  })
+
+  it('omits proficiency lines the class data does not carry', () => {
+    render(<ClassStep character={fighter({ classId: 'srd-2024_wizard' })} onChange={vi.fn()} />)
+
+    expect(screen.getByText('Proficiencies')).toBeInTheDocument()
+    expect(screen.queryByText(/^Armor:/)).not.toBeInTheDocument()
   })
 })
 

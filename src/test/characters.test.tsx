@@ -32,6 +32,7 @@ import {
   setEquipmentChoice,
   isStepValid,
   resetMarket,
+  setFightingStyle,
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
 import { seedCatalog } from "../data/catalog";
@@ -52,6 +53,7 @@ function finishedFighter(): Character {
   c = setEquipmentChoice(c, 'class', 'B')
   c = {
     ...c,
+    fightingStyleId: 'defense',
     abilities: {
       method: 'standard',
       base: { STR: 15, DEX: 14, CON: 13, INT: 12, WIS: 10, CHA: 8 },
@@ -100,13 +102,21 @@ beforeAll(() => {
             ],
             goldCp: 500 },
           { key: 'B', label: '75 GP', grants: [], goldCp: 7500 },
-        ], expertiseAt: null },
+        ], expertiseAt: null, primaryAbilityText: 'Strength or Dexterity', fightingStyleAt: 1, features: [{
+        name: 'Second Wind', desc: 'Bonus action: regain 1d10 + level HP.'
+      }], proficiencies: {
+          armor: 'Light, Medium, and Heavy armor and Shields',
+          weapons: 'Simple and Martial weapons',
+          skills: 'Choose 2: Acrobatics, Athletics, History, Insight, Intimidation, Persuasion, Perception, or Survival',
+        } },
       { id: 'srd-2024_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
         skillChoices: CLASS_SKILL_CHOICES.wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2,
-      startingEquipment: [], expertiseAt: null },
+      startingEquipment: [], expertiseAt: null, fightingStyleAt: null, features: [], primaryAbilityText: 'Intelligence',
+    proficiencies: { armor: '', weapons: '', skills: '' } },
       { id: 'srd-2024_rogue', name: 'Rogue', hitDie: 8, primaryAbilities: [], savingThrows: ['DEX', 'INT'], 
         skillChoices: CLASS_SKILL_CHOICES.rogue, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
-        startingEquipment: [], expertiseAt: 1 },
+        startingEquipment: [], expertiseAt: 1, fightingStyleAt: null, features: [], primaryAbilityText: 'Dexterity',
+      proficiencies: { armor: '', weapons: '', skills: '' } },
     ],
     backgrounds: [
       { id: 'srd-2024_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
@@ -333,6 +343,12 @@ describe('character mutations', () => {
     let c = setClass(createDraft(), 'srd-2024_rogue')
     c = { ...c, proficientSkillIds: ['stealth'], expertiseIds: ['stealth'] }
     expect(setClass(c, 'srd-2024_fighter').expertiseIds).toEqual([])
+  })
+
+  it('holds the class step until a fighter picks a fighting style', () => {
+    const c = setClass({ ...createDraft(), name: 'Arkes' }, 'srd-2024_fighter')
+    expect(isStepValid('class', c)).toBe(false)
+    expect(isStepValid('class', setFightingStyle(c, 'defense'))).toBe(true)
   })
 })
 
