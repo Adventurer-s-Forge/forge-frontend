@@ -116,7 +116,7 @@ export function completeStep(c: Character, step: StepId): Character {
   return { ...c, completedSteps: [...c.completedSteps, step]} 
 }
 
-export function setRace(c: Character, raceId: string): Character {
+export function setRace(c: Character, raceId: string | null): Character {
   return raceId === c.raceId ? c : { ...c, raceId, sizeChoice: null }
 }
 

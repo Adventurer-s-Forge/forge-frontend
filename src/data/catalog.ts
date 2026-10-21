@@ -8,12 +8,16 @@ export type CasterType = 'NONE' | 'FULL' | 'HALF' | 'PACT'
 
 export const SIZES = ['Small', 'Medium']  as const
 export type Size = (typeof SIZES)[number]
+export type RaceTrait = { name: string; desc: string }
 
 export type Race = {
   id: string
   name: string
   sizes: Size[]
+  heightHints: Partial<Record<Size, string>>
   speed: number
+  darkvisionFt: number | null
+  traits: RaceTrait[]
 }
 
 export type CharacterClass = {

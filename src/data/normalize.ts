@@ -1,16 +1,5 @@
-/** 
- *  THIS IS TEMPORARY
- * 
- *  prose parsing that belongs in the backend ingest step
- * 
- * 
- *  Open5e v2 species and background records carry no numeric fields; ability
- *  bonuses, speed, size and skill proficiencies exists only as English sentences.
- * 
- *  When the backend supplies a normalized block, DELETE THIS FILE and read the
- *  fields straight off the envelope. Nothing else imports these functions.
- *
- **/
+/** This was originally set as temporary. But as of right now 10/20/26
+ * This is part of the frontend until backend fully transfers it. */
 
 import type { Ability } from "../characters/character";
 import type { Background, CasterType, CharacterClass, Equipment, EquipmentGrant, EquipmentOption, Race, Size, Spell } from "./catalog";
@@ -87,12 +76,34 @@ function sizes(desc: string): Size[] {
   return unique.length > 0 ? unique : ['Medium']
 }
 
+const RACE_STAT_TRAITS = new Set(['Size', 'Speed', 'Darkvision'])
+
+const feet = (desc: string) => {
+  const found = desc.match(/(\d+)\s*feet/i)?.[1]
+  return found ? Number(found) : null
+}
+
+function heightHints(desc: string): Partial<Record<Size, string>> {
+  const hints: Partial<Record<Size, string>> = {}
+  for (const match of desc.matchAll(/\b(Small|Medium)\b\s*\(([^)]+)\)/g)) {
+    hints[match[1] as Size] = match[2].trim()
+  }
+  return hints
+}
+
 export function toRace(record: Envelope<RawRace>): Race {
+  const sizeTrait = trait(record.data.traits, 'Size')
+
   return {
     id: record.key,
     name: record.name,
-    sizes: sizes(trait(record.data.traits, 'Size')),
-    speed: Number(trait(record.data.traits, 'Speed').match(/(\d+)\s*feet/i)?.[1] ?? 30),
+    sizes: sizes(sizeTrait),
+    heightHints: heightHints(sizeTrait),
+    speed: feet(trait(record.data.traits, 'Speed')) ?? 30,
+    darkvisionFt: feet(trait(record.data.traits, 'Darkvision')),
+    traits: record.data.traits
+      .filter((entry) => !RACE_STAT_TRAITS.has(entry.name))
+      .map((entry) => ({ name: entry.name, desc: entry.desc.trim() })),
   }
 }
 

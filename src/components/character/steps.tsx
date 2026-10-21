@@ -48,6 +48,7 @@ import { FiCheck, FiCheckCircle, FiX } from "react-icons/fi";
 import { useState } from "react";
 import { ConfirmDelete } from "../ConfirmDelete";
 import { formatCoins } from "../../characters/currency";
+import { Markdown } from "../Markdown";
 
 export type StepProps = {
   character: Character
@@ -73,47 +74,127 @@ export function NameStep({ character, onChange }: StepProps) {
 
 export function RaceStep({ character, onChange }: StepProps) {
   const chosen = getRace(character.raceId)
+  const size = character.sizeChoice ?? chosen?.sizes[0] ?? null
 
   return (
     <div className="step">
-      <div className="option-list" role="radiogroup" aria-label="Race">
-        {catalog.races.map((race) => (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={character.raceId === race.id}
-            className={`option${character.raceId === race.id ? ' is-chosen' : ''}`}
-            key={race.id}
-            onClick={() => onChange(setRace(character, race.id))}
-          >
-            <span className="option-name">{race.name}</span>
-            <span className="option-meta">Size: {race.sizes.join(' or ')}</span>
-            <span className="option-meta">Speed: {race.speed} ft</span>
-          </button>
-        ))}
-      </div>
+      <p className="step-intro">
+        Pick a race. Its detail open below so you can compare before moving on; picking another swaps the panel.
+      </p>
 
-      {chosen && chosen.sizes.length > 1 && (
-        <fieldset className="origin-choice">
-          <legend>{chosen.name}</legend>
-          <div className="chip-row">
-            {chosen.sizes.map((size) => {
-              const picked = (character.sizeChoice ?? chosen.sizes[0]) === size
+      <fieldset className="pick-set">
+        <legend>Race &mdash; {chosen ? 1 : 0} of {catalog.races.length}</legend>
+        <div className="pick-grid" role="radiogroup" aria-label="Race">
+          {catalog.races.map((race) => {
+            const picked = character.raceId === race.id
+            const sizeLabel = race.sizes.length === 1 && race.sizes[0] === 'Small' ? 'Small' : `Speed ${race.speed}`
+            const senseLabel = race.darkvisionFt ? `Darkv. ${race.darkvisionFt}` : (race.traits[0]?.name ?? '')
 
-              return (
-                <button
-                  type="button"
-                  className={`chip${picked ? ' is-chosen' : ''}`}
-                  key={size}
-                  aria-pressed={picked}
-                  onClick={() => onChange(setSizeChoice(character, size))}
-                >
-                  {size}
-                </button>
-              )
-            })}
+            return (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={picked}
+                className={`pick-tile${picked ? ' is-chosen' : ''}`}
+                key={race.id}
+                onClick={() => onChange(setRace(character, race.id))}
+              >
+                <span className="pick-tile-name">
+                  {race.name}
+                  {picked && (
+                    <span className="pick-check" aria-hidden="true">
+                      <FiCheck size={14} />
+                    </span>
+                  )}
+                </span>
+                <span className="pick-tile-meta">
+                  {[sizeLabel, senseLabel].filter(Boolean).join(' · ')}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </fieldset>
+
+      {chosen && (
+        <section className="detail-panel" aria-labelledby="selected-race">
+          <div className="detail-head">
+            <div>
+              <p className="detail-eyebrow">Selected race</p>
+              <h3 className="detail-title" id="selected-race">{chosen.name}</h3>
+            </div>
+            <button type="button" className="btn btn-quiet" onClick={() => onChange(setRace(character, null))}>
+              Clear
+            </button>
           </div>
-        </fieldset>
+
+          <div className="detail-body">
+            <div className="stat-grid">
+              <div className="stat-card">
+                <p className="stat-card-label">Size</p>
+                {chosen.sizes.length > 1 ? (
+                  <div className="chip-row">
+                    {chosen.sizes.map((option) => (
+                      <button
+                        type="button"
+                        className={`chip${size === option ? ' is-chosen' : ''}`}
+                        key={option}
+                        aria-pressed={size === option}
+                        onClick={() => onChange(setSizeChoice(character, option))}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="stat-card-row">
+                    <span>Size</span>
+                    <span className="stat-card-value">{chosen.sizes[0]}</span>
+                  </div>
+                )}
+                {size && chosen.heightHints[size] && (
+                  <p className="stat-card-note">{chosen.heightHints[size]}</p>
+                )}
+              </div>
+
+              <div className="stat-card">
+                <p className="stat-card-label">Movement</p>
+                <div className="stat-card-row">
+                  <span>Speed</span>
+                  <span className="stat-card-value">{chosen.speed} ft</span>
+                </div>
+                <p className="stat-card-note">walking</p>
+              </div>
+
+              <div className="stat-card">
+                <p className="stat-card-label">Senses</p>
+                <div className="stat-card-row">
+                  <span>Darkvision</span>
+                  <span className="stat-card-value">
+                    {chosen.darkvisionFt ? `${chosen.darkvisionFt} ft` : '\u2014'}
+                  </span>
+                </div>
+                <p className="stat-card-note">
+                  {chosen.darkvisionFt ? 'see in dim light as bright' : 'no darkvision'}
+                </p>
+              </div>
+            </div>
+
+            <div className="trait-card">
+              <p className="detail-eyebrow">Traits</p>
+              <dl className="trait-list">
+                {chosen.traits.map((trait) => (
+                  <div className="trait-row" key={trait.name}>
+                    <dt className="trait-term">{trait.name}</dt>
+                    <dd className="trait-desc">
+                      <Markdown source={trait.desc} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+        </section>
       )}
     </div>
   )
