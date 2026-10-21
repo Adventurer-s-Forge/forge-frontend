@@ -2,7 +2,7 @@
  * This is part of the frontend until backend fully transfers it. */
 
 import type { Ability } from "../characters/character";
-import type { Background, CasterType, CharacterClass, Equipment, EquipmentGrant, EquipmentOption, Race, Size, Spell } from "./catalog";
+import type { Background, CasterType, CharacterClass, ClassFeature, Equipment, EquipmentGrant, EquipmentOption, Race, Size, Spell } from "./catalog";
 import type { Envelope } from "../lib/api";
 import { CLASS_SKILL_CHOICES, classKey } from "./classRules";
 import { skillIdsFromNames } from "./skills";
@@ -129,10 +129,16 @@ export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): Cha
     id: record.key,
     name: record.name,
     hitDie: Number(record.data.hit_dice.replace(/^d/i, '')),
-    savingThrows: record.data.saving_throws
-      .map((save) => ABILITY_BY_NAME[save.name.toLowerCase()])
-      .filter((ability): ability is Ability => ability !== undefined),
+    primaryAbilityText: coreTraitRow(record.data.features, 'Primary Ability').trim(),
     primaryAbilities: [],
+    savingThrows: savingThrows(record.data),
+    fightingStyleAt: featureLevel(record.data.features, 'Fighting Style'),
+    features: levelOneFeatures(record.data.features),
+    proficiencies: {
+      armor: coreTraitRow(record.data.features, 'Armor Training'),
+      weapons: coreTraitRow(record.data.features, 'Weapon Proficiencies'),
+      skills: coreTraitRow(record.data.features, 'Skill Proficiencies'),
+    },
     skillChoices: choices,
     expertiseAt: featureLevel(record.data.features, 'Expertise'),
     casterType: record.data.caster_type ?? 'NONE',
@@ -177,6 +183,33 @@ export function toBackground(record: Envelope<RawBackground>, equipment: Equipme
     startingEquipment: parseStartingEquipment(
       record.data.benefits.find((b) => b.type === 'equipment')?.desc ?? '', equipment)
   }
+}
+
+// ATTRIBUTES
+
+const ABILITY_WORDS = /Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma/g
+
+function savingThrows(record: RawClass): Ability[] {
+  const row = coreTraitRow(record.features, 'Saving Throw Proficiency')
+  const fromTable = (row.match(ABILITY_WORDS) ?? [])
+    .map((word) => ABILITY_BY_NAME[word.toLowerCase()])
+    .filter((ability): ability is Ability => ability !== undefined)
+
+  if (fromTable.length > 0) return fromTable
+
+  return record.saving_throws
+    .map((entry) => ABILITY_BY_NAME[entry.name.toLowerCase()])
+    .filter((ability): ability is Ability => ability !== undefined)
+}
+
+const FEATURES_AS_CONTROLS = new Set(['Fighting Style'])
+
+function levelOneFeatures(features: RawClass['features']): ClassFeature[] {
+  return features
+    .filter((feat) => (feat.gained_at ?? []).some((entry) => entry.level === 1))
+    .filter((feat) => (feat.desc ?? '').length > 40)
+    .filter((feat) => !FEATURES_AS_CONTROLS.has(feat.name))
+    .map((feat) => ({ name: feat.name, desc: feat.desc.trim() }))
 }
 
 // EQUIPMENT
