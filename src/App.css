@@ -519,18 +519,21 @@
   margin-top: 6px;
 }
 
+/* CHARACTER CARDS */
+
 .character-grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  align-content: start;
 }
 
 .character-card {
-  position: relative;
   display: flex;
+  flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -549,33 +552,65 @@
   text-align: left;
   font: inherit;
   color: inherit;
-  padding: 18px 52px 18px 18px;
+  padding: 18px 18px 14px;
   background: transparent;
   border: none;
-  border-radius: 14px;
+  border-radius: 14px 14px 0 0;
   cursor: pointer;
 }
 
+.character-actions {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.character-action {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15 ease, border-color 0.15s ease;
+}
+
+.character-action:hover:not(:disabled) {
+  color: var(--brass);
+  border-color: var(--brass-line);
+}
+
+.character-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .character-delete {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  min-height: 44px;
   padding: 0;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  color: var(--oxblood);
+  background: var(--oxblood-soft);
+  border: 1px solid var(--oxblood-line);
+  border-radius: var(--radius);
   cursor: pointer;
   transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .character-delete:hover {
-  color: var(--oxblood);
-  background: var(--oxblood-soft);
+  color: var(--brass-ink);
+  background: var(--oxblood);
   border-color: var(--oxblood);
 }
 
@@ -603,6 +638,13 @@
 .character-status.is-done {
   color: var(--muted);
 }
+
+/* Saving until `Duplicate` is in */
+.character-card.is-fresh {
+  border-style: dashed;
+  border-color: var(--brass);
+}
+
 
 /* DELETE CONFIRMATION */
 
