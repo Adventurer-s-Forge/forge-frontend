@@ -14,6 +14,7 @@ import {
   SpellsStep,
 } from "../components/character/steps";
 import { seedTestCatalog } from './fixtures'
+import { setEquipmentChoice } from "../characters/progress";
 
 beforeAll(seedTestCatalog)
 
@@ -180,7 +181,9 @@ describe('EquipmentStep', () => {
     await userEvent.click(within(classGroup()).getByRole('button', { name: /75 GP/ }))
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ equipmentChoice: expect.objectContaining({ class: 'B' }) }),
+      expect.objectContaining({
+        equipmentChoice: expect.objectContaining({ class: expect.objectContaining({ key: 'B' }) }),
+      }),
     )
   })
 
@@ -188,7 +191,7 @@ describe('EquipmentStep', () => {
     const onChange = vi.fn()
     render(
       <EquipmentStep
-        character={fighter({ equipmentChoice: { class: 'B', background: null } })}
+        character={setEquipmentChoice(fighter(), 'class', 'B')}
         onChange={onChange}
       />,
     )
@@ -203,7 +206,7 @@ describe('EquipmentStep', () => {
   it('narrows the market to the search text', async () => {
     render(
       <EquipmentStep
-        character={fighter({ equipmentChoice: { class: 'B', background: null } })}
+        character={setEquipmentChoice(fighter(), 'class', 'B')}
         onChange={vi.fn()}
       />,
     )
@@ -219,7 +222,7 @@ describe('EquipmentStep', () => {
   it('disables what the purse cannot cover', () => {
     render(
       <EquipmentStep
-        character={fighter({ equipmentChoice: { class: 'A', background: null } })}
+        character={setEquipmentChoice(fighter(), 'class', 'A')}
         onChange={vi.fn()}
       />,
     )

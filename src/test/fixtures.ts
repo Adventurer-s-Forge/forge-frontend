@@ -1,4 +1,4 @@
-import { seedCatalog } from "../data/catalog";
+import { seedCatalog, type EquipmentPick } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
 
 export function seedTestCatalog(): void {
@@ -46,3 +46,10 @@ export function seedTestCatalog(): void {
     ],
   })
 }
+
+export const pick = (key: string, goldCp = 0): EquipmentPick => ({
+  key,
+  label: `Option ${key}`,
+  goldCp,
+  grants: [],
+})

@@ -31,12 +31,14 @@ import {
   sellItem,
   setEquipmentChoice,
   isStepValid,
+  resetMarket,
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
 import { seedCatalog } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
 import { authed } from "../lib/api";
-import { derived, ownedItemIds, purseCp, skillModifier, skillSource } from "../components/character/sheets";
+import { derived, ownedItemIds, purseCp, skillModifier, skillSource, spentCp, startingCp } from "../components/character/sheets";
+import { pick } from "./fixtures";
 
 function dice(...faces: number[]) {
   let i = 0
@@ -357,8 +359,52 @@ describe('character equipment', () => {
   })
 
   it('clears only its own equipment choice when a source changes', () => {
+    const c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
+    const withBoth = {
+      ...c,
+      equipmentChoice: { ...c.equipmentChoice, background: pick('A', 800) },
+      walletCp: c.walletCp + 800
+    }
+
+    const after = setClass(withBoth, 'srd-2024_wizard')
+    expect(after.equipmentChoice.class).toBeNull()
+    expect(after.equipmentChoice.background?.key).toBe('A')
+  })
+
+  it('refunds the previous option when the pick changes', () => {
+    const base = { ...createDraft(), classId: 'srd-2024_fighter' }
+    expect(setEquipmentChoice(base, 'class', 'B').walletCp).toBe(7500)
+
+    const switched = setEquipmentChoice(setEquipmentChoice(base, 'class', 'B'), 'class', 'A')
+    expect(switched.walletCp).toBe(500)
+  })
+
+  it('refunds the grant when a class change clears the pick', () => {
+    const c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
+    expect(setClass(c, 'srd-2024_wizard').walletCp).toBe(0)
+  })
+
+  it('returns coin to the wallet when an item is sold back', () => {
     let c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
-    c = setEquipmentChoice(c, 'background', 'A')
-    expect(setClass(c, 'srd-2024_wizard').equipmentChoice).toEqual({ class: null, background: 'A' })
+    c = buyItem(buyItem(c, 'srd-2024_rope'), 'srd-2024_rope')
+    expect(c.walletCp).toBe(7300)
+    expect(sellItem(c, 'srd-2024_rope').walletCp).toBe(7400)
+  })
+
+  it('returns every purchase to the wallet on a market reset', () => {
+    let c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
+    c = buyItem(buyItem(c, 'srd-2024_rope'), 'srd-2024_longsword')
+
+    expect(resetMarket(c).walletCp).toBe(7500)
+    expect(resetMarket(c).purchasedItemIds).toEqual([])
+  })
+
+  /** The wallet is stored, not derived, so nothing enforces this but a test. */
+  it('keeps the wallet equal to granted gold minus purchases', () => {
+    let c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'A')
+    c = buyItem(buyItem(c, 'srd-2024_rope'), 'srd-2024_longsword')
+    c = sellItem(c, 'srd-2024_rope')
+
+    expect(c.walletCp).toBe(startingCp(c) - spentCp(c))
   })
 })
