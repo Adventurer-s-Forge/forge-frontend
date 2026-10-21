@@ -41,13 +41,16 @@ describe('NameStep', () => {
 })
 
 describe('RaceStep', () => {
-  it('offers every race with its SIZE AND SPEED', () => {
+  it('offers every race with its speed and senses', () => {
     render(<RaceStep character={createDraft()} onChange={vi.fn()} />)
 
     expect(screen.getAllByRole('radio')).toHaveLength(2)
-    const halfOrc = screen.getByRole('radio', { name: /Human/ })
-    expect(halfOrc).toHaveTextContent('Medium')
-    expect(halfOrc).toHaveTextContent('30 ft')
+
+    const human = screen.getByRole('radio', { name: /Human/ })
+    expect(human).toHaveTextContent('Speed 30')
+    expect(human).toHaveTextContent('Skillful')
+
+    expect(screen.getByRole('radio', { name: /Dwarf/ })).toHaveTextContent('Darkv. 120')
   })
 
   it('selects a race when clicked', async () => {
@@ -69,6 +72,37 @@ describe('RaceStep', () => {
       'true',
     )
   })
+
+  it('shows the selected race with its height note', () => {
+    render(<RaceStep character={fighter()} onChange={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { name: 'Human' })).toBeInTheDocument()
+    expect(screen.getByText('about 4–7 feet tall')).toBeInTheDocument()
+  })
+
+  it('swaps the height note when another size is chosen', () => {
+    render(<RaceStep character={fighter({ sizeChoice: 'Small' })} onChange={vi.fn()} />)
+
+    expect(screen.getByText('about 2–4 feet tall')).toBeInTheDocument()
+    expect(screen.queryByText('about 4–7 feet tall')).not.toBeInTheDocument()
+  })
+
+  it('offers no size choice for a race with one size', () => {
+    render(<RaceStep character={fighter({ raceId: 'srd-2024_dwarf' })} onChange={vi.fn()} />)
+
+    expect(screen.queryByRole('button', { name: 'Small' })).not.toBeInTheDocument()
+    expect(screen.getByText('about 4–5 feet tall')).toBeInTheDocument()
+  })
+
+  it('clears the race from the detail panel', async () => {
+    const onChange = vi.fn()
+    render(<RaceStep character={fighter()} onChange={onChange} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear' }))
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ raceId: null }))
+  })
+
 })
 
 describe('ClassStep', () => {

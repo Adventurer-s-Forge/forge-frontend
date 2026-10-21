@@ -83,8 +83,11 @@ function rogueWithSkills(): Character {
 beforeAll(() => {
   seedCatalog({
     races: [
-      { id: 'srd-2024_human', name: 'Human', sizes: ['Medium', 'Small'], speed: 30 },
-      { id: 'srd-2024_dwarf', name: 'Dwarf', sizes: ['Medium'], speed: 30 },
+      { id: 'srd-2024_human', name: 'Human', sizes: ['Medium', 'Small'],
+        heightHints: { Medium: 'about 4–7 feet tall', Small: 'about 2–4 feet tall' }, speed: 30, darkvisionFt: null,
+        traits: [{ name: 'Skillful', desc: 'You gain proficiency in one skill of your choice.' }] },
+      { id: 'srd-2024_dwarf', name: 'Dwarf', sizes: ['Medium'], heightHints: { Medium: 'about 4–5 feet tall' },
+        speed: 30, darkvisionFt: 120, traits: [] },
     ],
     classes: [
       { id: 'srd-2024_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
