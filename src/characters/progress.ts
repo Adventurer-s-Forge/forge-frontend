@@ -11,6 +11,13 @@ function sameValues(a: readonly number[], b: readonly number[]): boolean {
   return [...a].sort((x, y) => x - y).every((value, i) => value === sortedB[i])
 }
 
+function classValid(c: Character): boolean {
+  const cls = getClass(c.classId)
+  if (cls === undefined) return false
+  if (cls.fightingStyleAt === 1 && c.fightingStyleId === null) return false
+  return true
+}
+
 function attributesValid(c: Character): boolean {
   const { method, base, rolled, originBonuses } = c.abilities
   const scores = ABILITIES.map((ability) => base[ability])
@@ -74,7 +81,7 @@ export function isStepValid(step: StepId, c: Character): boolean {
     case 'race':
       return getRace(c.raceId) !== undefined
     case 'class':
-      return getClass(c.classId) !== undefined
+      return classValid(c)
     case 'background':
       return getBg(c.backgroundId) !== undefined
     case 'attributes':
@@ -158,9 +165,9 @@ function applyPick(c: Character, source: 'class' | 'background', pick: Equipment
   return { ...c, equipmentChoice: { ...c.equipmentChoice, [source]: pick }, walletCp: c.walletCp - refunded + granted }
 }
 
-export function setClass(c: Character, classId: string): Character {
+export function setClass(c: Character, classId: string | null): Character {
   if (classId === c.classId) return c
-  const next = applyPick({ ...c, classId }, 'class', null)
+  const next = applyPick({ ...c, classId, fightingStyleId: null }, 'class', null)
   return keepLegalSpells(keepOfferedSkills(next))
 }
 
@@ -288,4 +295,8 @@ function keepLegalExpertise(c: Character): Character {
     (id) => c.proficientSkillIds.includes(id) || granted.includes(id),
   )
   return legal.length === c.expertiseIds.length ? c : { ...c, expertiseIds: legal }
+}
+
+export function setFightingStyle(c: Character, fightingStyleId: string | null): Character {
+  return { ...c, fightingStyleId }
 }

@@ -9,6 +9,7 @@ function toPayload(character: Character) {
     raceId: character.raceId,
     sizeChoice: character.sizeChoice,
     classId: character.classId,
+    fightingStyleId: character.fightingStyleId,
     backgroundId: character.backgroundId,
     abilities: character.abilities,
     proficientSkillIds: character.proficientSkillIds,

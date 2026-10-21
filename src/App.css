@@ -1510,6 +1510,119 @@
   color: var(--ink-2);
 }
 
+.pick-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.stat-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.stat-card-value.is-text { font-size: 17px; }
+
+.choice-card {
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--brass);
+  border-radius: var(--radius);
+}
+
+.choice-label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.choice-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 14.5px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+}
+
+.choice-note {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.kit-row {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.kit-row + .kit-row { border-top: 1px solid var(--line); }
+
+.kit-key {
+  flex-shrink: 0;
+  min-width: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--brass);
+}
+
+.kit-label { 
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.prof-list {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.prof-list li + li { margin-top: 3px; }
+
+.detail-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.foot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.foot-chip svg { color: var(--brass); flex-shrink: 0; }
+
+.foot-chip-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
 /* TWO-COLUMN STEP BODY */
 
 .step-split {

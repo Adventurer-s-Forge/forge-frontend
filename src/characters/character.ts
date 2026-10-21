@@ -24,6 +24,7 @@ export type Character = {
   raceId: string | null
   sizeChoice: Size | null
   classId: string | null
+  fightingStyleId: string | null
   backgroundId: string | null
   abilities: {
     method: AbilityMethod | null
@@ -51,6 +52,7 @@ export function createDraft(): Character {
     raceId: null,
     sizeChoice: null,
     classId: null,
+    fightingStyleId: null,
     backgroundId: null,
     abilities: { method: null, base: {}, rolled: [], originBonuses: {} },
     proficientSkillIds: [],

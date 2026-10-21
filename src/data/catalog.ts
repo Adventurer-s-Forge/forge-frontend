@@ -9,6 +9,7 @@ export type CasterType = 'NONE' | 'FULL' | 'HALF' | 'PACT'
 export const SIZES = ['Small', 'Medium']  as const
 export type Size = (typeof SIZES)[number]
 export type RaceTrait = { name: string; desc: string }
+export type ClassFeature = { name: string; desc: string }
 
 export type Race = {
   id: string
@@ -24,8 +25,12 @@ export type CharacterClass = {
   id: string
   name: string
   hitDie: number
+  primaryAbilityText: string
   primaryAbilities: Ability[]
   savingThrows: Ability[]
+  fightingStyleAt: number | null
+  features: ClassFeature[]
+  proficiencies: { armor: string; weapons: string; skills: string }
   skillChoices: { count: number; from: string[] | 'any' }
   expertiseAt: number | null
   casterType: CasterType
