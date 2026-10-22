@@ -44,7 +44,13 @@ export function seedTestCatalog(): void {
     ],
     backgrounds: [
       { id: 'srd-2024_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
-        abilityOptions: ['INT', 'WIS', 'CHA'], startingEquipment: [] },
+        abilityOptions: ['INT', 'WIS', 'CHA'], featName: 'Magic Initiate (Cleric)',
+        tool: { text: "Calligrapher's Supplies", quantity: 1, itemId: 'srd-2024_calligraphers-supplies', choosableFrom: null },
+        startingEquipment: [] },
+      { id: 'srd-2024_soldier', name: 'Soldier', skillIds: ['athletics', 'intimidation'], initiateClassNames: [],
+        abilityOptions: ['STR', 'DEX', 'CON'], featName: 'Savage Attacker',
+        tool: { text: 'Choose one kind of Gaming Set', quantity: 1, itemId: null, choosableFrom: '^srd-2024_gaming-set-' },
+        startingEquipment: [] },
     ],
     spells: [
       { id: 'srd-2024_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd-2024_wizard'],
@@ -57,6 +63,8 @@ export function seedTestCatalog(): void {
       { id: 'srd-2024_chain-mail', name: 'Chain mail', category: 'armor', desc: 'Heavy interlocking rings.', costCp: 7500,
         armor: { base: 16, addDex: false, capDex: null, stealthDisadvantage: true } },
       { id: 'srd-2024_rope', name: 'Rope (50 feet)', category: 'gear', desc: 'Hempen rope.', costCp: 100 },
+      { id: 'srd-2024_gaming-set-dice', name: 'Gaming Set, Dice', category: 'gear', desc: '', costCp: 100 },
+      { id: 'srd-2024_gaming-set-playing-cards', name: 'Gaming Set, Playing Cards', category: 'gear', desc: '', costCp: 50 },
     ],
   })
 }

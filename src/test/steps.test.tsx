@@ -159,18 +159,55 @@ describe('ClassStep', () => {
 })
 
 describe('BackgroundStep', () => {
-  it('names the skills the background grants', async () => {
+  it('selects a background when clicked', async () => {
     const onChange = vi.fn()
     render(<BackgroundStep character={createDraft()} onChange={onChange} />)
-
-    expect(screen.getByText(/Insight and Religion/)).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('radio', { name: /Acolyte/ }))
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ backgroundId: 'srd-2024_acolyte' })
+      expect.objectContaining({ backgroundId: 'srd-2024_acolyte' }),
     )
   })
+
+  it('shows the ability options on each tile', () => {
+    render(<BackgroundStep character={createDraft()} onChange={vi.fn()} />)
+
+    expect(screen.getByRole('radio', { name: /Acolyte/ })).toHaveTextContent('INT WIS CHA')
+  })
+
+  it('shows the feat, skills and tool for the selected background', () => {
+    render(<BackgroundStep character={fighter()} onChange={vi.fn()} />)
+
+    expect(screen.getByText('Magic Initiate (Cleric)')).toBeInTheDocument()
+    expect(screen.getByText('Insight, Religion')).toBeInTheDocument()
+    expect(screen.getByText("Calligrapher's Supplies")).toBeInTheDocument()
+  })
+
+  it('offers no tool choice when the tool is granted outright', () => {
+    render(<BackgroundStep character={fighter()} onChange={vi.fn()} />)
+
+    expect(screen.queryByLabelText(/Choose —/)).not.toBeInTheDocument()
+  })
+
+  it('offers the gaming sets and records the choice', async () => {
+    const onChange = vi.fn()
+    render(
+      <BackgroundStep
+        character={fighter({ backgroundId: 'srd-2024_soldier' })}
+        onChange={onChange}
+      />,
+    )
+
+    await userEvent.selectOptions(
+      screen.getByLabelText(/Gaming Set/),
+      'srd-2024_gaming-set-dice',
+    )
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ toolChoiceId: 'srd-2024_gaming-set-dice' }),
+    )
+  }) 
 })
 
 describe('AttributeStep', () => {

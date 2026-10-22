@@ -27,6 +27,7 @@ import {
   setRace,
   setRolledPool,
   setSizeChoice,
+  setToolChoice,
   toggleExpertise,
   toggleSkill,
   toggleSpell,
@@ -34,6 +35,7 @@ import {
 import {
   catalog,
   classSkillOptions,
+  equipmentInCategory,
   expertiseCounts,
   getBg,
   getClass,
@@ -195,6 +197,24 @@ export function RaceStep({ character, onChange }: StepProps) {
                 ))}
               </dl>
             </div>
+          </div>
+
+          <div className="detail-foot">
+            <span className="detail-eyebrow">Used later</span>
+
+            <span className="foot-chip">
+              <FiArrowRight size={14} aria-hidden="true" />
+              <span className="foot-chip-tag">Attributes</span>
+              Speed {chosen.speed}{size ? `, ${size}` : ''}
+            </span>
+
+            {chosen.darkvisionFt && (
+              <span className="foot-chip">
+                <FiArrowRight size={14} aria-hidden="true" />
+                <span className="foot-chip-tag">Sheet</span>
+                Darkvision {chosen.darkvisionFt} ft
+              </span>
+            )}
           </div>
         </section>
       )}
@@ -430,24 +450,163 @@ export function ClassStep({ character, onChange }: StepProps) {
 }
 
 export function BackgroundStep({ character, onChange }: StepProps) {
+  const chosen = getBg(character.backgroundId)
+  const toolOptions = chosen?.tool.choosableFrom ? equipmentInCategory(chosen.tool.choosableFrom) : []
+  const toolLabel = chosen?.tool.text.replace(/^Choose one kind of\s+/i, '') ?? ''
+
   return (
-    <div className="option-list" role="radiogroup" aria-label="Background">
-      {catalog.backgrounds.map((background) => (
-        <button
-          type="button"
-          role="radio"
-          aria-checked={character.backgroundId === background.id}
-          className={`option${character.backgroundId === background.id ? ' is-chosen' : ''}`}
-          key={background.id}
-          onClick={() => onChange(setBackground(character, background.id))}
-        >
-          <span className="option-name">{background.name}</span>
-          <span className="option-meta">{background.abilityOptions.join(' · ')}</span>
-          <span className="option-meta">
-            Grants {background.skillIds.map((id) => getSkill(id)?.name).join(' and ')}
-          </span>
-        </button>
-      ))}
+    <div className="step">
+      <p className="step-intro">
+        Pick a background. Each one names the three abilities it can raise, plus a feat, two skills and a tool.
+      </p>
+
+      <fieldset className="pick-set">
+        <legend>Background &mdash; {chosen ? 1 : 0 } of {catalog.backgrounds.length}</legend>
+        <div className="pick-grid is-six" role="radiogroup" aria-label="Background">
+          {catalog.backgrounds.map((bg) => {
+            const picked = character.backgroundId === bg.id
+            
+            return (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={picked}
+                className={`pick-tile${picked ? ' is-chosen' : ''}`}
+                key={bg.id}
+                onClick={() => onChange(setBackground(character, bg.id))}
+              >
+                <span className="pick-tile-name">
+                  {bg.name}
+                  {picked && (
+                    <span className="pick-check" aria-hidden="true">
+                      <FiCheck size={14} />
+                    </span>
+                  )}
+                </span>
+                <span className="pick-tile-meta">{bg.abilityOptions.join(' ')}</span>
+              </button>
+            )
+          })}
+        </div>
+      </fieldset>
+
+      {chosen && (
+        <section className="detail-panel" aria-labelledby="selected-background">
+          <div className="detail-head">
+            <div>
+              <p className="detail-eyebrow">Selected background</p>
+              <h3 className="detail-title" id="selected-background">{chosen.name}</h3>
+            </div>
+            <button type="button" className="btn btn-quiet" onClick={() => onChange(setBackground(character, ''))}>
+              Clear
+            </button>
+          </div>
+
+          <div className="detail-body">
+            <div className="stat-column">
+              <div className="stat-grid">
+                <div className="stat-card">
+                  <p className="stat-card-label">Ability scores</p>
+                  <div className="stat-card-row">
+                    <span>Can raise</span>
+                    <span className="stat-card-value is-text">{chosen.abilityOptions.join(' ')}</span>
+                  </div>
+                  <p className="stat-card-note">+2 / +1 or +1 each</p>
+                </div>
+
+                <div className="stat-card">
+                  <p className="stat-card-label">Origin feat</p>
+                  <div className="stat-card-row">
+                    <span>Feat</span>
+                    <span className="stat-card-value is-text">{chosen.featName || '\u2014'}</span>
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <p className="stat-card-label">Skills</p>
+                  <div className="stat-card-row">
+                    <span>Proficient in</span>
+                    <span className="stat-card-value is-text">{chosen.skillIds.length} skills</span>
+                  </div>
+                  <p className="stat-card-note">
+                    {chosen.skillIds.map((id) => getSkill(id)?.name).join(', ')}
+                  </p>
+                </div>
+
+                <div className="stat-card">
+                  <p className="stat-card-label">Tools</p>
+                  <div className="stat-card-row">
+                    <span>Tool</span>
+                    <span className="stat-card-value is-text">{toolLabel || '\u2014'}</span>
+                  </div>
+                  <p className="stat-card-note">
+                    {chosen.tool.choosableFrom ? 'choose the kind below' : 'granted'}
+                  </p>
+                </div>
+              </div>
+
+              {toolOptions.length > 0 && (
+                <div className="choice-card">
+                  <label className="choice-label" htmlFor="tool-choice">
+                    Choose &mdash; {toolLabel}
+                  </label>
+                  <select
+                    id="tool-choice"
+                    className="choice-select"
+                    value={character.toolChoiceId ?? ''}
+                    onChange={(e) => onChange(setToolChoice(character, e.target.value || null))}
+                  >
+                    <option value="">Choose a kind</option>
+                    {toolOptions.map((item) => (
+                      <option value={item.id} key={item.id}>{item.name}</option>
+                    ))}
+                  </select>
+                  <p className="choice-note">Only choice on this step.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="stat-column">
+              {chosen.startingEquipment.length > 0 && (
+                <div className="trait-card">
+                  <p className="detail-eyebrow">Starting equipment</p>
+                  {chosen.startingEquipment.map((opt) => (
+                    <div className="kit-row" key={opt.key}>
+                      <span className="kit-key">{opt.key}</span>
+                      <span className="kit-label">{opt.label}</span>
+                    </div>
+                  ))}
+                  <p className="choice-note">Picked on the equipment step.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="detail-foot">
+            <span className="detail-eyebrow">Used later</span>
+
+            <span className="foot-chip">
+              <FiArrowRight size={14} aria-hidden="true" />
+              <span className="foot-chip-tag">Attributes</span>
+              +2 / +1 on {chosen.abilityOptions.join(', ')}
+            </span>
+
+            <span className="foot-chip">
+              <FiArrowRight size={14} aria-hidden="true" />
+              <span className="foot-chip-tag">Skills</span>
+              {chosen.skillIds.map((id) => getSkill(id)?.name).join(', ')} locked
+            </span>
+
+            {chosen.startingEquipment.length > 0 && (
+              <span className="foot-chip">
+                <FiArrowRight size={14} aria-hidden="true" />
+                <span className="foot-chip-tag">Equipment</span>
+                kit {chosen.startingEquipment.map((o) => o.key).join(', ')}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   )
 }
