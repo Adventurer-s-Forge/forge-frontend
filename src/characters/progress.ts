@@ -83,7 +83,7 @@ export function isStepValid(step: StepId, c: Character): boolean {
     case 'class':
       return classValid(c)
     case 'background':
-      return getBg(c.backgroundId) !== undefined
+      return backgroundValid(c)
     case 'attributes':
       return attributesValid(c)
     case 'skills':
@@ -174,7 +174,7 @@ export function setClass(c: Character, classId: string | null): Character {
 export function setBackground(c: Character, backgroundId: string): Character {
   if (backgroundId === c.backgroundId) return c
   const next = applyPick(
-    { ...c, backgroundId, abilities: { ...c.abilities, originBonuses: {} } },
+    { ...c, backgroundId, toolChoiceId: null, abilities: { ...c.abilities, originBonuses: {} } },
     'background',
     null,
   )
@@ -299,4 +299,16 @@ function keepLegalExpertise(c: Character): Character {
 
 export function setFightingStyle(c: Character, fightingStyleId: string | null): Character {
   return { ...c, fightingStyleId }
+}
+
+export function setToolChoice(c: Character, toolChoiceId: string | null): Character {
+  return { ...c, toolChoiceId }
+}
+
+/** A BG that offers a tool category cannot be left unchosen. */
+function backgroundValid(c: Character): boolean {
+  const bg = getBg(c.backgroundId)
+  if (bg === undefined) return false
+  if (bg.tool.choosableFrom !== null && c.toolChoiceId === null) return false
+  return true
 }

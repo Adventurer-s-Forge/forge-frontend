@@ -10,6 +10,7 @@ function toPayload(character: Character) {
     sizeChoice: character.sizeChoice,
     classId: character.classId,
     fightingStyleId: character.fightingStyleId,
+    toolChoiceId: character.toolChoiceId,
     backgroundId: character.backgroundId,
     abilities: character.abilities,
     proficientSkillIds: character.proficientSkillIds,

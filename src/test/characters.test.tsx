@@ -33,13 +33,15 @@ import {
   isStepValid,
   resetMarket,
   setFightingStyle,
+  setToolChoice,
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
-import { seedCatalog } from "../data/catalog";
+import { catalog, seedCatalog } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
 import { authed } from "../lib/api";
 import { derived, ownedItemIds, purseCp, skillModifier, skillSource, spentCp, startingCp } from "../components/character/sheets";
 import { pick } from "./fixtures";
+import { parseStartingEquipment } from "../data/normalize";
 
 function dice(...faces: number[]) {
   let i = 0
@@ -120,11 +122,16 @@ beforeAll(() => {
     ],
     backgrounds: [
       { id: 'srd-2024_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
-        abilityOptions: ['INT', 'WIS', 'CHA'], startingEquipment: [] },
-      { id: 'srd-2024_sage', name: 'Sage', skillIds: ['arcana', 'history'], initiateClassNames: ['Wizard'],
-        abilityOptions: ['CON', 'INT', 'WIS'], startingEquipment: [] },
+        abilityOptions: ['INT', 'WIS', 'CHA'], featName: 'Magic Initiate (Cleric)',
+        tool: { text: "Calligrapher's Supplies", quantity: 1, itemId: 'srd-2024_calligraphers-supplies', choosableFrom: null },
+        startingEquipment: [] },
+      { id: 'srd-2024_soldier', name: 'Soldier', skillIds: ['athletics', 'intimidation'],
+        initiateClassNames: [], abilityOptions: ['STR', 'DEX', 'CON'], featName: 'Savage Attacker',
+        tool: { text: 'Choose one kind of Gaming Set', quantity: 1, itemId: null, choosableFrom: '^srd-2024_gaming-set-' },
+        startingEquipment: [] },
       { id: 'srd-2024_criminal', name: 'Criminal', skillIds: ['sleight-of-hand', 'stealth'],
-        initiateClassNames: [], abilityOptions: ['DEX', 'CON', 'INT'], startingEquipment: [] },
+        initiateClassNames: [], abilityOptions: ['DEX', 'CON', 'INT'], startingEquipment: [], featName: 'Savage Attacker',
+        tool: { text: 'Choose one kind of Gaming Set', quantity: 1, itemId: null, choosableFrom: '^srd-2024_gaming-set-' } },
     ],
     spells: [
       { id: 'srd-2024_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd-2024_wizard'],
@@ -137,6 +144,9 @@ beforeAll(() => {
       { id: 'srd-2024_chain-mail', name: 'Chain mail', category: 'armor', desc: 'Heavy interlocking rings.', costCp: 7500,
         armor: { base: 16, addDex: false, capDex: null, stealthDisadvantage: true } },
       { id: 'srd-2024_rope', name: 'Rope (50 feet)', category: 'gear', desc: 'Hempen rope.', costCp: 100 },
+      { id: 'srd-2024_gaming-set-dice', name: 'Gaming Set, Dice', category: 'gear', desc: '', costCp: 100 },
+      { id: 'srd-2024_gaming-set-playing-cards', name: 'Gaming Set, Playing Cards', category: 'gear', desc: '', costCp: 50 },
+
     ],
   })
 })
@@ -209,7 +219,7 @@ describe('character progress', () => {
   it('reopens attributes when the background changes', () => {
     const c = setBackground(finishedFighter(), 'srd-2024_sage')
     expect(c.abilities.originBonuses).toEqual({})
-    expect(firstIncompleteStep(c)).toBe('attributes')
+    expect(firstIncompleteStep(c)).toBe('background')
   })
 
   it('requires the full expertise allowance before the step is valid', () => {
@@ -426,4 +436,27 @@ describe('character equipment', () => {
 
     expect(c.walletCp).toBe(startingCp(c) - spentCp(c))
   })
+
+  it('holds the background step until a soldier picks a gaming set', () => {
+    const c = setBackground({ ...createDraft(), name: 'Arkes' }, 'srd-2024_soldier')
+    expect(isStepValid('background', c)).toBe(false)
+    expect(isStepValid('background', setToolChoice(c, 'srd-2024_gaming-set-dice'))).toBe(true)
+  })
+
+  it('clears the tool choice when the background changes', () => {
+    const c = setToolChoice(
+      setBackground(createDraft(), 'srd-2024_soldier'),
+      'srd-2024_gaming-set-dice',
+    )
+    expect(setBackground(c, 'srd-2024_acolyte').toolChoiceId).toBeNull()
+  })
+
+  it('reads the quantity off a grant label', () => {
+    const [optionA] = parseStartingEquipment(
+      'Choose A or B: (A) 20 Arrows, Chain mail, and 4 GP; or (B) 50 GP',
+      catalog.equipment,
+    )
+    expect(optionA.grants.find((g) => g.text.includes('Arrow'))?.quantity).toBe(20)
+  })
+
 })
