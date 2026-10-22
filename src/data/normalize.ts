@@ -2,7 +2,18 @@
  * This is part of the frontend until backend fully transfers it. */
 
 import type { Ability } from "../characters/character";
-import type { Background, CasterType, CharacterClass, ClassFeature, Equipment, EquipmentGrant, EquipmentOption, Race, Size, Spell } from "./catalog";
+import type {
+  Background,
+  CasterType,
+  CharacterClass,
+  ClassFeature,
+  Equipment,
+  EquipmentGrant,
+  EquipmentOption,
+  Race,
+  Size,
+  Spell
+} from "./catalog";
 import type { Envelope } from "../lib/api";
 import { CLASS_SKILL_CHOICES, classKey } from "./classRules";
 import { skillIdsFromNames } from "./skills";
@@ -180,10 +191,19 @@ export function toBackground(record: Envelope<RawBackground>, equipment: Equipme
     skillIds: skillIdsFromNames(proficiencies?.desc ?? ''),
     initiateClassNames: initiateClassNames(record.data.benefits),
     abilityOptions: abilityOptions(record.data.benefits),
+    featName: featName(record.data.benefits),
+    tool: backgroundTool(record.data.benefits, equipment),
     startingEquipment: parseStartingEquipment(
       record.data.benefits.find((b) => b.type === 'equipment')?.desc ?? '', equipment)
   }
 }
+
+/** "Choose one kind of Gaming set" is a category; anything else is a fixed tool that should resolve to a real item.
+ * The four gaming sets exists as ``srd-2024_gaming-set-dice and friends, so the category is key prefix. */
+const backgroundTool = (benefits: RawBackground['benefits'], equipment: Equipment[]) =>
+  resolverGrant((benefits.find((b) => b.type === 'tool_proficiency')?.desc ?? '').trim(), equipment)
+
+const featName = (benefits: RawBackground['benefits']) => benefits.find((ben) => ben.type === 'feat')?.desc?.trim() ?? ''
 
 // ATTRIBUTES
 
@@ -215,7 +235,7 @@ function levelOneFeatures(features: RawClass['features']): ClassFeature[] {
 // EQUIPMENT
 
 function resolverGrant(text: string, equipment: Equipment[]): EquipmentGrant {
-  const quantity = Number(text.match(/^(d+)\s/)?.[1] ?? 1)
+  const quantity = Number(text.match(/^(\d+)\s/)?.[1] ?? 1)
   const bare = text.replace(/^\s*\d+\s*/, '')
   const key = itemKey(bare)
 

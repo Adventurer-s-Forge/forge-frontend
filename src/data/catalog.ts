@@ -45,6 +45,8 @@ export type Background = {
   skillIds: string[]
   initiateClassNames: string[]
   abilityOptions: Ability[]
+  featName: string
+  tool: EquipmentGrant
   startingEquipment: EquipmentOption[]
 }
 
@@ -122,6 +124,7 @@ export const getSkill = (id: string) => catalog.skills.find((skill) => skill.id 
 export const getSpell = (id: string) => catalog.spells.find((spell) => spell.id === id)
 export const purchaseableEquipment = () => catalog.equipment.filter((eq) => eq.costCp > 0)
 export const getEquipment = (id: string) => catalog.equipment.find((eq) => eq.id === id)
+export const equipmentInCategory = (pattern: string) => catalog.equipment.filter((eq) => new RegExp(pattern).test(eq.id))
 
 export function classSkillOptions(cls: CharacterClass, background: Background | undefined): string[] {
   const pool = cls.skillChoices.from === 'any' ? catalog.skills.map((skill) => skill.id) : cls.skillChoices.from
