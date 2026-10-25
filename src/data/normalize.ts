@@ -1,19 +1,19 @@
-/** 
- *  THIS IS TEMPORARY
- * 
- *  prose parsing that belongs in the backend ingest step
- * 
- * 
- *  Open5e v2 species and background records carry no numeric fields; ability
- *  bonuses, speed, size and skill proficiencies exists only as English sentences.
- * 
- *  When the backend supplies a normalized block, DELETE THIS FILE and read the
- *  fields straight off the envelope. Nothing else imports these functions.
- *
- **/
+/** This was originally set as temporary. But as of right now 10/20/26
+ * This is part of the frontend until backend fully transfers it. */
 
 import type { Ability } from "../characters/character";
-import type { Background, CasterType, CharacterClass, Equipment, EquipmentGrant, EquipmentOption, Race, Size, Spell } from "./catalog";
+import type {
+  Background,
+  CasterType,
+  CharacterClass,
+  ClassFeature,
+  Equipment,
+  EquipmentGrant,
+  EquipmentOption,
+  Race,
+  Size,
+  Spell
+} from "./catalog";
 import type { Envelope } from "../lib/api";
 import { CLASS_SKILL_CHOICES, classKey } from "./classRules";
 import { skillIdsFromNames } from "./skills";
@@ -87,12 +87,34 @@ function sizes(desc: string): Size[] {
   return unique.length > 0 ? unique : ['Medium']
 }
 
+const RACE_STAT_TRAITS = new Set(['Size', 'Speed', 'Darkvision'])
+
+const feet = (desc: string) => {
+  const found = desc.match(/(\d+)\s*feet/i)?.[1]
+  return found ? Number(found) : null
+}
+
+function heightHints(desc: string): Partial<Record<Size, string>> {
+  const hints: Partial<Record<Size, string>> = {}
+  for (const match of desc.matchAll(/\b(Small|Medium)\b\s*\(([^)]+)\)/g)) {
+    hints[match[1] as Size] = match[2].trim()
+  }
+  return hints
+}
+
 export function toRace(record: Envelope<RawRace>): Race {
+  const sizeTrait = trait(record.data.traits, 'Size')
+
   return {
     id: record.key,
     name: record.name,
-    sizes: sizes(trait(record.data.traits, 'Size')),
-    speed: Number(trait(record.data.traits, 'Speed').match(/(\d+)\s*feet/i)?.[1] ?? 30),
+    sizes: sizes(sizeTrait),
+    heightHints: heightHints(sizeTrait),
+    speed: feet(trait(record.data.traits, 'Speed')) ?? 30,
+    darkvisionFt: feet(trait(record.data.traits, 'Darkvision')),
+    traits: record.data.traits
+      .filter((entry) => !RACE_STAT_TRAITS.has(entry.name))
+      .map((entry) => ({ name: entry.name, desc: entry.desc.trim() })),
   }
 }
 
@@ -118,10 +140,16 @@ export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): Cha
     id: record.key,
     name: record.name,
     hitDie: Number(record.data.hit_dice.replace(/^d/i, '')),
-    savingThrows: record.data.saving_throws
-      .map((save) => ABILITY_BY_NAME[save.name.toLowerCase()])
-      .filter((ability): ability is Ability => ability !== undefined),
+    primaryAbilityText: coreTraitRow(record.data.features, 'Primary Ability').trim(),
     primaryAbilities: [],
+    savingThrows: savingThrows(record.data),
+    fightingStyleAt: featureLevel(record.data.features, 'Fighting Style'),
+    features: levelOneFeatures(record.data.features),
+    proficiencies: {
+      armor: coreTraitRow(record.data.features, 'Armor Training'),
+      weapons: coreTraitRow(record.data.features, 'Weapon Proficiencies'),
+      skills: coreTraitRow(record.data.features, 'Skill Proficiencies'),
+    },
     skillChoices: choices,
     expertiseAt: featureLevel(record.data.features, 'Expertise'),
     casterType: record.data.caster_type ?? 'NONE',
@@ -163,15 +191,51 @@ export function toBackground(record: Envelope<RawBackground>, equipment: Equipme
     skillIds: skillIdsFromNames(proficiencies?.desc ?? ''),
     initiateClassNames: initiateClassNames(record.data.benefits),
     abilityOptions: abilityOptions(record.data.benefits),
+    featName: featName(record.data.benefits),
+    tool: backgroundTool(record.data.benefits, equipment),
     startingEquipment: parseStartingEquipment(
       record.data.benefits.find((b) => b.type === 'equipment')?.desc ?? '', equipment)
   }
 }
 
+/** "Choose one kind of Gaming set" is a category; anything else is a fixed tool that should resolve to a real item.
+ * The four gaming sets exists as ``srd-2024_gaming-set-dice and friends, so the category is key prefix. */
+const backgroundTool = (benefits: RawBackground['benefits'], equipment: Equipment[]) =>
+  resolverGrant((benefits.find((b) => b.type === 'tool_proficiency')?.desc ?? '').trim(), equipment)
+
+const featName = (benefits: RawBackground['benefits']) => benefits.find((ben) => ben.type === 'feat')?.desc?.trim() ?? ''
+
+// ATTRIBUTES
+
+const ABILITY_WORDS = /Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma/g
+
+function savingThrows(record: RawClass): Ability[] {
+  const row = coreTraitRow(record.features, 'Saving Throw Proficiency')
+  const fromTable = (row.match(ABILITY_WORDS) ?? [])
+    .map((word) => ABILITY_BY_NAME[word.toLowerCase()])
+    .filter((ability): ability is Ability => ability !== undefined)
+
+  if (fromTable.length > 0) return fromTable
+
+  return record.saving_throws
+    .map((entry) => ABILITY_BY_NAME[entry.name.toLowerCase()])
+    .filter((ability): ability is Ability => ability !== undefined)
+}
+
+const FEATURES_AS_CONTROLS = new Set(['Fighting Style'])
+
+function levelOneFeatures(features: RawClass['features']): ClassFeature[] {
+  return features
+    .filter((feat) => (feat.gained_at ?? []).some((entry) => entry.level === 1))
+    .filter((feat) => (feat.desc ?? '').length > 40)
+    .filter((feat) => !FEATURES_AS_CONTROLS.has(feat.name))
+    .map((feat) => ({ name: feat.name, desc: feat.desc.trim() }))
+}
+
 // EQUIPMENT
 
 function resolverGrant(text: string, equipment: Equipment[]): EquipmentGrant {
-  const quantity = Number(text.match(/^(d+)\s/)?.[1] ?? 1)
+  const quantity = Number(text.match(/^(\d+)\s/)?.[1] ?? 1)
   const bare = text.replace(/^\s*\d+\s*/, '')
   const key = itemKey(bare)
 

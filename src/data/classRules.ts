@@ -27,3 +27,15 @@ export const SPELLCASTING_ABILITY: Record<string, Ability> = {
   warlock: 'CHA',
   wizard: 'INT',
 }
+
+/** This is here for now as a placeholder until backend ingests /feats from Open5e */
+export const FIGHTING_STYLES = [
+  { id: 'archery', name: 'Archery', note: '+2 to attack rolls with ranged weapons.' },
+  { id: 'defense', name: 'Defense', note: '+1 AC while wearing armor.' },
+  { id: 'dueling', name: 'Dueling', note: '+2 damage with a single one-handed weapon.' },
+  { id: 'great-weapon-fighting', name: 'Great Weapon Fighting', note: 'Reroll low damage dice with two-handed weapons.' },
+  { id: 'protection', name: 'Protection', note: 'Impose disadvantage on an attack against a nearby ally.' },
+  { id: 'two-weapon-fighting', name: 'Two-Weapon Fighting', note: 'Add your ability modifier to the second attack.' },
+] as const
+
+export const fightingStyleName = (id: string | null) => FIGHTING_STYLES.find((style) => style.id === id)?.name ?? null

@@ -22,6 +22,7 @@
 
   --oxblood: #9b2c2c;
   --oxblood-soft: rgba(155, 44, 44, 0.08);
+  --oxblood-line: rgba(144, 44, 44, 0.35);
 
   --shadow-sm: 0 1px 2px rgba(18, 20, 26, 0.06);
   --shadow: 0 2px 4px rgba(18, 20, 26, 0.04), 0 14px 34px -16px rgba(18, 20, 26, 0.24);
@@ -55,6 +56,7 @@
 
     --oxblood: #e0796f;
     --oxblood-soft: rgba(224, 121, 111, 0.12);
+    --oxblood-line: rgba(224, 121, 111, 0.4);
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 14px 34px -16px rgba(0, 0, 0, 0.7);
@@ -85,6 +87,7 @@
 
   --oxblood: #e0796f;
   --oxblood-soft: rgba(224, 121, 111, 0.12);
+  --oxblood-line: rgba(224, 121, 111, 0.4);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 2px 4px rgba(0, 0, 0, 0.3), 0 14px 34px -16px rgba(0, 0, 0, 0.7);

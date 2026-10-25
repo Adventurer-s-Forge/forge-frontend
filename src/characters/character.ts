@@ -1,4 +1,4 @@
-import type { Size } from "../data/catalog"
+import type { Size, EquipmentPick } from "../data/catalog"
 
 export type Ability = 'STR' | 'DEX' | 'CON' | 'INT' | 'WIS' | 'CHA'
 export type AbilityScores = Record<Ability, number>
@@ -24,6 +24,7 @@ export type Character = {
   raceId: string | null
   sizeChoice: Size | null
   classId: string | null
+  fightingStyleId: string | null
   backgroundId: string | null
   abilities: {
     method: AbilityMethod | null
@@ -34,8 +35,10 @@ export type Character = {
   proficientSkillIds: string[]
   expertiseIds: string[]
   spellIds: string[]
-  equipmentChoice: { class: string | null; background: string | null }
+  equipmentChoice: { class: EquipmentPick | null; background: EquipmentPick | null }
   purchasedItemIds: string[]
+  toolChoiceId: string | null
+  walletCp: number
   completedSteps: StepId[]
   createdAt: string
   updatedAt: string
@@ -50,6 +53,7 @@ export function createDraft(): Character {
     raceId: null,
     sizeChoice: null,
     classId: null,
+    fightingStyleId: null,
     backgroundId: null,
     abilities: { method: null, base: {}, rolled: [], originBonuses: {} },
     proficientSkillIds: [],
@@ -57,6 +61,8 @@ export function createDraft(): Character {
     spellIds: [],
     equipmentChoice: { class: null, background: null },
     purchasedItemIds: [],
+    toolChoiceId: null,
+    walletCp: 0,
     completedSteps: [],
     createdAt: now,
     updatedAt: now,

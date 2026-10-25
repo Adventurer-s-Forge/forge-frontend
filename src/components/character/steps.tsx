@@ -21,11 +21,13 @@ import {
   setBackground,
   setClass,
   setEquipmentChoice,
+  setFightingStyle,
   setName,
   setOriginBonuses,
   setRace,
   setRolledPool,
   setSizeChoice,
+  setToolChoice,
   toggleExpertise,
   toggleSkill,
   toggleSpell,
@@ -33,6 +35,7 @@ import {
 import {
   catalog,
   classSkillOptions,
+  equipmentInCategory,
   expertiseCounts,
   getBg,
   getClass,
@@ -44,10 +47,12 @@ import {
   spellOptions,
 } from "../../data/catalog";
 import { abilityRows, armorStealthDisadvantage, derived, purseCp, skillRows, spellDerived, spentCp } from "./sheets";
-import { FiCheck, FiCheckCircle, FiX } from "react-icons/fi";
+import { FiArrowRight, FiCheck, FiCheckCircle, FiX } from "react-icons/fi";
 import { useState } from "react";
 import { ConfirmDelete } from "../ConfirmDelete";
 import { formatCoins } from "../../characters/currency";
+import { Markdown } from "../Markdown";
+import { FIGHTING_STYLES } from "../../data/classRules";
 
 export type StepProps = {
   character: Character
@@ -73,94 +78,370 @@ export function NameStep({ character, onChange }: StepProps) {
 
 export function RaceStep({ character, onChange }: StepProps) {
   const chosen = getRace(character.raceId)
+  const size = character.sizeChoice ?? chosen?.sizes[0] ?? null
 
   return (
     <div className="step">
-      <div className="option-list" role="radiogroup" aria-label="Race">
-        {catalog.races.map((race) => (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={character.raceId === race.id}
-            className={`option${character.raceId === race.id ? ' is-chosen' : ''}`}
-            key={race.id}
-            onClick={() => onChange(setRace(character, race.id))}
-          >
-            <span className="option-name">{race.name}</span>
-            <span className="option-meta">Size: {race.sizes.join(' or ')}</span>
-            <span className="option-meta">Speed: {race.speed} ft</span>
-          </button>
-        ))}
-      </div>
+      <p className="step-intro">
+        Pick a race. Its detail open below so you can compare before moving on; picking another swaps the panel.
+      </p>
 
-      {chosen && chosen.sizes.length > 1 && (
-        <fieldset className="origin-choice">
-          <legend>{chosen.name}</legend>
-          <div className="chip-row">
-            {chosen.sizes.map((size) => {
-              const picked = (character.sizeChoice ?? chosen.sizes[0]) === size
+      <fieldset className="pick-set">
+        <legend>Race &mdash; {chosen ? 1 : 0} of {catalog.races.length}</legend>
+        <div className="pick-grid" role="radiogroup" aria-label="Race">
+          {catalog.races.map((race) => {
+            const picked = character.raceId === race.id
+            const sizeLabel = race.sizes.length === 1 && race.sizes[0] === 'Small' ? 'Small' : `Speed ${race.speed}`
+            const senseLabel = race.darkvisionFt ? `Darkv. ${race.darkvisionFt}` : (race.traits[0]?.name ?? '')
 
-              return (
-                <button
-                  type="button"
-                  className={`chip${picked ? ' is-chosen' : ''}`}
-                  key={size}
-                  aria-pressed={picked}
-                  onClick={() => onChange(setSizeChoice(character, size))}
-                >
-                  {size}
-                </button>
-              )
-            })}
+            return (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={picked}
+                className={`pick-tile${picked ? ' is-chosen' : ''}`}
+                key={race.id}
+                onClick={() => onChange(setRace(character, race.id))}
+              >
+                <span className="pick-tile-name">
+                  {race.name}
+                  {picked && (
+                    <span className="pick-check" aria-hidden="true">
+                      <FiCheck size={14} />
+                    </span>
+                  )}
+                </span>
+                <span className="pick-tile-meta">
+                  {[sizeLabel, senseLabel].filter(Boolean).join(' · ')}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </fieldset>
+
+      {chosen && (
+        <section className="detail-panel" aria-labelledby="selected-race">
+          <div className="detail-head">
+            <div>
+              <p className="detail-eyebrow">Selected race</p>
+              <h3 className="detail-title" id="selected-race">{chosen.name}</h3>
+            </div>
+            <button type="button" className="btn btn-quiet" onClick={() => onChange(setRace(character, null))}>
+              Clear
+            </button>
           </div>
-        </fieldset>
+
+          <div className="detail-body">
+            <div className="stat-grid">
+              <div className="stat-card">
+                <p className="stat-card-label">Size</p>
+                {chosen.sizes.length > 1 ? (
+                  <div className="chip-row">
+                    {chosen.sizes.map((option) => (
+                      <button
+                        type="button"
+                        className={`chip${size === option ? ' is-chosen' : ''}`}
+                        key={option}
+                        aria-pressed={size === option}
+                        onClick={() => onChange(setSizeChoice(character, option))}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="stat-card-row">
+                    <span>Size</span>
+                    <span className="stat-card-value">{chosen.sizes[0]}</span>
+                  </div>
+                )}
+                {size && chosen.heightHints[size] && (
+                  <p className="stat-card-note">{chosen.heightHints[size]}</p>
+                )}
+              </div>
+
+              <div className="stat-card">
+                <p className="stat-card-label">Movement</p>
+                <div className="stat-card-row">
+                  <span>Speed</span>
+                  <span className="stat-card-value">{chosen.speed} ft</span>
+                </div>
+                <p className="stat-card-note">walking</p>
+              </div>
+
+              <div className="stat-card">
+                <p className="stat-card-label">Senses</p>
+                <div className="stat-card-row">
+                  <span>Darkvision</span>
+                  <span className="stat-card-value">
+                    {chosen.darkvisionFt ? `${chosen.darkvisionFt} ft` : '\u2014'}
+                  </span>
+                </div>
+                <p className="stat-card-note">
+                  {chosen.darkvisionFt ? 'see in dim light as bright' : 'no darkvision'}
+                </p>
+              </div>
+            </div>
+
+            <div className="trait-card">
+              <p className="detail-eyebrow">Traits</p>
+              <dl className="trait-list">
+                {chosen.traits.map((trait) => (
+                  <div className="trait-row" key={trait.name}>
+                    <dt className="trait-term">{trait.name}</dt>
+                    <dd className="trait-desc">
+                      <Markdown source={trait.desc} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+
+          <div className="detail-foot">
+            <span className="detail-eyebrow">Used later</span>
+
+            <span className="foot-chip">
+              <FiArrowRight size={14} aria-hidden="true" />
+              <span className="foot-chip-tag">Attributes</span>
+              Speed {chosen.speed}{size ? `, ${size}` : ''}
+            </span>
+
+            {chosen.darkvisionFt && (
+              <span className="foot-chip">
+                <FiArrowRight size={14} aria-hidden="true" />
+                <span className="foot-chip-tag">Sheet</span>
+                Darkvision {chosen.darkvisionFt} ft
+              </span>
+            )}
+          </div>
+        </section>
       )}
     </div>
   )
 }
 
 export function ClassStep({ character, onChange }: StepProps) {
-  const [pending, setPending] = useState<string | null>(null)
+  const chosen = getClass(character.classId)
+  const needStyle = chosen?.fightingStyleAt === 1
+  const [pending, setPending] = useState<{ classId: string | null} | null>(null)
 
-  function choose(classId: string) {
+  function choose(classId: string | null) {
     if (classId === character.classId) return
     const next = setClass(character, classId)
-    if (purseCp(next) < 0) return setPending(classId)
+    if (purseCp(next) < 0) return setPending({ classId })
     onChange(next)
   }
 
-
   return (
     <div className="step">
-      <div className="option-list" role="radiogroup" aria-label="Class">
-        {catalog.classes.map((cls) => (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={character.classId === cls.id}
-            className={`option${character.classId === cls.id ? ' is-chosen' : ''}`}
-            key={cls.id}
-            onClick={() => choose(cls.id)}
-          >
-            <span className="option-name">{cls.name}</span>
-            <span className="option-meta">Dice: d{cls.hitDie} hit die</span>
-            <span className="option-meta">Saves: {cls.savingThrows.join(', ')}</span>
-            <span className="option-meta">Skills: {cls.skillChoices.count}</span>
-          </button>
-        ))}
-      </div>
+      <p className="step-intro">
+        Pick a class. Casters are tagged; choosing a non-caster removes the Spells step.
+      </p>
 
-      {pending && (
+      <fieldset className="pick-set">
+        <legend>Class &mdash; {chosen ? 1 : 0} of {catalog.classes.length}</legend>
+        <div className="pick-grid is-six" role="radiogroup" aria-label="Class">
+          {catalog.classes.map((cls) => {
+            const picked = character.classId === cls.id
+
+            return (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={picked}
+                className={`pick-tile${picked ? ' is-chosen' : ''}`}
+                key={cls.id}
+                onClick={() => choose(cls.id)}
+              >
+                <span className="pick-tile-name">
+                  {cls.name}
+                  {picked && (
+                    <span className="pick-check" aria-hidden="true">
+                      <FiCheck size={14} />
+                    </span>
+                  )}
+                </span>
+                <span className="pick-tile-meta">
+                  d{cls.hitDie} · {cls.savingThrows.join('/')}
+                </span>
+                {cls.casterType !== 'NONE' && <span className="pick-tag">Caster</span>}
+              </button>
+            )
+          })}
+        </div>
+      </fieldset>
+
+      {chosen && (
+        <section className="detail-panel" aria-labelledby="selected-class">
+          <div className="detail-head">
+            <div>
+              <p className="detail-eyebrow">Selected class</p>
+              <h3 className="detail-title" id="selected-class">{chosen.name}</h3>
+            </div>
+            <button type="button" className="btn btn-quiet" onClick={() => choose(null)}>
+              Clear
+            </button>
+          </div>
+
+          <div className="detail-body">
+            <div className="stat-column">
+              <div className="stat-grid">
+                <div className="stat-card">
+                  <p className="stat-card-label">Hit die</p>
+                  <div className="stat-card-row">
+                    <span>Hit die</span>
+                    <span className="stat-card-value">d{chosen.hitDie}</span>
+                  </div>
+                  <p className="stat-card-note">level 1 HP = {chosen.hitDie} + CON</p>
+                </div>
+
+                <div className="stat-card">
+                  <p className="stat-card-label">Primary</p>
+                  <div className="stat-card-row">
+                    <span>Primary ability</span>
+                    <span className="stat-card-value is-text">
+                      {chosen.primaryAbilityText || '\u2014'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <p className="stat-card-label">Saves</p>
+                  <div className="stat-card-row">
+                    <span>Saving throws</span>
+                    <span className="stat-card-value is-text">
+                      {chosen.savingThrows.join(', ')}
+                    </span>
+                  </div>
+                  <p className="stat-card-note">add proficiency</p>
+                </div>
+
+                <div className="stat-card">
+                  <p className="stat-card-label">Magic</p>
+                  <div className="stat-card-row">
+                    <span>Spellcasting</span>
+                    <span className="stat-card-value is-text">
+                      {chosen.casterType === 'NONE' ? 'None' : chosen.casterType}
+                    </span>
+                  </div>
+                  <p className="stat-card-note">
+                    {chosen.casterType === 'NONE' ? 'Spells step skipped' : `${chosen.spellCounts.cantrips} cantrips, ${chosen.spellCounts.prepared} prepared`}
+                  </p>
+                </div>
+              </div>
+
+              {needStyle && (
+                <div className="choice-card">
+                  <label className="choice-label" htmlFor="fighting-style">
+                    Choose &mdash; Fighting Style
+                  </label>
+                  <select
+                    id="fighting-style"
+                    className="choice-select"
+                    value={character.fightingStyleId ?? ''}
+                    onChange={(e) => onChange(setFightingStyle(character, e.target.value || null))}
+                  >
+                    <option value="">Choose a style</option>
+                    {FIGHTING_STYLES.map((st) => (
+                      <option value={st.id} key={st.id}>{st.name}</option>
+                    ))}
+                  </select>
+                  <p className="choice-note">
+                    {FIGHTING_STYLES.find((s) => s.id === character.fightingStyleId)?.note ?? 'Defense is recommended.'}
+                  </p>
+                </div>
+              )}
+
+              {chosen.startingEquipment.length > 0 && (
+                <div className="trait-card">
+                  <p className="detail-eyebrow">Starting equipment</p>
+                  {chosen.startingEquipment.map((opt) => (
+                    <div className="kit-row" key={opt.key}>
+                      <span className="kit-key">{opt.key}</span>
+                      <span className="kit-label">{opt.label}</span>
+                    </div>
+                  ))}
+                  <p className="choice-note">Picked on the Equipment step.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="stat-column">
+              <div className="trait-card">
+                <p className="detail-eyebrow">Level 1 features</p>
+                <dl className="trait-list">
+                  {chosen.features.map((ft) => (
+                    <div className="trait-row" key={ft.name}>
+                      <dt className="trait-term">{ft.name}</dt>
+                      <dd className="trait-desc">
+                        <Markdown source={ft.desc} />
+                      </dd>
+                    </div>
+                  ))}
+
+                  <div className="trait-row">
+                    <dt className="trait-term">Proficiencies</dt>
+                    <dd className="trait-desc">
+                      <ul className="prof-list">
+                        {chosen.proficiencies.armor && <li>Armor: {chosen.proficiencies.armor}</li>}
+                        {chosen.proficiencies.weapons && <li>Weapons: {chosen.proficiencies.weapons}</li>}
+                        {chosen.proficiencies.skills && <li>Skills: {chosen.proficiencies.skills}</li>}
+                      </ul>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+            </div>
+          </div>
+          <div className="detail-foot">
+            <span className="detail-eyebrow">Used later</span>
+
+            <span className="foot-chip">
+              <FiArrowRight size={14} aria-hidden="true" />
+              <span className="foot-chip-tag">Attributes</span>
+              HP d{chosen.hitDie}, {chosen.savingThrows.join('/')} saves
+            </span>
+
+            <span className="foot-chip">
+              <FiArrowRight size={14} aria-hidden="true" />
+              <span className="foot-chip-tag">Skills</span>
+              pick {chosen.skillChoices.count}
+              {chosen.skillChoices.from !== 'any' && ` of ${chosen.skillChoices.from.length}`}
+            </span>
+
+            <span className="foot-chip">
+              <FiArrowRight size={14} aria-hidden="true" />
+              <span className="foot-chip-tag">Spells</span>
+              {chosen.casterType === 'NONE'
+                ? 'skipped'
+                : `${chosen.spellCounts.cantrips} cantrips, ${chosen.spellCounts.prepared} prepared`}
+            </span>
+
+            {chosen.startingEquipment.length >0 && (
+              <span className="foot-chip">
+                <FiArrowRight size={14} aria-hidden="true" />
+                <span className="foot-chip-tag">Equipment</span>
+                kit {chosen.startingEquipment.map((o) => o.key).join(', ')}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
+
+      {pending !== null && (
         <ConfirmDelete
           title="This class grants less starting gold"
-          body={`You have spent ${formatCoins(spentCp(character))} at the market. Changing class clears it equipment choice, which would leave you overdrawn until you pick a new one`}
+          body={`You have spent ${formatCoins(spentCp(character))} at the market. Chaging class clears its equipment choice, which would leave you overdrawn until you pick a new one.`}
           confirmLabel="Change and reset market"
           busyLabel="Changing\u2026"
           secondary={{
             label: 'Change and keep purchases',
-            onClick: () => onChange(setClass(character, pending))
+            onClick: () => onChange(setClass(character, pending.classId)),
           }}
-          onConfirm={() => onChange(resetMarket(setClass(character, pending)))}
+          onConfirm={() => onChange(resetMarket(setClass(character, pending.classId)))}
           onClose={() => setPending(null)}
         />
       )}
@@ -169,24 +450,163 @@ export function ClassStep({ character, onChange }: StepProps) {
 }
 
 export function BackgroundStep({ character, onChange }: StepProps) {
+  const chosen = getBg(character.backgroundId)
+  const toolOptions = chosen?.tool.choosableFrom ? equipmentInCategory(chosen.tool.choosableFrom) : []
+  const toolLabel = chosen?.tool.text.replace(/^Choose one kind of\s+/i, '') ?? ''
+
   return (
-    <div className="option-list" role="radiogroup" aria-label="Background">
-      {catalog.backgrounds.map((background) => (
-        <button
-          type="button"
-          role="radio"
-          aria-checked={character.backgroundId === background.id}
-          className={`option${character.backgroundId === background.id ? ' is-chosen' : ''}`}
-          key={background.id}
-          onClick={() => onChange(setBackground(character, background.id))}
-        >
-          <span className="option-name">{background.name}</span>
-          <span className="option-meta">{background.abilityOptions.join(' · ')}</span>
-          <span className="option-meta">
-            Grants {background.skillIds.map((id) => getSkill(id)?.name).join(' and ')}
-          </span>
-        </button>
-      ))}
+    <div className="step">
+      <p className="step-intro">
+        Pick a background. Each one names the three abilities it can raise, plus a feat, two skills and a tool.
+      </p>
+
+      <fieldset className="pick-set">
+        <legend>Background &mdash; {chosen ? 1 : 0 } of {catalog.backgrounds.length}</legend>
+        <div className="pick-grid is-six" role="radiogroup" aria-label="Background">
+          {catalog.backgrounds.map((bg) => {
+            const picked = character.backgroundId === bg.id
+            
+            return (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={picked}
+                className={`pick-tile${picked ? ' is-chosen' : ''}`}
+                key={bg.id}
+                onClick={() => onChange(setBackground(character, bg.id))}
+              >
+                <span className="pick-tile-name">
+                  {bg.name}
+                  {picked && (
+                    <span className="pick-check" aria-hidden="true">
+                      <FiCheck size={14} />
+                    </span>
+                  )}
+                </span>
+                <span className="pick-tile-meta">{bg.abilityOptions.join(' ')}</span>
+              </button>
+            )
+          })}
+        </div>
+      </fieldset>
+
+      {chosen && (
+        <section className="detail-panel" aria-labelledby="selected-background">
+          <div className="detail-head">
+            <div>
+              <p className="detail-eyebrow">Selected background</p>
+              <h3 className="detail-title" id="selected-background">{chosen.name}</h3>
+            </div>
+            <button type="button" className="btn btn-quiet" onClick={() => onChange(setBackground(character, ''))}>
+              Clear
+            </button>
+          </div>
+
+          <div className="detail-body">
+            <div className="stat-column">
+              <div className="stat-grid">
+                <div className="stat-card">
+                  <p className="stat-card-label">Ability scores</p>
+                  <div className="stat-card-row">
+                    <span>Can raise</span>
+                    <span className="stat-card-value is-text">{chosen.abilityOptions.join(' ')}</span>
+                  </div>
+                  <p className="stat-card-note">+2 / +1 or +1 each</p>
+                </div>
+
+                <div className="stat-card">
+                  <p className="stat-card-label">Origin feat</p>
+                  <div className="stat-card-row">
+                    <span>Feat</span>
+                    <span className="stat-card-value is-text">{chosen.featName || '\u2014'}</span>
+                  </div>
+                </div>
+
+                <div className="stat-card">
+                  <p className="stat-card-label">Skills</p>
+                  <div className="stat-card-row">
+                    <span>Proficient in</span>
+                    <span className="stat-card-value is-text">{chosen.skillIds.length} skills</span>
+                  </div>
+                  <p className="stat-card-note">
+                    {chosen.skillIds.map((id) => getSkill(id)?.name).join(', ')}
+                  </p>
+                </div>
+
+                <div className="stat-card">
+                  <p className="stat-card-label">Tools</p>
+                  <div className="stat-card-row">
+                    <span>Tool</span>
+                    <span className="stat-card-value is-text">{toolLabel || '\u2014'}</span>
+                  </div>
+                  <p className="stat-card-note">
+                    {chosen.tool.choosableFrom ? 'choose the kind below' : 'granted'}
+                  </p>
+                </div>
+              </div>
+
+              {toolOptions.length > 0 && (
+                <div className="choice-card">
+                  <label className="choice-label" htmlFor="tool-choice">
+                    Choose &mdash; {toolLabel}
+                  </label>
+                  <select
+                    id="tool-choice"
+                    className="choice-select"
+                    value={character.toolChoiceId ?? ''}
+                    onChange={(e) => onChange(setToolChoice(character, e.target.value || null))}
+                  >
+                    <option value="">Choose a kind</option>
+                    {toolOptions.map((item) => (
+                      <option value={item.id} key={item.id}>{item.name}</option>
+                    ))}
+                  </select>
+                  <p className="choice-note">Only choice on this step.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="stat-column">
+              {chosen.startingEquipment.length > 0 && (
+                <div className="trait-card">
+                  <p className="detail-eyebrow">Starting equipment</p>
+                  {chosen.startingEquipment.map((opt) => (
+                    <div className="kit-row" key={opt.key}>
+                      <span className="kit-key">{opt.key}</span>
+                      <span className="kit-label">{opt.label}</span>
+                    </div>
+                  ))}
+                  <p className="choice-note">Picked on the equipment step.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="detail-foot">
+            <span className="detail-eyebrow">Used later</span>
+
+            <span className="foot-chip">
+              <FiArrowRight size={14} aria-hidden="true" />
+              <span className="foot-chip-tag">Attributes</span>
+              +2 / +1 on {chosen.abilityOptions.join(', ')}
+            </span>
+
+            <span className="foot-chip">
+              <FiArrowRight size={14} aria-hidden="true" />
+              <span className="foot-chip-tag">Skills</span>
+              {chosen.skillIds.map((id) => getSkill(id)?.name).join(', ')} locked
+            </span>
+
+            {chosen.startingEquipment.length > 0 && (
+              <span className="foot-chip">
+                <FiArrowRight size={14} aria-hidden="true" />
+                <span className="foot-chip-tag">Equipment</span>
+                kit {chosen.startingEquipment.map((o) => o.key).join(', ')}
+              </span>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   )
 }
@@ -705,8 +1125,8 @@ export function EquipmentStep({ character, onChange }: StepProps) {
   }
 
   const sources = [
-    { source: 'class' as const, name: cls.name, options: cls.startingEquipment, picked: character.equipmentChoice.class },
-    { source: 'background' as const, name: bg.name, options: bg.startingEquipment, picked: character.equipmentChoice.background },
+    { source: 'class' as const, name: cls.name, options: cls.startingEquipment, picked: character.equipmentChoice.class?.key ?? null },
+    { source: 'background' as const, name: bg.name, options: bg.startingEquipment, picked: character.equipmentChoice.background?.key ?? null },
   ]
 
   const stock = purchaseableEquipment()

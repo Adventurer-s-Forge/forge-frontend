@@ -2,12 +2,20 @@ import { STEPS } from './character'
 import type { Ability, AbilityMethod, AbilityScores, Character, StepId } from './character'
 import { ABILITIES, ABILITY_CAP, finalScores, originSpreadValid, POINT_BUY_BUDGET, POINT_BUY_MIN, pointBuySpent, STD_ARR } from './abilities'
 import { classSkillOptions, expertiseCounts, getBg, getClass, getRace, spellBudget, spellOptions, type Size } from '../data/catalog'
-import { purseCp } from '../components/character/sheets'
+import { purseCp, spentCp } from '../components/character/sheets'
+import { getEquipment, type EquipmentOption, type EquipmentPick } from '../data/catalog'
 
 function sameValues(a: readonly number[], b: readonly number[]): boolean {
   if (a.length !== b.length) return false
   const sortedB = [...b].sort((x, y) => x - y)
   return [...a].sort((x, y) => x - y).every((value, i) => value === sortedB[i])
+}
+
+function classValid(c: Character): boolean {
+  const cls = getClass(c.classId)
+  if (cls === undefined) return false
+  if (cls.fightingStyleAt === 1 && c.fightingStyleId === null) return false
+  return true
 }
 
 function attributesValid(c: Character): boolean {
@@ -73,9 +81,9 @@ export function isStepValid(step: StepId, c: Character): boolean {
     case 'race':
       return getRace(c.raceId) !== undefined
     case 'class':
-      return getClass(c.classId) !== undefined
+      return classValid(c)
     case 'background':
-      return getBg(c.backgroundId) !== undefined
+      return backgroundValid(c)
     case 'attributes':
       return attributesValid(c)
     case 'skills':
@@ -115,7 +123,7 @@ export function completeStep(c: Character, step: StepId): Character {
   return { ...c, completedSteps: [...c.completedSteps, step]} 
 }
 
-export function setRace(c: Character, raceId: string): Character {
+export function setRace(c: Character, raceId: string | null): Character {
   return raceId === c.raceId ? c : { ...c, raceId, sizeChoice: null }
 }
 
@@ -140,20 +148,36 @@ function keepLegalSpells(c: Character): Character {
   return legal.length === c.spellIds.length ? c : { ...c, spellIds: legal }
 }
 
-export function setClass(c: Character, classId: string): Character {
+function freezePick(option: EquipmentOption): EquipmentPick {
+  return {
+    key: option.key,
+    label: option.label,
+    goldCp: option.goldCp,
+    grants: option.grants.map((grant) => ({ ...grant }))
+  }
+}
+
+/** The only place the wallet moves when a pick changes. Refund the old
+  * grant, apply the new one -- so switching A to B is a delta, not a reset. */
+function applyPick(c: Character, source: 'class' | 'background', pick: EquipmentPick | null): Character {
+  const refunded = c.equipmentChoice[source]?.goldCp ?? 0
+  const granted = pick?.goldCp ?? 0
+  return { ...c, equipmentChoice: { ...c.equipmentChoice, [source]: pick }, walletCp: c.walletCp - refunded + granted }
+}
+
+export function setClass(c: Character, classId: string | null): Character {
   if (classId === c.classId) return c
-  const next = { ...c, classId, equipmentChoice: { ...c.equipmentChoice, class: null } }
+  const next = applyPick({ ...c, classId, fightingStyleId: null }, 'class', null)
   return keepLegalSpells(keepOfferedSkills(next))
 }
 
 export function setBackground(c: Character, backgroundId: string): Character {
   if (backgroundId === c.backgroundId) return c
-  const next = {
-    ...c,
-    backgroundId,
-    abilities: { ...c.abilities, originBonuses: {} },
-    equipmentChoice: { ...c.equipmentChoice, background: null }
-  }
+  const next = applyPick(
+    { ...c, backgroundId, toolChoiceId: null, abilities: { ...c.abilities, originBonuses: {} } },
+    'background',
+    null,
+  )
   return keepLegalSpells(keepOfferedSkills(next))
 }
 
@@ -207,24 +231,33 @@ export function setEquipmentChoice(
   source: 'class' | 'background',
   key: string | null,
 ): Character {
-  return { ...c, equipmentChoice: { ...c.equipmentChoice, [source]: key } }
+  const options =
+    source === 'class'
+      ? getClass(c.classId)?.startingEquipment
+      : getBg(c.backgroundId)?.startingEquipment
+  const option = key === null ? undefined : options?.find((o) => o.key === key)
+  return applyPick(c, source, option ? freezePick(option): null)
 }
 
 export function buyItem(c: Character, itemId: string): Character {
-  return{ ...c, purchasedItemIds: [...c.purchasedItemIds, itemId]}
+  const cost = getEquipment(itemId)?.costCp ?? 0
+  return { ...c, purchasedItemIds: [...c.purchasedItemIds, itemId], walletCp: c.walletCp - cost}
 }
 
 export function sellItem(c: Character, itemId: string): Character {
   const at = c.purchasedItemIds.lastIndexOf(itemId)
   if (at === -1) return c
+  const cost = getEquipment(itemId)?.costCp ?? 0
   return {
     ...c,
     purchasedItemIds: [...c.purchasedItemIds.slice(0, at), ...c.purchasedItemIds.slice(at + 1)],
+    walletCp: c.walletCp + cost,
   }
 }
 
 export function resetMarket(c: Character): Character {
-  return c.purchasedItemIds.length === 0 ? c : { ...c, purchasedItemIds: [] }
+  if (c.purchasedItemIds.length === 0) return c
+  return { ...c, purchasedItemIds: [], walletCp: c.walletCp + spentCp(c) }
 }
 
 function equipmentValid(c: Character): boolean {
@@ -262,4 +295,20 @@ function keepLegalExpertise(c: Character): Character {
     (id) => c.proficientSkillIds.includes(id) || granted.includes(id),
   )
   return legal.length === c.expertiseIds.length ? c : { ...c, expertiseIds: legal }
+}
+
+export function setFightingStyle(c: Character, fightingStyleId: string | null): Character {
+  return { ...c, fightingStyleId }
+}
+
+export function setToolChoice(c: Character, toolChoiceId: string | null): Character {
+  return { ...c, toolChoiceId }
+}
+
+/** A BG that offers a tool category cannot be left unchosen. */
+function backgroundValid(c: Character): boolean {
+  const bg = getBg(c.backgroundId)
+  if (bg === undefined) return false
+  if (bg.tool.choosableFrom !== null && c.toolChoiceId === null) return false
+  return true
 }

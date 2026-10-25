@@ -10,8 +10,8 @@ import { useCharacters } from "../characters/useCharacters";
 import type { Character } from "../characters/character";
 import { STEPS } from "../characters/character";
 import { firstIncompleteStep, isComplete } from "../characters/progress";
-import { getClass, getRace } from "../data/catalog";
-import { FiTrash2 } from "react-icons/fi";
+import { getBg, getClass, getRace } from "../data/catalog";
+import { FiCopy, FiEdit2, FiTrash2 } from "react-icons/fi";
 import { ConfirmDelete } from "../components/ConfirmDelete";
 
 export function Dashboard() {
@@ -42,7 +42,7 @@ export function Dashboard() {
           <ThemeToggle />
           <span className="app-bar-user">{user?.displayName ?? user?.email}</span>
           <button type="button" className="btn btn-quiet" onClick={handleSignOut} disabled={signingOut}>
-            {signingOut ? 'Signing out...' : 'Sign out'}
+            {signingOut ? 'Signing out..' : 'Sign out'}
           </button>
         </div>
       </header>
@@ -65,7 +65,7 @@ export function Dashboard() {
           <p className="muted">Loading your characters...</p>
         ) : characters.length === 0 ? (
           <div className="empty">
-            <p className="empty-title">No characters yet.</p>
+            <p className="empty-title">No characters yet</p>
             <p className="empty-body">
               Start with a race and class and the Forge will walk you through the rest - abilities, background, proficiency and equipment.
             </p>
@@ -78,22 +78,39 @@ export function Dashboard() {
             {characters.map((character) => {
               const done = isComplete(character)
               const next = STEPS.find((s) => s.id === firstIncompleteStep(character))
+              const summary = [
+                getRace(character.raceId)?.name,
+                getClass(character.classId)?.name,
+                getBg(character.backgroundId)?.name,
+              ]
+                .filter(Boolean)
+                .join(' · ')
 
               return (
                 <li className="character-card" key={character.id}>
                   <button type="button" className="character-open" onClick={() => setEditing(character)}>
                     <span className="character-name">{character.name}</span>
-                    <span className="character-meta">
-                      {[getRace(character.raceId)?.name, getClass(character.classId)?.name].filter(Boolean).join(' · ') || 'Nothing chosen yet'}
-                    </span>
+                    <span className="character-meta">{summary || 'Nothing chosen yet'}</span>
                     <span className={`character-status${done ? ' is-done' : ''}`}>
-                      {done ? 'Complete' : `Next: ${next?.label}`}
+                      {done ? 'Complete' : `Next ${next?.label}`}
                     </span>
                   </button>
 
-                  <button type="button" className="character-delete" aria-label={`Delete ${character.name}`} onClick={() => setDeleting(character)}>
-                    <FiTrash2 size={15} />
-                  </button>
+                  <div className="character-actions">
+                    <button type="button" className="character-action" onClick={() => setEditing(character)}>
+                      <FiEdit2 size={15} aria-hidden="true" />
+                      {done ? 'Edit' : 'Resume'}
+                    </button>
+
+                    <button type="button" className="character-action" disabled title="Duplicating a character is not available yet">
+                      <FiCopy size={15} aria-hidden="true" />
+                      Duplicate
+                    </button>
+
+                    <button type="button" className="character-delete" aria-label={`Delete ${character.name}`} onClick={() => setDeleting(character)}>
+                      <FiTrash2 size={15} aria-hidden="true" />
+                    </button>
+                  </div>
                 </li>
               )
             })}
@@ -115,7 +132,6 @@ export function Dashboard() {
           onClose={() => setDeleting(null)}
         />
       )}
-
     </div>
   )
 }

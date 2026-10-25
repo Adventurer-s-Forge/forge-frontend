@@ -2,7 +2,7 @@ import { auth } from "./firebase"
 
 async function authHeaders(): Promise<Record<string, string>> {
   const user = auth.currentUser
-  if (!user) throw new ApiError('You ar enot signed in', 401)
+  if (!user) throw new ApiError('You are not signed in', 401)
 
   const token = await user.getIdToken()
 

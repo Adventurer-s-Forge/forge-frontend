@@ -31,12 +31,17 @@ import {
   sellItem,
   setEquipmentChoice,
   isStepValid,
+  resetMarket,
+  setFightingStyle,
+  setToolChoice,
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
-import { seedCatalog } from "../data/catalog";
+import { catalog, seedCatalog } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
 import { authed } from "../lib/api";
-import { derived, ownedItemIds, purseCp, skillModifier, skillSource } from "../components/character/sheets";
+import { derived, ownedItemIds, purseCp, skillModifier, skillSource, spentCp, startingCp } from "../components/character/sheets";
+import { pick } from "./fixtures";
+import { parseStartingEquipment } from "../data/normalize";
 
 function dice(...faces: number[]) {
   let i = 0
@@ -50,6 +55,7 @@ function finishedFighter(): Character {
   c = setEquipmentChoice(c, 'class', 'B')
   c = {
     ...c,
+    fightingStyleId: 'defense',
     abilities: {
       method: 'standard',
       base: { STR: 15, DEX: 14, CON: 13, INT: 12, WIS: 10, CHA: 8 },
@@ -81,8 +87,11 @@ function rogueWithSkills(): Character {
 beforeAll(() => {
   seedCatalog({
     races: [
-      { id: 'srd-2024_human', name: 'Human', sizes: ['Medium', 'Small'], speed: 30 },
-      { id: 'srd-2024_dwarf', name: 'Dwarf', sizes: ['Medium'], speed: 30 },
+      { id: 'srd-2024_human', name: 'Human', sizes: ['Medium', 'Small'],
+        heightHints: { Medium: 'about 4–7 feet tall', Small: 'about 2–4 feet tall' }, speed: 30, darkvisionFt: null,
+        traits: [{ name: 'Skillful', desc: 'You gain proficiency in one skill of your choice.' }] },
+      { id: 'srd-2024_dwarf', name: 'Dwarf', sizes: ['Medium'], heightHints: { Medium: 'about 4–5 feet tall' },
+        speed: 30, darkvisionFt: 120, traits: [] },
     ],
     classes: [
       { id: 'srd-2024_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
@@ -95,21 +104,34 @@ beforeAll(() => {
             ],
             goldCp: 500 },
           { key: 'B', label: '75 GP', grants: [], goldCp: 7500 },
-        ], expertiseAt: null },
+        ], expertiseAt: null, primaryAbilityText: 'Strength or Dexterity', fightingStyleAt: 1, features: [{
+        name: 'Second Wind', desc: 'Bonus action: regain 1d10 + level HP.'
+      }], proficiencies: {
+          armor: 'Light, Medium, and Heavy armor and Shields',
+          weapons: 'Simple and Martial weapons',
+          skills: 'Choose 2: Acrobatics, Athletics, History, Insight, Intimidation, Persuasion, Perception, or Survival',
+        } },
       { id: 'srd-2024_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
         skillChoices: CLASS_SKILL_CHOICES.wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2,
-      startingEquipment: [], expertiseAt: null },
+      startingEquipment: [], expertiseAt: null, fightingStyleAt: null, features: [], primaryAbilityText: 'Intelligence',
+    proficiencies: { armor: '', weapons: '', skills: '' } },
       { id: 'srd-2024_rogue', name: 'Rogue', hitDie: 8, primaryAbilities: [], savingThrows: ['DEX', 'INT'], 
         skillChoices: CLASS_SKILL_CHOICES.rogue, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
-        startingEquipment: [], expertiseAt: 1 },
+        startingEquipment: [], expertiseAt: 1, fightingStyleAt: null, features: [], primaryAbilityText: 'Dexterity',
+      proficiencies: { armor: '', weapons: '', skills: '' } },
     ],
     backgrounds: [
       { id: 'srd-2024_acolyte', name: 'Acolyte', skillIds: ['insight', 'religion'], initiateClassNames: [],
-        abilityOptions: ['INT', 'WIS', 'CHA'], startingEquipment: [] },
-      { id: 'srd-2024_sage', name: 'Sage', skillIds: ['arcana', 'history'], initiateClassNames: ['Wizard'],
-        abilityOptions: ['CON', 'INT', 'WIS'], startingEquipment: [] },
+        abilityOptions: ['INT', 'WIS', 'CHA'], featName: 'Magic Initiate (Cleric)',
+        tool: { text: "Calligrapher's Supplies", quantity: 1, itemId: 'srd-2024_calligraphers-supplies', choosableFrom: null },
+        startingEquipment: [] },
+      { id: 'srd-2024_soldier', name: 'Soldier', skillIds: ['athletics', 'intimidation'],
+        initiateClassNames: [], abilityOptions: ['STR', 'DEX', 'CON'], featName: 'Savage Attacker',
+        tool: { text: 'Choose one kind of Gaming Set', quantity: 1, itemId: null, choosableFrom: '^srd-2024_gaming-set-' },
+        startingEquipment: [] },
       { id: 'srd-2024_criminal', name: 'Criminal', skillIds: ['sleight-of-hand', 'stealth'],
-        initiateClassNames: [], abilityOptions: ['DEX', 'CON', 'INT'], startingEquipment: [] },
+        initiateClassNames: [], abilityOptions: ['DEX', 'CON', 'INT'], startingEquipment: [], featName: 'Savage Attacker',
+        tool: { text: 'Choose one kind of Gaming Set', quantity: 1, itemId: null, choosableFrom: '^srd-2024_gaming-set-' } },
     ],
     spells: [
       { id: 'srd-2024_fire-bolt', name: 'Fire Bolt', level: 0, school: 'Evocation', classIds: ['srd-2024_wizard'],
@@ -122,6 +144,9 @@ beforeAll(() => {
       { id: 'srd-2024_chain-mail', name: 'Chain mail', category: 'armor', desc: 'Heavy interlocking rings.', costCp: 7500,
         armor: { base: 16, addDex: false, capDex: null, stealthDisadvantage: true } },
       { id: 'srd-2024_rope', name: 'Rope (50 feet)', category: 'gear', desc: 'Hempen rope.', costCp: 100 },
+      { id: 'srd-2024_gaming-set-dice', name: 'Gaming Set, Dice', category: 'gear', desc: '', costCp: 100 },
+      { id: 'srd-2024_gaming-set-playing-cards', name: 'Gaming Set, Playing Cards', category: 'gear', desc: '', costCp: 50 },
+
     ],
   })
 })
@@ -194,7 +219,7 @@ describe('character progress', () => {
   it('reopens attributes when the background changes', () => {
     const c = setBackground(finishedFighter(), 'srd-2024_sage')
     expect(c.abilities.originBonuses).toEqual({})
-    expect(firstIncompleteStep(c)).toBe('attributes')
+    expect(firstIncompleteStep(c)).toBe('background')
   })
 
   it('requires the full expertise allowance before the step is valid', () => {
@@ -329,6 +354,12 @@ describe('character mutations', () => {
     c = { ...c, proficientSkillIds: ['stealth'], expertiseIds: ['stealth'] }
     expect(setClass(c, 'srd-2024_fighter').expertiseIds).toEqual([])
   })
+
+  it('holds the class step until a fighter picks a fighting style', () => {
+    const c = setClass({ ...createDraft(), name: 'Arkes' }, 'srd-2024_fighter')
+    expect(isStepValid('class', c)).toBe(false)
+    expect(isStepValid('class', setFightingStyle(c, 'defense'))).toBe(true)
+  })
 })
 
 describe('character equipment', () => {
@@ -357,8 +388,75 @@ describe('character equipment', () => {
   })
 
   it('clears only its own equipment choice when a source changes', () => {
-    let c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
-    c = setEquipmentChoice(c, 'background', 'A')
-    expect(setClass(c, 'srd-2024_wizard').equipmentChoice).toEqual({ class: null, background: 'A' })
+    const c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
+    const withBoth = {
+      ...c,
+      equipmentChoice: { ...c.equipmentChoice, background: pick('A', 800) },
+      walletCp: c.walletCp + 800
+    }
+
+    const after = setClass(withBoth, 'srd-2024_wizard')
+    expect(after.equipmentChoice.class).toBeNull()
+    expect(after.equipmentChoice.background?.key).toBe('A')
   })
+
+  it('refunds the previous option when the pick changes', () => {
+    const base = { ...createDraft(), classId: 'srd-2024_fighter' }
+    expect(setEquipmentChoice(base, 'class', 'B').walletCp).toBe(7500)
+
+    const switched = setEquipmentChoice(setEquipmentChoice(base, 'class', 'B'), 'class', 'A')
+    expect(switched.walletCp).toBe(500)
+  })
+
+  it('refunds the grant when a class change clears the pick', () => {
+    const c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
+    expect(setClass(c, 'srd-2024_wizard').walletCp).toBe(0)
+  })
+
+  it('returns coin to the wallet when an item is sold back', () => {
+    let c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
+    c = buyItem(buyItem(c, 'srd-2024_rope'), 'srd-2024_rope')
+    expect(c.walletCp).toBe(7300)
+    expect(sellItem(c, 'srd-2024_rope').walletCp).toBe(7400)
+  })
+
+  it('returns every purchase to the wallet on a market reset', () => {
+    let c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'B')
+    c = buyItem(buyItem(c, 'srd-2024_rope'), 'srd-2024_longsword')
+
+    expect(resetMarket(c).walletCp).toBe(7500)
+    expect(resetMarket(c).purchasedItemIds).toEqual([])
+  })
+
+  /** The wallet is stored, not derived, so nothing enforces this but a test. */
+  it('keeps the wallet equal to granted gold minus purchases', () => {
+    let c = setEquipmentChoice({ ...createDraft(), classId: 'srd-2024_fighter' }, 'class', 'A')
+    c = buyItem(buyItem(c, 'srd-2024_rope'), 'srd-2024_longsword')
+    c = sellItem(c, 'srd-2024_rope')
+
+    expect(c.walletCp).toBe(startingCp(c) - spentCp(c))
+  })
+
+  it('holds the background step until a soldier picks a gaming set', () => {
+    const c = setBackground({ ...createDraft(), name: 'Arkes' }, 'srd-2024_soldier')
+    expect(isStepValid('background', c)).toBe(false)
+    expect(isStepValid('background', setToolChoice(c, 'srd-2024_gaming-set-dice'))).toBe(true)
+  })
+
+  it('clears the tool choice when the background changes', () => {
+    const c = setToolChoice(
+      setBackground(createDraft(), 'srd-2024_soldier'),
+      'srd-2024_gaming-set-dice',
+    )
+    expect(setBackground(c, 'srd-2024_acolyte').toolChoiceId).toBeNull()
+  })
+
+  it('reads the quantity off a grant label', () => {
+    const [optionA] = parseStartingEquipment(
+      'Choose A or B: (A) 20 Arrows, Chain mail, and 4 GP; or (B) 50 GP',
+      catalog.equipment,
+    )
+    expect(optionA.grants.find((g) => g.text.includes('Arrow'))?.quantity).toBe(20)
+  })
+
 })

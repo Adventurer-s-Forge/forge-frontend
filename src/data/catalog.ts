@@ -8,20 +8,29 @@ export type CasterType = 'NONE' | 'FULL' | 'HALF' | 'PACT'
 
 export const SIZES = ['Small', 'Medium']  as const
 export type Size = (typeof SIZES)[number]
+export type RaceTrait = { name: string; desc: string }
+export type ClassFeature = { name: string; desc: string }
 
 export type Race = {
   id: string
   name: string
   sizes: Size[]
+  heightHints: Partial<Record<Size, string>>
   speed: number
+  darkvisionFt: number | null
+  traits: RaceTrait[]
 }
 
 export type CharacterClass = {
   id: string
   name: string
   hitDie: number
+  primaryAbilityText: string
   primaryAbilities: Ability[]
   savingThrows: Ability[]
+  fightingStyleAt: number | null
+  features: ClassFeature[]
+  proficiencies: { armor: string; weapons: string; skills: string }
   skillChoices: { count: number; from: string[] | 'any' }
   expertiseAt: number | null
   casterType: CasterType
@@ -36,6 +45,8 @@ export type Background = {
   skillIds: string[]
   initiateClassNames: string[]
   abilityOptions: Ability[]
+  featName: string
+  tool: EquipmentGrant
   startingEquipment: EquipmentOption[]
 }
 
@@ -85,6 +96,10 @@ export type EquipmentOption = {
   goldCp: number
 }
 
+/** A frozen copy of the option the player took. Saves the loadout into the backend shape.
+ * Makes a saved record stay readable. */
+export type EquipmentPick = EquipmentOption
+
 export const catalog: Catalog = {
   skills: SKILLS,
   races: [],
@@ -108,6 +123,8 @@ export const getBg = (id: string | null) => catalog.backgrounds.find((bg) => bg.
 export const getSkill = (id: string) => catalog.skills.find((skill) => skill.id === id)
 export const getSpell = (id: string) => catalog.spells.find((spell) => spell.id === id)
 export const purchaseableEquipment = () => catalog.equipment.filter((eq) => eq.costCp > 0)
+export const getEquipment = (id: string) => catalog.equipment.find((eq) => eq.id === id)
+export const equipmentInCategory = (pattern: string) => catalog.equipment.filter((eq) => new RegExp(pattern).test(eq.id))
 
 export function classSkillOptions(cls: CharacterClass, background: Background | undefined): string[] {
   const pool = cls.skillChoices.from === 'any' ? catalog.skills.map((skill) => skill.id) : cls.skillChoices.from
