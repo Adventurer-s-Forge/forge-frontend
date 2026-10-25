@@ -70,7 +70,7 @@ export function Dashboard() {
               Start with a race and class and the Forge will walk you through the rest - abilities, background, proficiency and equipment.
             </p>
             <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}>
-              Forge you first character
+              Forge your first character
             </button>
           </div>
         ) : (
