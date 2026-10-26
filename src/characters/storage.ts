@@ -45,7 +45,7 @@ function migrateEquipment(raw: Character):
 
   const picks = {
     class: (choice.class ?? null) as Character['equipmentChoice']['class'],
-    background: (choice.class ?? null) as Character['equipmentChoice']['background'],
+    background: (choice.background ?? null) as Character['equipmentChoice']['background'],
   }
 
   return {
