@@ -312,3 +312,30 @@ function backgroundValid(c: Character): boolean {
   if (bg.tool.choosableFrom !== null && c.toolChoiceId === null) return false
   return true
 }
+
+/** Duplication */
+export function duplicateCharacter(c: Character): Character {
+  const now = new Date().toISOString()
+  return {
+    ...c,
+    id: crypto.randomUUID(),
+    name: `${c.name} (copy)`,
+    abilities: {
+      method: c.abilities.method,
+      base: { ...c.abilities.base },
+      rolled: [...c.abilities.rolled],
+      originBonuses: { ...c.abilities.originBonuses },
+    },
+    equipmentChoice: {
+      class: c.equipmentChoice.class === null ? null : freezePick(c.equipmentChoice.class),
+      background: c.equipmentChoice.background === null ? null : freezePick(c.equipmentChoice.background),
+    },
+    proficientSkillIds: [...c.proficientSkillIds],
+    expertiseIds: [...c.expertiseIds],
+    spellIds: [...c.spellIds],
+    purchasedItemIds: [...c.purchasedItemIds],
+    completedSteps: [...c.completedSteps],
+    createdAt: now,
+    updatedAt: now,
+  }
+}

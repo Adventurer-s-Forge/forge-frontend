@@ -4,6 +4,7 @@ import { FirebaseError } from "firebase/app";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Dashboard } from "../pages/Dashboard";
 import { MemoryRouter } from "react-router";
+import { createDraft, type Character } from "../characters/character";
 
 const fb = vi.hoisted(() => ({ signOut: vi.fn() }))
 
@@ -18,18 +19,28 @@ vi.mock('../auth/useAuth', () => ({
     clearRedirectError: vi.fn(),
   }),
 }))
+
+const chars = vi.hoisted(() => ({
+  characters: [] as Character[],
+  save: vi.fn(),
+  remove: vi.fn()
+}))
+
 vi.mock('../characters/useCharacters', () => ({
   useCharacters: () => ({
-    characters: [],
+    characters: chars.characters,
     loading: false,
     error: null,
-    save: vi.fn(),
-    remove: vi.fn(),
+    save: chars.save,
+    remove: chars.remove,
   }),
 }))
 
 describe('Dashboard', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    chars.characters = []
+  })
 
   it('prefers the display name over the email', () => {
     render(
@@ -67,5 +78,30 @@ describe('Dashboard', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Network error')
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled()
+  })
+
+  it('duplicates with a single write and leaves the source alone', async () => {
+    const source = { ...createDraft(), id: 'c1', name: 'Arkes' }
+    chars.characters = [source]
+    chars.save.mockImplementation(async (c: Character) => c)
+
+    render(<MemoryRouter><Dashboard /></MemoryRouter>)
+    await userEvent.click(screen.getByRole('button', { name: /duplicate/i }))
+
+    expect(chars.save).toHaveBeenCalledTimes(1)
+    const written = chars.save.mock.calls[0][0] as Character
+    expect(written.id).not.toBe('c1')
+    expect(written.name).toBe('Arkes (copy)')
+    expect(source.name).toBe('Arkes')
+  })
+
+  it('surfaces a failed duplication instead of swallowing it', async () => {
+    chars.characters = [{ ...createDraft(), id: 'c1', name: 'Arkes' }]
+    chars.save.mockRejectedValue(new Error('Server said no'))
+
+    render(<MemoryRouter><Dashboard /></MemoryRouter>)
+    await userEvent.click(screen.getByRole('button', { name: /duplicate/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server said no')
   })
 })

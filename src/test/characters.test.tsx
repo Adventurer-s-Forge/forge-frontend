@@ -34,6 +34,7 @@ import {
   resetMarket,
   setFightingStyle,
   setToolChoice,
+  duplicateCharacter,
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
 import { catalog, seedCatalog } from "../data/catalog";
@@ -359,6 +360,26 @@ describe('character mutations', () => {
     const c = setClass({ ...createDraft(), name: 'Arkes' }, 'srd-2024_fighter')
     expect(isStepValid('class', c)).toBe(false)
     expect(isStepValid('class', setFightingStyle(c, 'defense'))).toBe(true)
+  })
+
+  it('duplicates under a new id without touching the source', () => {
+    const source = finishedFighter()
+    const copy = duplicateCharacter(source)
+
+    expect(copy.id).not.toBe(source.id)
+    expect(copy.name).toBe(`${source.name} (copy)`)
+    expect(copy.classId).toBe(source.classId)
+    expect(copy.completedSteps).toEqual(source.completedSteps)
+    expect(source.name).not.toMatch(/copy/)
+  })
+
+  it('gives the duplicate its own nested values', () => {
+    const source = finishedFighter()
+    const copy = duplicateCharacter(source)
+
+    expect(copy.abilities.base).toEqual(source.abilities.base)
+    expect(copy.abilities.base).not.toBe(source.abilities.base)
+    expect(copy.proficientSkillIds).not.toBe(source.proficientSkillIds)
   })
 })
 
