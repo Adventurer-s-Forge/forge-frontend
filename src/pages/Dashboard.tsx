@@ -9,7 +9,7 @@ import { CharacterModal } from "../components/character/CharacterModal";
 import { useCharacters } from "../characters/useCharacters";
 import type { Character } from "../characters/character";
 import { STEPS } from "../characters/character";
-import { firstIncompleteStep, isComplete } from "../characters/progress";
+import { firstIncompleteStep, isComplete, duplicateCharacter } from "../characters/progress";
 import { getBg, getClass, getRace } from "../data/catalog";
 import { FiCopy, FiEdit2, FiTrash2 } from "react-icons/fi";
 import { ConfirmDelete } from "../components/ConfirmDelete";
@@ -21,6 +21,20 @@ export function Dashboard() {
   const [deleting, setDeleting] = useState<Character | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
+  const [duplicating, setDuplicating] = useState<string | null>(null)
+
+  async function handleDuplicate(character: Character) {
+    setError(null)
+    setDuplicating(character.id)
+
+    try {
+      await save(duplicateCharacter(character))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't duplicate that character.")
+    } finally {
+      setDuplicating(null)
+    }
+  }
 
   async function handleSignOut() {
     setError(null)
@@ -102,9 +116,9 @@ export function Dashboard() {
                       {done ? 'Edit' : 'Resume'}
                     </button>
 
-                    <button type="button" className="character-action" disabled title="Duplicating a character is not available yet">
+                    <button type="button" className="character-action" onClick={() => handleDuplicate(character)} disabled={duplicating !== null}>
                       <FiCopy size={15} aria-hidden="true" />
-                      Duplicate
+                      {duplicating === character.id ? 'Duplicating...' : 'Duplicate'}
                     </button>
 
                     <button type="button" className="character-delete" aria-label={`Delete ${character.name}`} onClick={() => setDeleting(character)}>

@@ -23,7 +23,7 @@ npm ci
 cp .env.example .env.local
 ```
 
-Fill in all seven values. `.env.local` is gitignored; `.env.example` provides you naming convention.
+Fill in all seven values. `.env.local` is gitignored; `.env.example` provides the naming convention.
 
 | Variable | Where it comes from |
 |-----|-----|
@@ -37,18 +37,18 @@ Under **Authentication > Sign-in method**, enable:
 - **Google** -- set a support email; the OAuth client is created for you
 - **GitHub** -- you create the OAuth app yourself:
   1. GitHub > Settings > Developer settings > OAuth Apps > New OAuth App
-  2. Homepage URLL `http://localhost:5173`
+  2. Homepage URL: `http://localhost:5173`
   3. Authorization callback URL: Paste the `https://<project>.firebaseapp.com/__/auth/handler` URL that the Firebase GitHub panel shows -- it must match exactly
   4. Copy the client ID and secret into the Firebase panel
 
 The GitHub client secret stays in the Firebase console. It is never an env var and never reaches the bundle.
 
 Before deploying anywhere other than localhost, add that host under 
-**Authenmtication > Settings > Authorized domains**, or sign-in fails with `auth/unauthorized-domain`.
+**Authentication > Settings > Authorized domains**, or sign-in fails with `auth/unauthorized-domain`.
 
 ### 4. Backend CORS
 The content service must send `access-control-allow-origin` for the dev server's origin, 
-or the browser discards every response -- request succeed server-side and fail in the app. In `forge-backend`:
+or the browser discards every response -- requests succeed server-side and fail in the app. In `forge-backend`:
 
 ```py
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,7 +56,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
-    allow_credential=True,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
@@ -71,10 +71,10 @@ npm run dev
 
 Game content is read anonymously. Characters are per-user and require authentication.
 
-> **Status:** not yet implemented backend-side. `POST /characters` currently accepts only
-> `{character_name, user_name}`, `PUT /characters/{id}` and `DELETE /characters/{id}` do not exist,
-> and the API requires an `X-User-Id` header rather than the bearer token the client sends.
-> The client code below is in plkace and will work once the routes match.
+> **Status:** implemented on both sides. `POST`, `PUT` and `DELETE /characters` all exist, the
+> service verifies the Firebase ID token on every character request, and records are namespaced per
+> user -- a character you do not own returns `404` rather than `403`, so its existence is not
+> disclosed. The payload below was reconciled field by field against the live `/openapi.json`.
 
 ### Endpoints
 
@@ -85,7 +85,7 @@ Game content is read anonymously. Characters are per-user and require authentica
 | `PUT`  | `/characters/{id}` | Every later step, full replace |
 | `DELETE` | `/characters/{id}` | The delete button on a character card |
 
-### Lifecycle (New change 10/12)
+### Lifecycle
 
 The wizard writes **twice**: once on the Name step, so the character exists and can be resumed,
 and once at the end. The six steps between do not touch the network anymore.
@@ -116,6 +116,8 @@ consistent document and replaces it.
   "raceId": "srd-2024_gnome",
   "sizeChoice": "Small",
   "classId": "srd-2024_wizard",
+  "fightingStyleId": null,
+  "toolChoiceId": null,
   "backgroundId": "srd-2024_sage",
   "abilities": {
     "method": "standard",
@@ -124,9 +126,20 @@ consistent document and replaces it.
     "originBonuses": { "INT": 2, "CON": 1 }
   },
   "proficientSkillIds": ["arcana", "history"],
-  "expertiseIds": [], // Rogue Class is the only one that allows expertise at Level 1
+  "expertiseIds": [],
   "spellIds": ["srd-2024_fire-bolt", "srd-2024_shield"],
-  "equipmentChoice": { "class": "A", "background": "B" },
+  "equipmentChoice": {
+    "class": {
+      "key": "A",
+      "label": "Quarterstaff, Calligrapher's Supplies, and 5 GP",
+      "goldCp": 500,
+      "grants": [
+        { "text": "Quarterstaff", "quantity": 1, "itemId": "srd-2024_quarterstaff", "choosableFrom": null }
+      ]
+    },
+    "background": null
+  },
+  "walletCp": 400,
   "purchasedItemIds": ["srd-2024_rope", "srd-2024_rope"],
   "completedSteps": ["name", "race", "class", "background", "equipment", "attributes", "skills", "spells"]
 }
@@ -136,21 +149,31 @@ consistent document and replaces it.
 `proficientSkillIds` holds **class picks only** -- background-granted are derived from `backgroundId`,
 so a class change can prune picks without destroying grants.
 
-`expertiseIds` records which proficiencies the player choose to double, and expertise can double 
-background grated skills -- so an id may appear there while being absent from `proficientSkillIds`. Only
-Rogue qualifies at level 1; the level comes from the class data's `Expertise` feature rather than a local table.
+`expertiseIds` records which proficiencies the player chose to double, and expertise can double
+background-granted skills -- so an id may appear there while absent from `proficientSkillIds`. Only
+Rogue qualifies at level 1; the level comes from the class data's `Expertise` feature rather than a
+local table. Expertise doubles the **proficiency bonus**, not the whole modifier.
 
-`equipmentChoice` records which starting-equipment option was taken from each source; the items
-themselves are derived from it.
+`equipmentChoice` stores the **resolved** option taken from each source, not just its letter: the
+label, the coin grant and every item it confers. A letter alone cannot be turned back into an
+inventory, which is why the shape changed. Records written before that change are detected on load
+and the Equipment step is re-asked.
 
-`purchaseItemIds` is a multiset -- buying two of something lists it twice.
+`walletCp` is the one derived-looking value that is genuinely stored. It starts as the granted gold
+and moves with every purchase and sale, so it cannot be recomputed from the choices alone.
 
-Derived values are never stores: ability totals and modifiers, the proficiency bonus, every skill
-modifier, armor class, hit points, the spell save DC, and the coin purse are all computed on render.
-Money is held as integer copper (`src/character/currency.ts`)
+`fightingStyleId` is set only by classes whose Fighting Style lands at level 1; `toolChoiceId` only
+by backgrounds offering a tool *category* ("choose one kind of Gaming Set") rather than a fixed tool.
+
+`purchasedItemIds` is a multiset -- buying two of something lists it twice.
+
+Everything else derived is never stored: ability totals and modifiers, the proficiency bonus, every
+skill modifier, armor class, hit points and the spell save DC are all computed on render, so a score
+change cannot leave a stale modifier behind. Money is integer copper throughout
+(`src/characters/currency.ts`) -- in floating point `0.07 * 100` is not `7`.
 
 `completedSteps` is not a completion flag. It can be **shorter than the step list on a finished character**
--- a non-caster never vists Spells, so a complete Fighter has seven entries and no "`spells`".
+-- a non-caster never visits Spells, so a complete Fighter has seven entries and no "`spells`".
 
 Server-owned and never sent: `ownerUid`, `createdAt`, `updatedAt`, `schemaVersion`.
 
@@ -161,7 +184,14 @@ Server-owned and never sent: `ownerUid`, `createdAt`, `updatedAt`, `schemaVersio
 | `npm run build` | Typecheck then production build |
 | `npm run lint` | ESLint |
 | `npm test` | Vitest in watch mode |
-| `npm run test:run` | Single test pass -- this is what CI runs |
+| `npm run test:run` | Single test pass |
+
+CI runs four gates on every push and on pull requests to `main`: `npx tsc -b`, `npm run lint`,
+`npx vitest run`, `npm run build`.
+
+> **`tsc --noEmit` checks nothing here.** The root `tsconfig.json` is solution-style, so it only
+> points at the project references. Use **`npx tsc -b`** -- that is what CI runs and the only
+> invocation that type-checks the source.
 
 ## Layout
 ```
