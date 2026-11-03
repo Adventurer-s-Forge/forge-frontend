@@ -52,15 +52,14 @@ export const authed = {
   del: (path: string) => request<null>(path, { method: 'DELETE' }),
 }
 
-const BASE = import.meta.env.VITE_API_BASE_URL
-
 function baseUrl(): string {
-  if (!BASE) {
+  const base = import.meta.env.VITE_API_BASE_URL
+  if (!base) {
     throw new ApiError(
       'Missing VITE_API_BASE_URL. Copy .env.example to .env.local and restart dev server.'
     )
   }
-  return BASE
+  return base
 }
 
 export type Envelope<T> = {
@@ -107,4 +106,76 @@ export async function getCollection<T>(resource: Resource): Promise<Envelope<T>[
   }
 
   return body as Envelope<T>[]
+}
+
+/** The reference types /search indexes. Singular - the service answers 400 on a plural */
+export type RefType =
+  | 'race'
+  | 'class'
+  | 'background'
+  | 'equipment'
+  | 'spell'
+  | 'skill'
+  | 'monster'
+  | 'magic_item'
+  | 'condition'
+
+export const SEARCH_PG_SIZE = 100
+
+/** One page of /search. The service treats a missing content_filter as every type, so
+ * an absent `type` is sent as an absent parameter rather than its "N/A" sentinel. */
+export async function searchRef<T = unknown>(
+  query: string,
+  options: { page?: number; type?: RefType } = {},
+): Promise<Envelope<T>[]> {
+  const base = baseUrl()
+  const params = new URLSearchParams({ q: query })
+  if (options.page !== undefined && options.page > 1) params.set('page', String(options.page))
+  if (options.type !== undefined) params.set('content_filter', options.type)
+
+  let response: Response
+
+  try {
+    response = await fetch(`${base}/search?${params.toString()}`)
+  } catch {
+    throw new ApiError(`Could not reach the content service at ${base}`)
+  }
+
+  if (response.status === 400) {
+    throw new ApiError(`The content service does not recognize the type "${options.type}".`, 400)
+  }
+  if (response.status === 422) {
+    throw new ApiError('That search needs a term and a page of 1 or more', 422)
+  }
+  if (!response.ok) {
+    throw new ApiError(
+      `The content service returned ${response.status} for /search`,
+      response.status
+    )
+  }
+
+  const body: unknown = await response.json()
+
+  if (!Array.isArray(body)) {
+    throw new ApiError('Search did not return a list.')
+  }
+
+  return body as Envelope<T>[]
+}
+
+/** Walks pages until one comes back short. The service currently paginates twice, so page 2
+ * answers 200 [] and this stops at one page -- correct either way once that is fixed. */
+export async function searchAllRef<T = unknown>(
+  query: string,
+  maxPages = 10,
+): Promise<Envelope<T>[]> {
+  const all: Envelope<T>[] = []
+
+  for (let page = 1; page <= maxPages; page += 1) {
+    const batch = await searchRef<T>(query, { page })
+    all.push(...batch)
+    if(batch.length < SEARCH_PG_SIZE) break
+  }
+
+  return all
 }
