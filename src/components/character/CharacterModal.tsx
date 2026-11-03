@@ -138,7 +138,6 @@ export function CharacterModal({ character, onSave, onSearch, onClose }: Charact
             {onSearch && (
               <button type="button" className="btn btn-quiet" onClick={onSearch}>
                 <FiBookOpen size={15} aria-hidden="true" />
-                Browse content
               </button>
             )}
           </div>

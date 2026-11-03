@@ -2116,6 +2116,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  padding-right: 44px;
 }
 
 .search-controls {
