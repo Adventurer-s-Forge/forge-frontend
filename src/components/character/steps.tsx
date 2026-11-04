@@ -817,7 +817,7 @@ export function AttributeStep({ character, onChange }: StepProps) {
           <DerivedCard source="Class + CON" label="Hit points" value={d.hitPoints} />
           <DerivedCard source="Race" label="Speed" value={d.speed} note={d.size} />
           <DerivedCard source="Level" label="Proficieny bonus" value={d.proficiencyBonus} signed />
-          <DerivedCard source="DEX" label="Initiative" value={d.intitiative} signed />
+          <DerivedCard source="DEX" label="Initiative" value={d.initiative} signed />
           <DerivedCard source="WIS + prof" label="Passive Perception" value={d.passivePerception} />
         </div>
 
