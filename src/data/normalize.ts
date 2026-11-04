@@ -221,7 +221,7 @@ const featName = (benefits: RawBackground['benefits']) => benefits.find((ben) =>
 const ABILITY_WORDS = /Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma/g
 
 function savingThrows(record: RawClass): Ability[] {
-  const row = coreTraitRow(record.features, 'Saving Throw Proficiency')
+  const row = coreTraitRow(record.features, 'Saving Throw Proficiencies')
   const fromTable = (row.match(ABILITY_WORDS) ?? [])
     .map((word) => ABILITY_BY_NAME[word.toLowerCase()])
     .filter((ability): ability is Ability => ability !== undefined)
