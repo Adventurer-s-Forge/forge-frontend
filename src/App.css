@@ -439,6 +439,12 @@
   margin-top: 18px;
 }
 
+.field-error {
+  margin-top: 6px;
+  font-size: 13.5px;
+  color: var(--oxblood-soft);
+}
+
 /* APP SHELL */
 
 .app-shell {
