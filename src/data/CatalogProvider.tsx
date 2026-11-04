@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { getCollection } from "../lib/api";
 import { seedCatalog } from "./catalog";
-import { isBaseClass, toBackground, toClass, toEquipment, toRace, toSpell } from "./normalize";
-import type { RawBackground, RawClass, RawEquipment, RawRace, RawSpell } from "./normalize";
+import { isBaseClass, toBackground, toClass, toEquipment, toRace, toSkill, toSpell } from "./normalize";
+import type { RawBackground, RawClass, RawEquipment, RawRace, RawSkill, RawSpell } from "./normalize";
 import { PageLoader } from "../components/PageLoader";
 
 type State = { status: 'loading' } | { status: 'ready' } | { status: 'failed'; message: string }
@@ -16,17 +16,18 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     
     async function load() {
       try {
-        const [races, classes, backgrounds, spells, equipments] = await Promise.all([
+        const [races, classes, backgrounds, spells, equipments, skills] = await Promise.all([
           getCollection<RawRace>('races'),
           getCollection<RawClass>('classes'),
           getCollection<RawBackground>('backgrounds'),
           getCollection<RawSpell>('spells'),
           getCollection<RawEquipment>('equipment'),
+          getCollection<RawSkill>('skills'),
         ])
 
         if (cancelled) return
 
-        if (races.length === 0 || classes.length === 0) {
+        if (races.length === 0 || classes.length === 0 || skills.length === 0) {
           setState({
             status: 'failed',
             message: 'The content service is reachable but has no data loaded.',
@@ -35,11 +36,13 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
         }
 
         const equipmentList = equipments.map(toEquipment)
+        const skillList = skills.map(toSkill)
 
         seedCatalog({
+          skills: skillList,
           races: races.map(toRace),
           classes: classes.filter(isBaseClass).map((c) => toClass(c, equipmentList)),
-          backgrounds: backgrounds.map((b) => toBackground(b, equipmentList)),
+          backgrounds: backgrounds.map((b) => toBackground(b, equipmentList, skillList)),
           spells: spells.map(toSpell),
           equipment: equipmentList,
         })

@@ -1,8 +1,4 @@
 import type { Ability } from "../characters/character"
-import { SKILLS } from "./skills"
-import type { Skill } from "./skills"
-
-export type { Skill }
 
 export type CasterType = 'NONE' | 'FULL' | 'HALF' | 'PACT'
 
@@ -96,25 +92,32 @@ export type EquipmentOption = {
   goldCp: number
 }
 
+export type Skill = {
+  id: string
+  name: string
+  ability: Ability
+}
+
 /** A frozen copy of the option the player took. Saves the loadout into the backend shape.
  * Makes a saved record stay readable. */
 export type EquipmentPick = EquipmentOption
 
 export const catalog: Catalog = {
-  skills: SKILLS,
   races: [],
   classes: [],
   backgrounds: [],
   spells: [],
   equipment: [],
+  skills: [],
 }
 
-export function seedCatalog(next: Omit<Catalog, 'skills'>): void {
+export function seedCatalog(next: Catalog): void {
   catalog.races = next.races
   catalog.classes = next.classes
   catalog.backgrounds = next.backgrounds
   catalog.spells = next.spells
   catalog.equipment = next.equipment
+  catalog.skills = next.skills
 }
 
 export const getRace = (id: string | null) => catalog.races.find((race) => race.id === id)

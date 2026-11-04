@@ -45,7 +45,7 @@ const envelope = (type: string, key: string, name: string, data: unknown): Envel
 })
 
 const RESULTS = [
-  envelope('skill', 'stealth', 'Stealth', {}),
+  envelope('skill', 'stealth', 'Stealth', { ability: 'dex' }),
   envelope('equipment', 'srd-2024_longsword', 'Longsword', {
     category: { key: 'weapon', name: 'Weapon' },
     desc: 'A versatile blade.',

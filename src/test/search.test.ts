@@ -144,8 +144,8 @@ describe('search result mapping', () => {
     expect(hit.document).toBe('srd-2024')
   })
 
-  it('matches a projected skill record against the local list', () => {
-    const hit = toSearchHit(envelope('skill', 'stealth', 'Stealth', {}))
+  it('reads the ability off the record', () => {
+    const hit = toSearchHit(envelope('skill', 'stealth', 'Stealth', { ability: 'dex' }))
 
     expect(hit.kind).toBe('skill')
     expect(hit.kind === 'skill' && hit.value.ability).toBe('DEX')
@@ -196,7 +196,7 @@ describe('search result mapping', () => {
   it('keeps the rest of a mixed page when one record is unreadable', () => {
     const hits = toSearchHits([
       envelope('race', 'broken', 'Broken Race', {}),
-      envelope('skill', 'arcana', 'Arcana', {}),
+      envelope('skill', 'arcana', 'Arcana', { ability: 'int' }),
     ])
 
     expect(hits.map((hit) => hit.kind)).toEqual(['other', 'skill'])
@@ -204,7 +204,7 @@ describe('search result mapping', () => {
 
   it('gives each row an id that survives a key repeated across types', () => {
     const hits = toSearchHits([
-      envelope('skill', 'stealth', 'Stealth', {}),
+      envelope('skill', 'stealth', 'Stealth', { ability: 'dex' }),
       envelope('condition', 'stealth', 'Stealth', {}),
     ])
 
@@ -213,8 +213,8 @@ describe('search result mapping', () => {
 
   it('filters and counts a mixed set by kind', () => {
     const hits = toSearchHits([
-      envelope('skill', 'arcana', 'Arcana', {}),
-      envelope('skill', 'athletics', 'Athletics', {}),
+      envelope('skill', 'arcana', 'Arcana', { ability: 'int' }),
+      envelope('skill', 'athletics', 'Athletics', { ability: 'str' }),
       envelope('condition', 'prone', 'Prone', {}),
     ])
 

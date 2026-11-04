@@ -7,9 +7,8 @@
 import type { Envelope } from "../lib/api";
 import { catalog } from "./catalog";
 import type { Background, CharacterClass, Equipment, Race, Skill, Spell } from "./catalog";
-import { SKILLS } from "./skills";
-import { toBackground, toClass, toEquipment, toRace, toSpell } from "./normalize";
-import type { RawBackground, RawClass, RawEquipment, RawRace, RawSpell } from "./normalize";
+import { toBackground, toClass, toEquipment, toRace, toSkill, toSpell } from "./normalize";
+import type { RawBackground, RawClass, RawEquipment, RawRace, RawSkill, RawSpell } from "./normalize";
 
 export type HitKind =
   | 'race'
@@ -80,7 +79,7 @@ function convert(record: Envelope<unknown>, base: HitMeta): SearchHit {
       return {
         ...base,
         kind: 'background',
-        value: toBackground(record as Envelope<RawBackground>, catalog.equipment)
+        value: toBackground(record as Envelope<RawBackground>, catalog.equipment, catalog.skills)
       }
       
     // Redis still holds orphaned ref:item:* recrods from an older type name.
@@ -92,8 +91,7 @@ function convert(record: Envelope<unknown>, base: HitMeta): SearchHit {
       return { ...base, kind: 'spell', value: toSpell(record as Envelope<RawSpell>) }
 
     case 'skill': {
-      const skill = SKILLS.find((entry) => entry.name.toLowerCase() === base.name.toLowerCase())
-      return skill ? { ...base, kind: 'skill', value: skill } : { ...base, kind: 'other', value: null }
+      return { ...base, kind: 'skill', value: toSkill(record as Envelope<RawSkill>) }
     }
 
     default:

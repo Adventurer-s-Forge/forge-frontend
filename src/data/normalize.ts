@@ -1,6 +1,5 @@
 /** This was originally set as temporary. But as of right now 10/20/26
  * This is part of the frontend until backend fully transfers it. */
-
 import type { Ability } from "../characters/character";
 import type {
   Background,
@@ -12,6 +11,7 @@ import type {
   EquipmentOption,
   Race,
   Size,
+  Skill,
   Spell
 } from "./catalog";
 import type { Envelope } from "../lib/api";
@@ -54,6 +54,8 @@ export type RawEquipment = {
   armor: { ac_base?: number; ac_add_dexmod?: boolean; ac_cap_dexmod?: number | null; grants_stealth_disadvantage?: boolean } | null
 }
 
+export type RawSkill = { ability: string; descriptions?: { desc: string }[] }
+
 const ABILITY_BY_NAME: Record<string, Ability> = {
   strength: 'STR',
   dexterity: 'DEX',
@@ -61,6 +63,15 @@ const ABILITY_BY_NAME: Record<string, Ability> = {
   intelligence: 'INT',
   wisdom: 'WIS',
   charisma: 'CHA',
+}
+
+const ABILITY_BY_CODE: Record<string, Ability> = {
+  str: 'STR',
+  dex: 'DEX',
+  con: 'CON',
+  int: 'INT',
+  wis: 'WIS',
+  cha: 'CHA',
 }
 
 const trait = (traits: Trait[], name: string) => traits.find((t) => t.name === name)?.desc ?? ''
@@ -180,7 +191,7 @@ function initiateClassNames(benefits: RawBackground['benefits']): string[] {
     .filter((name): name is string => name !== undefined)
 }
 
-export function toBackground(record: Envelope<RawBackground>, equipment: Equipment[]): Background {
+export function toBackground(record: Envelope<RawBackground>, equipment: Equipment[], skills: readonly Skill[]): Background {
   const proficiencies = record.data.benefits.find(
     (benefit) => benefit.type === 'skill_proficiency',
   )
@@ -188,7 +199,7 @@ export function toBackground(record: Envelope<RawBackground>, equipment: Equipme
   return {
     id: record.key,
     name: record.name,
-    skillIds: skillIdsFromNames(proficiencies?.desc ?? ''),
+    skillIds: skillIdsFromNames(proficiencies?.desc ?? '', skills),
     initiateClassNames: initiateClassNames(record.data.benefits),
     abilityOptions: abilityOptions(record.data.benefits),
     featName: featName(record.data.benefits),
@@ -307,6 +318,18 @@ export function toEquipment(record: Envelope<RawEquipment>): Equipment {
           stealthDisadvantage: armor.grants_stealth_disadvantage ?? false,
         }
   }
+}
+
+// SKILLS
+
+export function toSkill(record: Envelope<RawSkill>): Skill {
+  const ability = ABILITY_BY_CODE[String(record.data.ability ?? '').toLowerCase()]
+
+  if (ability === undefined) {
+    throw new Error(`skill ${record.key} has an unknown ability: ${record.data.ability}`)
+  }
+
+  return { id: record.key, name: record.name, ability }
 }
 
 // SPELLS
