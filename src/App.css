@@ -301,6 +301,13 @@
   gap: 14px;
 }
 
+.card-prose {
+  max-width: 660px;
+  margin-inline: auto;
+  align-items: flex-start;
+  gap: 14px;
+}
+
 .card h1 {
   font-size: 28px;
   margin: 18px 0 14px;
@@ -2207,4 +2214,37 @@
     flex: 0 0 auto;
     max-height: none;
   }
+}
+
+/* ATTRIBUTION */
+
+.site-footer a {
+  color: var(--muted);
+}
+
+.site-footer a:hover {
+  color: var(--ink);
+}
+
+.attribution-sources {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+.attribution-credit {
+  margin-top: 14px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.wizard-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }

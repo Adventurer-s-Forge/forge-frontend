@@ -76,6 +76,7 @@ export type Catalog = {
   backgrounds: Background[]
   spells: Spell[]
   equipment: Equipment[]
+  sources: Source[]
 }
 
 export type EquipmentGrant = {
@@ -109,6 +110,7 @@ export const catalog: Catalog = {
   spells: [],
   equipment: [],
   skills: [],
+  sources: [],
 }
 
 export function seedCatalog(next: Catalog): void {
@@ -118,6 +120,7 @@ export function seedCatalog(next: Catalog): void {
   catalog.spells = next.spells
   catalog.equipment = next.equipment
   catalog.skills = next.skills
+  catalog.sources = next.sources
 }
 
 export const getRace = (id: string | null) => catalog.races.find((race) => race.id === id)
@@ -128,6 +131,7 @@ export const getSpell = (id: string) => catalog.spells.find((spell) => spell.id 
 export const purchaseableEquipment = () => catalog.equipment.filter((eq) => eq.costCp > 0)
 export const getEquipment = (id: string) => catalog.equipment.find((eq) => eq.id === id)
 export const equipmentInCategory = (pattern: string) => catalog.equipment.filter((eq) => new RegExp(pattern).test(eq.id))
+export const getSource = (key: string) => catalog.sources.find((source) => source.key === key)
 
 export function classSkillOptions(cls: CharacterClass, background: Background | undefined): string[] {
   const pool = cls.skillChoices.from === 'any' ? catalog.skills.map((skill) => skill.id) : cls.skillChoices.from
@@ -175,4 +179,15 @@ export const EXPERTISE_PICKS = 2
 export function expertiseCounts(cls: CharacterClass | undefined, level: number): number {
   if (!cls || cls.expertiseAt === null || level < cls.expertiseAt) return 0
   return EXPERTISE_PICKS
+}
+
+export type License = { name: string; shortName: string; url: string }
+
+export type Source = {
+  key: string
+  name: string
+  displayName: string
+  publisher: string
+  permalink: string
+  license: License | null
 }

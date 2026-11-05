@@ -134,12 +134,18 @@ export function CharacterModal({ character, onSave, onSearch, onClose }: Charact
                   .join(' \u00b7') || 'Pick a race, class and background'}
               </p>
             </div>
+            
+            <div className="wizard-head-actions">
+              {onSearch && (
+                <button type="button" className="btn btn-quiet" onClick={onSearch}>
+                  <FiBookOpen size={15} aria-hidden="true" />
+                </button>
+              )}
 
-            {onSearch && (
-              <button type="button" className="btn btn-quiet" onClick={onSearch}>
-                <FiBookOpen size={15} aria-hidden="true" />
-              </button>
-            )}
+              <a className="link" href="/attribution" target="_blank" rel="noreferrer">
+                Attribution
+              </a>
+            </div>
           </div>
         </header>
 

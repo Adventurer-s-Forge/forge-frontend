@@ -6,11 +6,13 @@ import { PublicOnlyRoute } from "./routes/PublicOnlyRoute";
 import { Home } from "./pages/Home";
 import { NotFound } from "./pages/NotFound";
 import "./App.css"
+import { Attribution } from "./pages/Attribution";
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/attribution" element={<Attribution />} />
 
       <Route element={<PublicOnlyRoute />}>
         <Route path="/login" element={<Login />} />

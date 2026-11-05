@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { getCollection } from "../lib/api";
 import { seedCatalog } from "./catalog";
-import { isBaseClass, toBackground, toClass, toEquipment, toRace, toSkill, toSpell } from "./normalize";
+import { isBaseClass, sourcesFrom, toBackground, toClass, toEquipment, toRace, toSkill, toSpell } from "./normalize";
 import type { RawBackground, RawClass, RawEquipment, RawRace, RawSkill, RawSpell } from "./normalize";
 import { PageLoader } from "../components/PageLoader";
 
@@ -45,6 +45,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           backgrounds: backgrounds.map((b) => toBackground(b, equipmentList, skillList)),
           spells: spells.map(toSpell),
           equipment: equipmentList,
+          sources: sourcesFrom([races, classes, backgrounds, spells, equipments, skills]),
         })
 
         setState({ status: 'ready' })

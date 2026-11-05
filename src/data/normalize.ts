@@ -12,12 +12,14 @@ import type {
   Race,
   Size,
   Skill,
+  Source,
   Spell
 } from "./catalog";
 import type { Envelope } from "../lib/api";
 import { CLASS_SKILL_CHOICES, classKey } from "./classRules";
 import { skillIdsFromNames } from "./skills";
 import { gpToCp, parseCostCp } from "../characters/currency";
+import { LICENSES } from "./licenses";
 
 type Trait = { name: string; desc: string }
 
@@ -348,4 +350,47 @@ export function toSpell(record: Envelope<RawSpell>): Spell {
     range: record.data.range_text ?? '',
     duration: record.data.duration ?? '',
   }
+}
+
+// ATTRIBUTION
+
+type RawDoc = {
+  key?: unknown
+  name?: unknown
+  display_name?: unknown
+  permalink?: unknown
+  publisher?: { name?: unknown } | null
+}
+
+const text = (value: unknown, fallback = '') => typeof value === 'string' && value.length > 0 ? value : fallback
+
+export function toSource(record: Envelope<unknown>): Source {
+  const data: unknown = record.data
+  const nested = data !== null && typeof data === 'object' ? (data as { document?: unknown }).document : undefined
+  const fields: RawDoc = nested !== null && typeof nested === 'object' ? (nested as RawDoc) : {}
+
+  const key = text(fields.key, record.document)
+  const name = text(fields.name, key)
+
+  return {
+    key,
+    name,
+    displayName: text(fields.display_name, name),
+    publisher: text(fields.publisher?.name),
+    permalink: text(fields.permalink),
+    license: LICENSES[key] ?? null,
+  }
+}
+
+export function sourcesFrom(collections: Envelope<unknown>[][]): Source[] {
+  const byKey = new Map<string, Source>()
+
+  for (const records of collections) {
+    for (const record of records) {
+      const source = toSource(record)
+      if (source.key.length > 0 && !byKey.has(source.key)) byKey.set(source.key, source)
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name))
 }

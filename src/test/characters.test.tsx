@@ -41,7 +41,7 @@ import { catalog, seedCatalog } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
 import { authed } from "../lib/api";
 import { derived, ownedItemIds, purseCp, skillModifier, skillSource, spentCp, startingCp } from "../components/character/sheets";
-import { pick, TEST_SKILLS } from "./fixtures";
+import { pick, TEST_SKILLS, TEST_SOURCES } from "./fixtures";
 import { parseStartingEquipment } from "../data/normalize";
 
 function dice(...faces: number[]) {
@@ -149,6 +149,7 @@ beforeAll(() => {
       { id: 'srd-2024_gaming-set-playing-cards', name: 'Gaming Set, Playing Cards', category: 'gear', desc: '', costCp: 50 },
     ],
     skills: TEST_SKILLS,
+    sources: TEST_SOURCES
   })
 })
 

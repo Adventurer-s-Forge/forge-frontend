@@ -14,6 +14,7 @@ import { getBg, getClass, getRace } from "../data/catalog";
 import { FiBookOpen, FiCopy, FiEdit2, FiTrash2 } from "react-icons/fi";
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { SearchPanel } from "../components/SearchPanel";
+import { AttributionLink } from "../components/Attribution";
 
 export function Dashboard() {
   const { user } = useAuth()
@@ -137,6 +138,8 @@ export function Dashboard() {
           </ul>
         )}
       </main>
+
+      <AttributionLink />
 
       {editing && (
         <CharacterModal

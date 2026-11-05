@@ -1,4 +1,4 @@
-import { seedCatalog, type EquipmentPick, type Skill } from "../data/catalog";
+import { seedCatalog, type EquipmentPick, type Skill, type Source } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
 
 export const TEST_SKILLS: readonly Skill[] = [
@@ -88,6 +88,7 @@ export function seedTestCatalog(): void {
       { id: 'srd-2024_gaming-set-playing-cards', name: 'Gaming Set, Playing Cards', category: 'gear', desc: '', costCp: 50 },
     ],
     skills: TEST_SKILLS,
+    sources: TEST_SOURCES,
   })
 }
 
@@ -97,3 +98,19 @@ export const pick = (key: string, goldCp = 0): EquipmentPick => ({
   goldCp,
   grants: [],
 })
+
+export const TEST_SOURCES: Source[] = [
+  {
+    key: 'srd-2024',
+    name: 'System Reference Document 5.2',
+    displayName: '5e 2024 Rules',
+    publisher: 'Wizards of the Coast',
+    permalink: 'https://dnd.wizards.com/resources/systems-reference-document',
+    license: {
+      name: 'Creative Commons Attribution 4.0 International',
+      shortName: 'CC BY 4.0',
+      url: 'https://creativecommons.org/licenses/by/4.0/legalcode',
+    },
+  },
+  { key: 'core', name: 'core', displayName: 'core', publisher: '', permalink: '', license: null },
+]
