@@ -21,7 +21,7 @@ import {
   SpellsStep,
 } from "./steps";
 import type { StepProps } from "./steps";
-import { FiX } from "react-icons/fi";
+import { FiBookOpen, FiX } from "react-icons/fi";
 import { getBg, getClass, getRace } from "../../data/catalog";
 
 const PANELS: Record<StepId, (props: StepProps) => React.ReactElement> = {
@@ -38,10 +38,11 @@ const PANELS: Record<StepId, (props: StepProps) => React.ReactElement> = {
 type CharacterModalProps = {
   character?: Character
   onSave: (character: Character) => Promise<Character>
+  onSearch?: () => void
   onClose: () => void
 }
 
-export function CharacterModal({ character, onSave, onClose }: CharacterModalProps) {
+export function CharacterModal({ character, onSave, onSearch, onClose }: CharacterModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState<Character>(() => character ?? createDraft())
   const [step, setStep] = useState<StepId>(() => (character && firstIncompleteStep(character)) ?? 'name')
@@ -124,12 +125,28 @@ export function CharacterModal({ character, onSave, onClose }: CharacterModalPro
         </button>
 
         <header className="wizard-head">
-          <h2>{draft.name.trim() || 'New character'}</h2>
-          <p className="wizard-sub">
-            {[getRace(draft.raceId)?.name, getClass(draft.classId)?.name, getBg(draft.backgroundId)?.name]
-              .filter(Boolean)
-              .join(' \u00b7 ') || 'Pick a race, class and background'}
-          </p>
+          <div className="wizard-head-row">
+            <div>
+              <h2>{draft.name.trim() || 'New character'}</h2>
+              <p className="wizard-sub">
+                {[getRace(draft.raceId)?.name, getClass(draft.classId)?.name, getBg(draft.backgroundId)?.name]
+                  .filter(Boolean)
+                  .join(' \u00b7') || 'Pick a race, class and background'}
+              </p>
+            </div>
+            
+            <div className="wizard-head-actions">
+              {onSearch && (
+                <button type="button" className="btn btn-quiet" onClick={onSearch}>
+                  <FiBookOpen size={15} aria-hidden="true" />
+                </button>
+              )}
+
+              <a className="link" href="/attribution" target="_blank" rel="noreferrer">
+                Attribution
+              </a>
+            </div>
+          </div>
         </header>
 
         <div className="wizard-tabs" role="tablist" aria-label="Creation steps">

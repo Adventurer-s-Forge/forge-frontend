@@ -1,6 +1,5 @@
 /** This was originally set as temporary. But as of right now 10/20/26
  * This is part of the frontend until backend fully transfers it. */
-
 import type { Ability } from "../characters/character";
 import type {
   Background,
@@ -12,12 +11,16 @@ import type {
   EquipmentOption,
   Race,
   Size,
-  Spell
+  Skill,
+  Source,
+  Spell,
+  Subclass
 } from "./catalog";
 import type { Envelope } from "../lib/api";
 import { CLASS_SKILL_CHOICES, classKey } from "./classRules";
 import { skillIdsFromNames } from "./skills";
 import { gpToCp, parseCostCp } from "../characters/currency";
+import { LICENSES } from "./licenses";
 
 type Trait = { name: string; desc: string }
 
@@ -25,7 +28,8 @@ export type RawRace = { traits: Trait[]; subspecies_of: string | null }
 export type RawClass = {
   hit_dice: string
   saving_throws: { name: string }[]
-  subclass_of: string | null
+  subclass_of: { name: string; key: string } | null
+  desc?: string | null
   caster_type: CasterType | null
   features: {
     name: string
@@ -54,6 +58,8 @@ export type RawEquipment = {
   armor: { ac_base?: number; ac_add_dexmod?: boolean; ac_cap_dexmod?: number | null; grants_stealth_disadvantage?: boolean } | null
 }
 
+export type RawSkill = { ability: string; descriptions?: { desc: string }[] }
+
 const ABILITY_BY_NAME: Record<string, Ability> = {
   strength: 'STR',
   dexterity: 'DEX',
@@ -61,6 +67,15 @@ const ABILITY_BY_NAME: Record<string, Ability> = {
   intelligence: 'INT',
   wisdom: 'WIS',
   charisma: 'CHA',
+}
+
+const ABILITY_BY_CODE: Record<string, Ability> = {
+  str: 'STR',
+  dex: 'DEX',
+  con: 'CON',
+  int: 'INT',
+  wis: 'WIS',
+  cha: 'CHA',
 }
 
 const trait = (traits: Trait[], name: string) => traits.find((t) => t.name === name)?.desc ?? ''
@@ -166,6 +181,22 @@ export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): Cha
 
 export const isBaseClass = (record: Envelope<RawClass>) => record.data.subclass_of === null
 
+export function toSubclass(record: Envelope<RawClass>): Subclass {
+  return {
+    id: record.key,
+    name: record.name,
+    parentName: record.data.subclass_of?.name ?? 'a class',
+    desc: (record.data.desc ?? '').trim(),
+    features: record.data.features
+      .map((ft) => ({
+        name: ft.name,
+        desc: (ft.desc ?? '').trim(),
+        level: ft.gained_at?.[0]?.level ?? null,
+      }))
+      .sort((a, b) => (a.level ?? 99) - (b.level ?? 99)),
+  }
+}
+
 // BACKGROUND
 
 function abilityOptions(benefits: RawBackground['benefits']): Ability[] {
@@ -180,7 +211,7 @@ function initiateClassNames(benefits: RawBackground['benefits']): string[] {
     .filter((name): name is string => name !== undefined)
 }
 
-export function toBackground(record: Envelope<RawBackground>, equipment: Equipment[]): Background {
+export function toBackground(record: Envelope<RawBackground>, equipment: Equipment[], skills: readonly Skill[]): Background {
   const proficiencies = record.data.benefits.find(
     (benefit) => benefit.type === 'skill_proficiency',
   )
@@ -188,7 +219,7 @@ export function toBackground(record: Envelope<RawBackground>, equipment: Equipme
   return {
     id: record.key,
     name: record.name,
-    skillIds: skillIdsFromNames(proficiencies?.desc ?? ''),
+    skillIds: skillIdsFromNames(proficiencies?.desc ?? '', skills),
     initiateClassNames: initiateClassNames(record.data.benefits),
     abilityOptions: abilityOptions(record.data.benefits),
     featName: featName(record.data.benefits),
@@ -210,7 +241,7 @@ const featName = (benefits: RawBackground['benefits']) => benefits.find((ben) =>
 const ABILITY_WORDS = /Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma/g
 
 function savingThrows(record: RawClass): Ability[] {
-  const row = coreTraitRow(record.features, 'Saving Throw Proficiency')
+  const row = coreTraitRow(record.features, 'Saving Throw Proficiencies')
   const fromTable = (row.match(ABILITY_WORDS) ?? [])
     .map((word) => ABILITY_BY_NAME[word.toLowerCase()])
     .filter((ability): ability is Ability => ability !== undefined)
@@ -309,6 +340,18 @@ export function toEquipment(record: Envelope<RawEquipment>): Equipment {
   }
 }
 
+// SKILLS
+
+export function toSkill(record: Envelope<RawSkill>): Skill {
+  const ability = ABILITY_BY_CODE[String(record.data.ability ?? '').toLowerCase()]
+
+  if (ability === undefined) {
+    throw new Error(`skill ${record.key} has an unknown ability: ${record.data.ability}`)
+  }
+
+  return { id: record.key, name: record.name, ability }
+}
+
 // SPELLS
 
 export function toSpell(record: Envelope<RawSpell>): Spell {
@@ -325,4 +368,47 @@ export function toSpell(record: Envelope<RawSpell>): Spell {
     range: record.data.range_text ?? '',
     duration: record.data.duration ?? '',
   }
+}
+
+// ATTRIBUTION
+
+type RawDoc = {
+  key?: unknown
+  name?: unknown
+  display_name?: unknown
+  permalink?: unknown
+  publisher?: { name?: unknown } | null
+}
+
+const text = (value: unknown, fallback = '') => typeof value === 'string' && value.length > 0 ? value : fallback
+
+export function toSource(record: Envelope<unknown>): Source {
+  const data: unknown = record.data
+  const nested = data !== null && typeof data === 'object' ? (data as { document?: unknown }).document : undefined
+  const fields: RawDoc = nested !== null && typeof nested === 'object' ? (nested as RawDoc) : {}
+
+  const key = text(fields.key, record.document)
+  const name = text(fields.name, key)
+
+  return {
+    key,
+    name,
+    displayName: text(fields.display_name, name),
+    publisher: text(fields.publisher?.name),
+    permalink: text(fields.permalink),
+    license: LICENSES[key] ?? null,
+  }
+}
+
+export function sourcesFrom(collections: Envelope<unknown>[][]): Source[] {
+  const byKey = new Map<string, Source>()
+
+  for (const records of collections) {
+    for (const record of records) {
+      const source = toSource(record)
+      if (source.key.length > 0 && !byKey.has(source.key)) byKey.set(source.key, source)
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name))
 }

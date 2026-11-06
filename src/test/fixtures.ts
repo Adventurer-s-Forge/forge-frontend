@@ -1,5 +1,26 @@
-import { seedCatalog, type EquipmentPick } from "../data/catalog";
+import { seedCatalog, type EquipmentPick, type Skill, type Source } from "../data/catalog";
 import { CLASS_SKILL_CHOICES } from "../data/classRules";
+
+export const TEST_SKILLS: readonly Skill[] = [
+  { id: 'acrobatics', name: 'Acrobatics', ability: 'DEX'},
+  { id: 'animal-handling', name: 'Animal Handling', ability: "WIS"},
+  { id: 'arcana', name: 'Arcana', ability: 'INT'},
+  { id: 'athletics', name: 'Athletics', ability: 'STR'},
+  { id: 'deception', name: 'Deception', ability: 'CHA'},
+  { id: 'history', name: 'History', ability: 'INT'},
+  { id: 'insight', name: 'Insight', ability: 'WIS'},
+  { id: 'intimidation', name: 'Intimidation', ability: 'CHA'},
+  { id: 'investigation', name: 'Investigation', ability: 'INT'},
+  { id: 'medicine', name: 'Medicine', ability: 'WIS'},
+  { id: 'nature', name: 'Nature', ability: 'INT'},
+  { id: 'perception', name: 'Perception', ability: 'WIS'},
+  { id: 'performance', name: 'Performance', ability: 'CHA'},
+  { id: 'persuasion', name: 'Persuasion', ability: 'CHA'},
+  { id: 'religion', name: 'Religion', ability: 'INT'},
+  { id: 'sleight-of-hand', name: 'Sleight of Hand', ability: 'DEX'},
+  { id: 'stealth', name: 'Stealth', ability: 'DEX'},
+  { id: 'survival', name: 'Survival', ability: 'WIS'},
+]
 
 export function seedTestCatalog(): void {
   seedCatalog({
@@ -66,6 +87,8 @@ export function seedTestCatalog(): void {
       { id: 'srd-2024_gaming-set-dice', name: 'Gaming Set, Dice', category: 'gear', desc: '', costCp: 100 },
       { id: 'srd-2024_gaming-set-playing-cards', name: 'Gaming Set, Playing Cards', category: 'gear', desc: '', costCp: 50 },
     ],
+    skills: TEST_SKILLS,
+    sources: TEST_SOURCES,
   })
 }
 
@@ -75,3 +98,19 @@ export const pick = (key: string, goldCp = 0): EquipmentPick => ({
   goldCp,
   grants: [],
 })
+
+export const TEST_SOURCES: Source[] = [
+  {
+    key: 'srd-2024',
+    name: 'System Reference Document 5.2',
+    displayName: '5e 2024 Rules',
+    publisher: 'Wizards of the Coast',
+    permalink: 'https://dnd.wizards.com/resources/systems-reference-document',
+    license: {
+      name: 'Creative Commons Attribution 4.0 International',
+      shortName: 'CC BY 4.0',
+      url: 'https://creativecommons.org/licenses/by/4.0/legalcode',
+    },
+  },
+  { key: 'core', name: 'core', displayName: 'core', publisher: '', permalink: '', license: null },
+]

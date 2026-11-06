@@ -11,8 +11,10 @@ import type { Character } from "../characters/character";
 import { STEPS } from "../characters/character";
 import { firstIncompleteStep, isComplete, duplicateCharacter } from "../characters/progress";
 import { getBg, getClass, getRace } from "../data/catalog";
-import { FiCopy, FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiBookOpen, FiCopy, FiEdit2, FiTrash2 } from "react-icons/fi";
 import { ConfirmDelete } from "../components/ConfirmDelete";
+import { SearchPanel } from "../components/SearchPanel";
+import { AttributionLink } from "../components/Attribution";
 
 export function Dashboard() {
   const { user } = useAuth()
@@ -22,6 +24,7 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
   const [duplicating, setDuplicating] = useState<string | null>(null)
+  const [searching, setSearching] = useState(false)
 
   async function handleDuplicate(character: Character) {
     setError(null)
@@ -53,6 +56,10 @@ export function Dashboard() {
       <header className="app-bar">
         <Wordmark />
         <div className="app-bar-right">
+          <button type="button" className="btn btn-quiet" onClick={() => setSearching(true)}>
+            <FiBookOpen size={15} aria-hidden="true" />
+            Browse content
+          </button>
           <ThemeToggle />
           <span className="app-bar-user">{user?.displayName ?? user?.email}</span>
           <button type="button" className="btn btn-quiet" onClick={handleSignOut} disabled={signingOut}>
@@ -132,8 +139,15 @@ export function Dashboard() {
         )}
       </main>
 
+      <AttributionLink />
+
       {editing && (
-        <CharacterModal character={editing === 'new' ? undefined : editing} onSave={save} onClose={() => setEditing(null)} />
+        <CharacterModal
+          character={editing === 'new' ? undefined : editing}
+          onSave={save}
+          onSearch={() => setSearching(true)}
+          onClose={() => setEditing(null)}
+        />
       )}
 
       {deleting && (
@@ -146,6 +160,8 @@ export function Dashboard() {
           onClose={() => setDeleting(null)}
         />
       )}
+
+      {searching && <SearchPanel onClose={() => setSearching(false)} />}
     </div>
   )
 }

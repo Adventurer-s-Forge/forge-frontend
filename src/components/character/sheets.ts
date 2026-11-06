@@ -154,7 +154,7 @@ export type SavingThrow = { ability: Ability; modifier: number; proficient: bool
 
 export type Derived = {
   proficiencyBonus: number
-  intitiative?: number
+  initiative?: number
   speed?: number
   size?: string
   hitPoints?: number
@@ -176,7 +176,7 @@ export function derived(c: Character): Derived {
 
   return {
     proficiencyBonus: pb,
-    intitiative: dexMod,
+    initiative: dexMod,
     speed: race?.speed,
     size: race ? (c.sizeChoice ?? race.sizes[0]) : undefined,
     hitPoints: cls && conMod !== undefined ? cls.hitDie + conMod : undefined,
