@@ -4,15 +4,16 @@
  * - a record the app cannot read degrates to an 'other' row instead of the whole
  * result list down with it. */
 
-import type { Envelope } from "../lib/api";
+import type { Envelope, RefType } from "../lib/api";
 import { catalog } from "./catalog";
-import type { Background, CharacterClass, Equipment, Race, Skill, Spell } from "./catalog";
-import { toBackground, toClass, toEquipment, toRace, toSkill, toSpell } from "./normalize";
+import type { Background, CharacterClass, Equipment, Race, Skill, Spell, Subclass } from "./catalog";
+import { toBackground, toClass, toEquipment, toRace, toSkill, toSpell, toSubclass } from "./normalize";
 import type { RawBackground, RawClass, RawEquipment, RawRace, RawSkill, RawSpell } from "./normalize";
 
 export type HitKind =
   | 'race'
   | 'class'
+  | 'subclass'
   | 'background'
   | 'equipment'
   | 'spell'
@@ -31,6 +32,7 @@ export type SearchHit = HitMeta &
   (
     | { kind: 'race'; value: Race }
     | { kind: 'class'; value: CharacterClass }
+    | { kind: 'subclass'; value: Subclass }
     | { kind: 'background'; value: Background }
     | { kind: 'equipment'; value: Equipment }
     | { kind: 'spell'; value: Spell }
@@ -38,9 +40,12 @@ export type SearchHit = HitMeta &
     | { kind: 'other'; value: null }
   )
 
-/** The kinds that have a detail view. Monsters, magic items, and conditions are indexed
- * by the service but nothing at level 1 reads them, so they arrive as 'other', */
-export const SEARCHABLE_KINDS: readonly { kind: HitKind; label: string }[] = [
+/** The chips whose numbers the service can supply: the hit kinds whose name is also a
+ * /search reference type. A subclass folds into `class`, so all six line up with `counts`.
+ * Monsters, magic items, and conditions arrive as `other` and have no chip for now. */
+export type ChipKind = HitKind & RefType
+
+export const SEARCHABLE_KINDS: readonly { kind: ChipKind; label: string }[] = [
   { kind: 'race', label: 'Races' },
   { kind: 'class', label: 'Classes' },
   { kind: 'background', label: 'Backgrounds' },
@@ -70,8 +75,7 @@ function convert(record: Envelope<unknown>, base: HitMeta): SearchHit {
 
     case 'class': {
       const raw = record as Envelope<RawClass>
-      const subclassOf: unknown = raw.data.subclass_of
-      if (subclassOf !== null && subclassOf !== undefined) return { ...base, kind: 'other', value: null }
+      if (raw.data.subclass_of) return { ...base, kind: 'subclass', value: toSubclass(raw) }
       return { ...base, kind: 'class', value: toClass(raw, catalog.equipment) }
     }
 
@@ -112,11 +116,20 @@ export function toSearchHit(record: Envelope<unknown>): SearchHit {
 export const toSearchHits = (records: Envelope<unknown>[]): SearchHit[] =>
   (Array.isArray(records) ? records : []).map(toSearchHit)
 
+/** A sublcas is a class, so it coutns and fitlers under the Classes chip. Keeping it a 
+ * distinch kind is only so the row meta annd the detail view can tell them apart. */
+const CHIP_KIND: Partial<Record<HitKind, HitKind>> = { subclass: 'class' }
+
+const chipKind = (kind: HitKind): HitKind => CHIP_KIND[kind] ?? kind
+
 export const hitsOfKind = (hits: SearchHit[], kind: HitKind | 'all'): SearchHit[] =>
-  kind === 'all' ? hits : hits.filter((hit) => hit.kind === kind)
+  kind === 'all' ? hits : hits.filter((hit) => chipKind(hit.kind) === kind)
 
 export function countsByKind(hits: SearchHit[]): Record<string, number> {
   const counts: Record<string, number> = {}
-  for (const hit of hits) counts[hit.kind] = (counts[hit.kind] ?? 0) + 1
+  for (const hit of hits) {
+    const key = chipKind(hit.kind)
+    counts[key] = (counts[key] ?? 0) + 1
+  }
   return counts
 }

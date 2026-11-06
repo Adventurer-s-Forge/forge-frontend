@@ -35,6 +35,14 @@ export type CharacterClass = {
   startingEquipment: EquipmentOption[]
 }
 
+export type Subclass = {
+  id: string
+  name: string
+  parentName: string
+  desc: string
+  features: { name: string; desc: string; level: number | null }[]
+}
+
 export type Background = {
   id: string
   name: string

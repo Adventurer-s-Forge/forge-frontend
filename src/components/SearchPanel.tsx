@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { FiSearch, FiX } from "react-icons/fi";
-import { ApiError, searchAllRef } from "../lib/api";
-import { SEARCHABLE_KINDS, countsByKind, hitsOfKind, toSearchHits } from "../data/searchResults";
-import type { HitKind, SearchHit } from "../data/searchResults";
+import { ApiError, emptyRefCounts, searchAllRef} from "../lib/api";
+import type { RefCounts } from "../lib/api";
+import { SEARCHABLE_KINDS, hitsOfKind, toSearchHits } from "../data/searchResults";
+import type { ChipKind, HitKind, SearchHit } from "../data/searchResults";
 import { formatCoins } from "../characters/currency";
 import { Markdown } from "./Markdown";
 
@@ -11,13 +12,25 @@ const MIN_QUERY = 2
 
 type Result = {
   term: string
+  kind: ChipKind | 'all'
   hits: SearchHit[]
   total: number
   capped: boolean
+  counts: RefCounts
+  grandTotal: number
   error: string | null
 }
 
-const NOTHING: Result = { term: '', hits: [], total: 0, capped: false, error: null }
+const NOTHING: Result = {
+  term: '',
+  kind: 'all',
+  hits: [],
+  total: 0,
+  capped: false,
+  counts: emptyRefCounts(),
+  grandTotal: 0,
+  error: null
+}
 
 function useDebounced(value: string, ms: number): string {
   const [settled, setSettled] = useState(value)
@@ -33,6 +46,7 @@ function useDebounced(value: string, ms: number): string {
 const KIND_LABEL: Record<HitKind, string> = {
   race: 'Race',
   class: 'Class',
+  subclass: 'Subclass',
   background: 'Background',
   equipment: 'Equipment',
   spell: 'Spell',
@@ -101,6 +115,23 @@ function HitDetail( { hit }: { hit: SearchHit }) {
         </>
       )
 
+    case 'subclass':
+      return (
+        <>
+          <Facts rows={[['Subclass of', hit.value.parentName]]} />
+          {hit.value.desc && <Markdown source={hit.value.desc} />}
+          {hit.value.features.map((ft) => (
+            <div className="trait-card" key={ft.name}>
+              <p className="detail-eyebrow">
+                {ft.name}
+                {ft.level !== null && ` \u00b7 level ${ft.level}`}
+              </p>
+              <Markdown source={ft.desc} />
+            </div>
+          ))}
+        </>
+      )
+
     case 'background':
       return (
         <Facts
@@ -159,11 +190,13 @@ function HitDetail( { hit }: { hit: SearchHit }) {
 export function SearchPanel({ onClose }: { onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [query, setQuery] = useState('')
-  const [kind, setKind] = useState<HitKind | 'all'>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [result, setResult] = useState<Result>(NOTHING)
+  const [filter, setFilter] = useState<{ term: string; kind: ChipKind | 'all'}>({ term: '', kind: 'all' })
 
   const term = useDebounced(query.trim(), DEBOUNCE_MS)
+
+  const kind = filter.term === term ? filter.kind : 'all'
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -176,33 +209,36 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
     if (term.length < MIN_QUERY) return
 
     let canxd = false
+    const type = kind === 'all' ? undefined : kind
 
-    searchAllRef(term).then((page) => {
+    searchAllRef(term, { type }).then((page) => {
       if (canxd) return
-      setResult({
+      setResult((prev) => ({
         term,
+        kind,
         hits: toSearchHits(page.result),
         total: page.total,
         capped: page.capped,
+        counts: type === undefined ? page.counts : prev.counts,
+        grandTotal: type === undefined ? page.total : prev.grandTotal,
         error: null 
-      })
+      }))
     }).catch((err: unknown) => {
       if (canxd) return
       setResult({
+        ...NOTHING,
         term,
-        hits: [],
-        total: 0,
-        capped: false,
+        kind,
         error: err instanceof ApiError ? err.message : 'That search could not be completed' })
     })
 
     return () => {
       canxd = true
     }
-  }, [term])
+  }, [term, kind])
 
   const tooShort = term.length < MIN_QUERY
-  const searching = !tooShort && result.term !== term
+  const searching = !tooShort && (result.term !== term || result.kind !== kind)
 
   // The prev answer stays on screen while the next on is in flight.
   const hits = tooShort ? [] : result.hits
@@ -210,10 +246,11 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
   /** The service counts records, this panel counts rows it can render -- a subclass arrives
    * as a `class` record and lists under Reference. So the chip stay on local counts, which
    * always agree with the list, and the service's global numbers go in the notice. */
-  const counts = countsByKind(hits)
+  const counts = tooShort ? emptyRefCounts() : result.counts
+  const grandTotal = tooShort ? 0 : result.grandTotal
 
   // A filter that has nothing left in it relaxes itself rather than showing an empty list.
-  const activeKind = kind !== 'all' && (counts[kind] ?? 0) === 0 ? 'all' : kind
+  const activeKind = kind !== 'all' && counts[kind] === 0 ? 'all' : kind
   const shown = hitsOfKind(hits, activeKind)
 
   // Dervied, so a result list that no longer holds the selection simply clears it.
@@ -264,10 +301,10 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
               type="button"
               className={`chip${activeKind === 'all' ? ' is-chosen' : ''}`}
               aria-pressed={activeKind === 'all'}
-              onClick={() => setKind('all')}
+              onClick={() => setFilter({ term, kind: 'all' })}
             >
               Everything
-              {hits.length > 0 && <span className="chip-meta">{hits.length}</span>}
+              {grandTotal > 0 && <span className="chip-meta">{grandTotal.toLocaleString()}</span>}
             </button>
 
             {SEARCHABLE_KINDS.map(({ kind: option, label }) => (
@@ -276,11 +313,11 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
                 className={`chip${activeKind === option ? ' is-chosen' : ''}`}
                 key={option}
                 aria-pressed={activeKind === option}
-                disabled={(counts[option] ?? 0) === 0}
-                onClick={() => setKind(option)}
+                disabled={counts[option] === 0}
+                onClick={() => setFilter({ term, kind: option })}
               >
                 {label}
-                {(counts[option] ?? 0) > 0 && <span className="chip-meta">{counts[option]}</span>}
+                {counts[option] > 0 && <span className="chip-meta">{counts[option].toLocaleString()}</span>}
               </button>
             ))}
           </div>

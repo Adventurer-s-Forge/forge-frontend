@@ -223,13 +223,17 @@ export async function searchRef<T = unknown>(query: string, options: { page?: nu
 
 /** Walks pages until one comes back short, or `maxPages` have been read. `total` and
  * `counts` are global, so page 1;s are kept rather than summed. */
-export async function searchAllRef<T = unknown>(query: string, maxPages = 10): Promise<SearchPage<T>> {
-  const result: Envelope<T>[] =[]
+export async function searchAllRef<T = unknown>(
+  query: string,
+  options: { type?: RefType; maxPages?: number } = {},
+): Promise<SearchPage<T>> {
+  const { type, maxPages = 10 } = options
+  const result: Envelope<T>[] = []
   let first: SearchPage<T> | null = null
   let short = false
   
   for (let page = 1; page <= maxPages; page += 1) {
-    const batch = await searchRef<T>(query, { page })
+    const batch = await searchRef<T>(query, { page, type })
     first ??= batch
     result.push(...batch.result)
 

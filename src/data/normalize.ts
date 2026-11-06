@@ -13,7 +13,8 @@ import type {
   Size,
   Skill,
   Source,
-  Spell
+  Spell,
+  Subclass
 } from "./catalog";
 import type { Envelope } from "../lib/api";
 import { CLASS_SKILL_CHOICES, classKey } from "./classRules";
@@ -27,7 +28,8 @@ export type RawRace = { traits: Trait[]; subspecies_of: string | null }
 export type RawClass = {
   hit_dice: string
   saving_throws: { name: string }[]
-  subclass_of: string | null
+  subclass_of: { name: string; key: string } | null
+  desc?: string | null
   caster_type: CasterType | null
   features: {
     name: string
@@ -178,6 +180,22 @@ export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): Cha
 }
 
 export const isBaseClass = (record: Envelope<RawClass>) => record.data.subclass_of === null
+
+export function toSubclass(record: Envelope<RawClass>): Subclass {
+  return {
+    id: record.key,
+    name: record.name,
+    parentName: record.data.subclass_of?.name ?? 'a class',
+    desc: (record.data.desc ?? '').trim(),
+    features: record.data.features
+      .map((ft) => ({
+        name: ft.name,
+        desc: (ft.desc ?? '').trim(),
+        level: ft.gained_at?.[0]?.level ?? null,
+      }))
+      .sort((a, b) => (a.level ?? 99) - (b.level ?? 99)),
+  }
+}
 
 // BACKGROUND
 
