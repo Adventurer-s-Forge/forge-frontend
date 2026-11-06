@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { FiSearch, FiX } from "react-icons/fi";
-import { ApiError, SEARCH_PG_SIZE, searchAllRef } from "../lib/api";
+import { ApiError, searchAllRef } from "../lib/api";
 import { SEARCHABLE_KINDS, countsByKind, hitsOfKind, toSearchHits } from "../data/searchResults";
 import type { HitKind, SearchHit } from "../data/searchResults";
 import { formatCoins } from "../characters/currency";
@@ -12,11 +12,12 @@ const MIN_QUERY = 2
 type Result = {
   term: string
   hits: SearchHit[]
+  total: number
   capped: boolean
   error: string | null
 }
 
-const NOTHING: Result = { term: '', hits: [], capped: false, error: null }
+const NOTHING: Result = { term: '', hits: [], total: 0, capped: false, error: null }
 
 function useDebounced(value: string, ms: number): string {
   const [settled, setSettled] = useState(value)
@@ -176,12 +177,23 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
 
     let canxd = false
 
-    searchAllRef(term).then((records) => {
+    searchAllRef(term).then((page) => {
       if (canxd) return
-      setResult({ term, hits: toSearchHits(records), capped: records.length === SEARCH_PG_SIZE, error: null })
+      setResult({
+        term,
+        hits: toSearchHits(page.result),
+        total: page.total,
+        capped: page.capped,
+        error: null 
+      })
     }).catch((err: unknown) => {
       if (canxd) return
-      setResult({ term, hits: [], capped: false, error: err instanceof ApiError ? err.message : 'That search could not be completed' })
+      setResult({
+        term,
+        hits: [],
+        total: 0,
+        capped: false,
+        error: err instanceof ApiError ? err.message : 'That search could not be completed' })
     })
 
     return () => {
@@ -194,6 +206,10 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
 
   // The prev answer stays on screen while the next on is in flight.
   const hits = tooShort ? [] : result.hits
+
+  /** The service counts records, this panel counts rows it can render -- a subclass arrives
+   * as a `class` record and lists under Reference. So the chip stay on local counts, which
+   * always agree with the list, and the service's global numbers go in the notice. */
   const counts = countsByKind(hits)
 
   // A filter that has nothing left in it relaxes itself rather than showing an empty list.
@@ -279,7 +295,8 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
 
           {!tooShort && result.capped && (
             <p className="notice">
-              Showing the first {SEARCH_PG_SIZE} matches. Narrow the search to see the rest.
+              Showing {result.hits.length} of {result.total.toLocaleString()} matches.
+              Narrow the saerch to see the rest.
             </p>
           )}
 
