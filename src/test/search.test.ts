@@ -1,7 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, searchAllRef, searchRef } from "../lib/api";
-import { countsByKind, hitsOfKind, toSearchHit, toSearchHits } from "../data/searchResults";
+import { hitsOfKind, toSearchHit, toSearchHits } from "../data/searchResults";
+import { isBaseClass } from "../data/normalize";
 import type { Envelope } from "../lib/api";
+import type { RawClass } from "../data/normalize";
 import { seedTestCatalog } from "./fixtures";
 
 vi.mock('../lib/firebase', () => ({ auth: {}, app: {} }))
@@ -50,6 +52,30 @@ const page = (result: Envelope<unknown>[], extra: Record<string, unknown> = {}) 
 
 const fill = (count: number, type: string): Envelope<unknown>[] =>
   Array.from({ length: count }, (_, i) => envelope(type, `${type}-${i}`, `${type} ${i}`, {}))
+
+/** A subclass as the service sends one: the class-wide fields empty, its own features
+ * gained above level 1, and listed alphabetically rather than in level order. */
+const CHAMPION = {
+  subclass_of: { name: 'Fighter', key: 'srd-2024_fighter' },
+  desc: '*Pursue Physical Excellence in Combat*',
+  hit_dice: null,
+  saving_throws: [],
+  primary_abilities: [],
+  caster_type: 'NONE',
+  features: [
+    { name: 'Additional Fighting Style', desc: 'You gain another Fighting Style feat.', gained_at: [{ level: 7 }] },
+    { name: 'Improved Critical', desc: 'Your attack rolls can score a Critical Hit on a 19 or 20.', gained_at: [{ level: 3 }] },
+    { name: 'Survivor', desc: 'You gain Advantage on Death Saving Throws.', gained_at: [{ level: 18 }] },
+  ],
+}
+
+const FIGHTER = {
+  subclass_of: null,
+  hit_dice: 'd10',
+  saving_throws: [{ name: 'strength' }, { name: 'constitution' }],
+  caster_type: null,
+  features: [],
+}
 
 beforeAll(seedTestCatalog)
 
@@ -241,12 +267,26 @@ describe('searchAllRef', () => {
   it('reports capped when every page it read was full', async () => {
     const calls = stubFetch([page(fill(100, 'monster'), { total: 1268 })])
 
-    const found = await searchAllRef('a', 3)
+    const found = await searchAllRef('a', { maxPages: 3 })
 
     expect(calls).toHaveLength(3)
     expect(found.result).toHaveLength(300)
     expect(found.total).toBe(1268)
     expect(found.capped).toBe(true)
+  })
+
+  it('sends the content filter on every page it walks, not just the first', async () => {
+    const calls = stubFetch([
+      page(fill(100, 'spell'), { total: 230 }),
+      page(fill(30, 'spell'), { total: 230 }),
+    ])
+
+    const found = await searchAllRef('a', { type: 'spell' })
+
+    expect(calls).toHaveLength(2)
+    expect(calls.every((url) => url.includes('content_filter=spell'))).toBe(true)
+    expect(calls[1]).toContain('page=2')
+    expect(found.result).toHaveLength(130)
   })
 
   it('reports not capped once a page comes back short, even after an exactly full one', async () => {
@@ -294,14 +334,45 @@ describe('search result mapping', () => {
     expect(hit.name).toBe('Bag of Holding')
   })
 
-  it('files a subclass under other, the way the catalog ignores them', () => {
-    const hit = toSearchHit(
-      envelope('class', 'srd-2024_champion', 'Champion', {
-        subclass_of: { name: 'Fighter', key: 'srd-2024_fighter' },
-      }),
-    )
+  it('reads a subclass as a subclass, naming the class it belongs to', () => {
+    const hit = toSearchHit(envelope('class', 'srd-2024_champion', 'Champion', CHAMPION))
 
-    expect(hit.kind).toBe('other')
+    expect(hit.kind).toBe('subclass')
+    expect(hit.kind === 'subclass' && hit.value.parentName).toBe('Fighter')
+    expect(hit.kind === 'subclass' && hit.value.desc).toContain('Physical Excellence')
+  })
+
+  it('orders subclass features by the level they are gained at, not the order sent', () => {
+    const hit = toSearchHit(envelope('class', 'srd-2024_champion', 'Champion', CHAMPION))
+
+    expect(hit.kind === 'subclass' && hit.value.features.map((feat) => feat.level)).toEqual([3, 7, 18])
+    expect(hit.kind === 'subclass' && hit.value.features[0].name).toBe('Improved Critical')
+  })
+
+  it('names no parent rather than an undefined one', () => {
+    const orphan = { ...CHAMPION, subclass_of: { key: 'srd-2024_fighter' } }
+    const hit = toSearchHit(envelope('class', 'srd-2024_champion', 'Champion', orphan))
+
+    expect(hit.kind === 'subclass' && hit.value.parentName).toBe('a class')
+  })
+
+  it('counts and filters a subclass under Classes, the way the service counts it', () => {
+    const hits = toSearchHits([
+      envelope('class', 'srd-2024_fighter', 'Fighter', FIGHTER),
+      envelope('class', 'srd-2024_champion', 'Champion', CHAMPION),
+    ])
+
+    expect(hits.map((hit) => hit.kind)).toEqual(['class', 'subclass'])
+    expect(hitsOfKind(hits, 'class')).toHaveLength(2)
+  })
+
+  it('keeps a subclass out of the catalog, so creation still cannot choose one', () => {
+    const records = [
+      envelope('class', 'srd-2024_fighter', 'Fighter', FIGHTER),
+      envelope('class', 'srd-2024_champion', 'Champion', CHAMPION),
+    ] as Envelope<RawClass>[]
+
+    expect(records.filter(isBaseClass).map((record) => record.name)).toEqual(['Fighter'])
   })
 
   it('reads a base class, whose subclass_of is null', () => {
@@ -346,7 +417,7 @@ describe('search result mapping', () => {
     expect(hits[0].id).not.toBe(hits[1].id)
   })
 
-  it('filters and counts a mixed set by kind', () => {
+  it('filters a mixed set by kind', () => {
     const hits = toSearchHits([
       envelope('skill', 'arcana', 'Arcana', { ability: 'int' }),
       envelope('skill', 'athletics', 'Athletics', { ability: 'str' }),
@@ -355,6 +426,7 @@ describe('search result mapping', () => {
 
     expect(hitsOfKind(hits, 'skill')).toHaveLength(2)
     expect(hitsOfKind(hits, 'all')).toHaveLength(3)
-    expect(countsByKind(hits)).toEqual({ skill: 2, other: 1 })
+    // A condition has no chip, so no filter claims it -- it shows only under Everything.
+    expect(hitsOfKind(hits, 'spell')).toHaveLength(0)
   })
 })

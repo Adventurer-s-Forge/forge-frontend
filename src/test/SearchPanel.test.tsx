@@ -55,11 +55,23 @@ const RESULTS = [
   }),
 ]
 
-function stubSearch(body: unknown, status = 200) {
-  const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status })))
+/** Answers an unfiltered ask with `body` and, when one is given, a `content_filter` ask
+ * with `filtered` -- so a test can prove which ask produced the rows on screen. */
+function stubSearch(body: unknown, status = 200, filtered?: unknown) {
+  const fetchMock = vi.fn((url: string) =>
+    Promise.resolve(
+      new Response(
+        JSON.stringify(filtered !== undefined && url.includes('content_filter') ? filtered : body),
+        { status },
+      ),
+    ),
+  )
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
+
+const lastUrl = (mock: { mock: { calls: [string][] } }) =>
+  String(mock.mock.calls[mock.mock.calls.length - 1][0])
 
 /** The page body /search sends. `total` and `counts` describe the whole match set, so a
  * page can report more matches than the records it carries. */
@@ -105,8 +117,8 @@ describe('SearchPanel', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('narrows the results to one content type without asking again', async () => {
-    const fetchMock = stubSearch(RESULTS)
+  it('asks the service again, narrowed, when a chip is clicked', async () => {
+    const fetchMock = stubSearch(pageOf(RESULTS, 2, { skill: 1, equipment: 1 }))
     render(<SearchPanel onClose={vi.fn()} />)
 
     await userEvent.type(screen.getByRole('searchbox'), 'long')
@@ -114,13 +126,15 @@ describe('SearchPanel', () => {
 
     await userEvent.click(filters().getByRole('button', { name: /Equipment/ }))
 
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('content_filter')
+    expect(lastUrl(fetchMock)).toContain('content_filter=equipment')
     expect(screen.getByText('Longsword')).toBeInTheDocument()
     expect(screen.queryByText('Stealth')).not.toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('disables a filter no result belongs to', async () => {
-    stubSearch(RESULTS)
+  it('disables a filter the service has no matches for', async () => {
+    stubSearch(pageOf(RESULTS, 2, { skill: 1, equipment: 1 }))
     render(<SearchPanel onClose={vi.fn()} />)
 
     await userEvent.type(screen.getByRole('searchbox'), 'long')
@@ -128,6 +142,92 @@ describe('SearchPanel', () => {
 
     expect(filters().getByRole('button', { name: /Spells/ })).toBeDisabled()
     expect(filters().getByRole('button', { name: /Equipment/ })).toBeEnabled()
+  })
+
+  it('takes a chip number from the service rather than the rows on the page', async () => {
+    // Fifty equipment records in hand; the service says 230 spells match in all.
+    stubSearch(pageOf(fill(50, 'equipment'), 1268, { equipment: 136, spell: 230, monster: 231 }))
+    render(<SearchPanel onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('searchbox'), 'aa')
+
+    await waitFor(() =>
+      expect(filters().getByRole('button', { name: /Spells/ })).toHaveTextContent('Spells230'),
+    )
+    // Not one spell is on the page, yet the chip is live because the service counted 230.
+    expect(filters().getByRole('button', { name: /Spells/ })).toBeEnabled()
+    expect(filters().getByRole('button', { name: /Equipment/ })).toHaveTextContent('Equipment136')
+  })
+
+  it('replaces the rows with the service answer for the chip', async () => {
+    const spellPage = pageOf([
+      envelope('spell', 'srd-2024_fire-bolt', 'Fire Bolt', {
+        level: 0,
+        school: { name: 'Evocation' },
+        classes: [],
+        desc: 'You hurl a mote of fire.',
+        casting_time: 'action',
+        range_text: '120 feet',
+        duration: 'instantaneous',
+        concentration: false,
+        ritual: false,
+      }),
+    ], 1, { spell: 1 })
+
+    // RESULTS holds no spell at all, so this row cannot have come from filtering it.
+    stubSearch(pageOf(RESULTS, 3, { skill: 1, equipment: 1, spell: 1 }), 200, spellPage)
+    render(<SearchPanel onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('searchbox'), 'fire')
+    await waitFor(() => expect(screen.getByText('Longsword')).toBeInTheDocument())
+
+    await userEvent.click(filters().getByRole('button', { name: /Spells/ }))
+
+    await waitFor(() => expect(screen.getByText('Fire Bolt')).toBeInTheDocument())
+    expect(screen.queryByText('Longsword')).not.toBeInTheDocument()
+  })
+
+  it('keeps the global numbers on the chips while a filter is active', async () => {
+    const spellPage = pageOf(fill(3, 'spell'), 230, { spell: 230 })
+    stubSearch(pageOf(RESULTS, 1268, { skill: 12, equipment: 136, spell: 230 }), 200, spellPage)
+    render(<SearchPanel onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('searchbox'), 'aa')
+    await waitFor(() => expect(screen.getByText('Longsword')).toBeInTheDocument())
+
+    await userEvent.click(filters().getByRole('button', { name: /Spells/ }))
+    await waitFor(() =>
+      expect(filters().getByRole('button', { name: /Spells/ })).toHaveAttribute('aria-pressed', 'true'),
+    )
+
+    // The filtered answer zeroes every other type; the chips must not follow it down.
+    expect(filters().getByRole('button', { name: /Everything/ })).toHaveTextContent(
+      `Everything${(1268).toLocaleString()}`,
+    )
+    expect(filters().getByRole('button', { name: /Equipment/ })).toHaveTextContent('Equipment136')
+  })
+
+  it('drops an active filter when the term changes', async () => {
+    const spellPage = pageOf(fill(2, 'spell'), 230, { spell: 230 })
+    const fetchMock = stubSearch(pageOf(RESULTS, 3, { skill: 1, equipment: 1, spell: 1 }), 200, spellPage)
+    render(<SearchPanel onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('searchbox'), 'long')
+    await waitFor(() => expect(screen.getByText('Longsword')).toBeInTheDocument())
+
+    await userEvent.click(filters().getByRole('button', { name: /Spells/ }))
+    await waitFor(() =>
+      expect(filters().getByRole('button', { name: /Spells/ })).toHaveAttribute('aria-pressed', 'true'),
+    )
+
+    await userEvent.type(screen.getByRole('searchbox'), 'sword')
+
+    // A new term is a new search: unfiltered, so the counts belong to what is searched now.
+    await waitFor(() =>
+      expect(filters().getByRole('button', { name: /Everything/ })).toHaveAttribute('aria-pressed', 'true'),
+    )
+    expect(lastUrl(fetchMock)).toContain('q=longsword')
+    expect(lastUrl(fetchMock)).not.toContain('content_filter')
   })
 
   it('reads out a chosen result, naming where it came from', async () => {
@@ -183,7 +283,7 @@ describe('SearchPanel', () => {
     expect(screen.queryByText(/Showing/)).not.toBeInTheDocument()
   })
 
-  it('counts the rows it can show on the chips, not the records the service counted', async () => {
+  it('folds a subclass into the Classes chip, the way the service counts it', async () => {
     const records = [
       envelope('class', 'srd-2024_fighter', 'Fighter', {
         subclass_of: null,
@@ -194,19 +294,53 @@ describe('SearchPanel', () => {
       }),
       envelope('class', 'srd-2024_champion', 'Champion', {
         subclass_of: { name: 'Fighter', key: 'srd-2024_fighter' },
+        desc: '*Pursue Physical Excellence in Combat*',
+        hit_dice: null,
+        saving_throws: [],
+        caster_type: 'NONE',
+        features: [
+          { name: 'Improved Critical', desc: 'A Critical Hit on a 19 or 20.', gained_at: [{ level: 3 }] },
+        ],
       }),
     ]
 
-    // The service counts both as `class`; this panel files the subclass under Reference.
     stubSearch(pageOf(records, 2, { class: 2 }))
     render(<SearchPanel onClose={vi.fn()} />)
 
     await userEvent.type(screen.getByRole('searchbox'), 'fighter')
     await waitFor(() => expect(screen.getByText('Fighter')).toBeInTheDocument())
 
-    expect(filters().getByRole('button', { name: /Classes/ })).toHaveTextContent(/^Classes1$/)
-    expect(filters().getByRole('button', { name: /Everything/ })).toHaveTextContent(/^Everything2$/)
-    expect(screen.getByRole('button', { name: /Champion/ })).toHaveTextContent('Reference')
+    // Both are class records, so one chip covers them -- the row meta tells them apart.
+    expect(filters().getByRole('button', { name: /Classes/ })).toHaveTextContent(/^Classes2$/)
+    expect(screen.getByRole('button', { name: /Champion/ })).toHaveTextContent('Subclass')
+    expect(screen.getByRole('button', { name: /^Fighter/ })).toHaveTextContent('Class')
+  })
+
+  it('reads a subclass without pretending it is selectable at level 1', async () => {
+    stubSearch(pageOf([
+      envelope('class', 'srd-2024_champion', 'Champion', {
+        subclass_of: { name: 'Fighter', key: 'srd-2024_fighter' },
+        desc: '*Pursue Physical Excellence in Combat*',
+        hit_dice: null,
+        saving_throws: [],
+        caster_type: 'NONE',
+        features: [
+          { name: 'Survivor', desc: 'Advantage on Death Saving Throws.', gained_at: [{ level: 18 }] },
+          { name: 'Improved Critical', desc: 'A Critical Hit on a 19 or 20.', gained_at: [{ level: 3 }] },
+        ],
+      }),
+    ], 1, { class: 1 }))
+    render(<SearchPanel onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('searchbox'), 'champion')
+    await waitFor(() => expect(screen.getByText('Champion')).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: /Champion/ }))
+
+    expect(screen.getByText('Subclass of')).toBeInTheDocument()
+    expect(screen.getByText('Fighter')).toBeInTheDocument()
+    // The level each feature arrives at is what explains why creation cannot offer it.
+    expect(screen.getByText(/Improved Critical/)).toHaveTextContent('level 3')
+    expect(screen.getByText(/Survivor/)).toHaveTextContent('level 18')
   })
 })
 
