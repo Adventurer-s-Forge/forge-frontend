@@ -38,6 +38,19 @@ const envelope = (type: string, key: string, name: string, data: unknown): Envel
   data,
 })
 
+/** The body /search sends now. `total` and `counts` describe the whole match set rather
+ * than this page, and `num items on page` is len(result), which the reader ignores. */
+const page = (result: Envelope<unknown>[], extra: Record<string, unknown> = {}) => ({
+  total: result.length,
+  counts: {},
+  'num items on page': result.length,
+  result,
+  ...extra,
+})
+
+const fill = (count: number, type: string): Envelope<unknown>[] =>
+  Array.from({ length: count }, (_, i) => envelope(type, `${type}-${i}`, `${type} ${i}`, {}))
+
 beforeAll(seedTestCatalog)
 
 beforeEach(() => {
@@ -104,26 +117,148 @@ describe('searchRef', () => {
 
     await expect(searchRef('rope')).rejects.toThrow(/did not return a list/)
   })
+
+  it('refuses a body that is neither a list nor a page', async () => {
+    stubFetch(['no results for you'])
+
+    await expect(searchRef('rope')).rejects.toThrow(/did not return a list/)
+  })
+
+  it('reads the total, the nine per-type counts and the records off a page body', async () => {
+    stubFetch([
+      {
+        total: 1268,
+        counts: {
+          race: 5, class: 14, background: 3, equipment: 136, spell: 230,
+          skill: 12, monster: 231, magic_item: 630, condition: 7,
+        },
+        'num items on page': 2,
+        result: [
+          envelope('race', 'srd-2024_human', 'Human', {}),
+          envelope('spell', 'srd-2024_fire-bolt', 'Fire Bolt', {}),
+        ],
+      },
+    ])
+
+    const found = await searchRef('a')
+
+    expect(found.total).toBe(1268)
+    expect(found.result.map((record) => record.name)).toEqual(['Human', 'Fire Bolt'])
+    expect(found.counts).toEqual({
+      race: 5, class: 14, background: 3, equipment: 136, spell: 230,
+      skill: 12, monster: 231, magic_item: 630, condition: 7,
+    })
+    // Every type is carried through, so the counts still account for the whole total.
+    expect(Object.values(found.counts).reduce((sum, count) => sum + count, 0)).toBe(1268)
+  })
+
+  it('zero-fills a reference type the service leaves out of counts', async () => {
+    stubFetch([page([], { total: 5, counts: { spell: 5 } })])
+
+    const found = await searchRef('fire')
+
+    expect(found.counts.monster).toBe(0)
+    expect(found.counts.background).toBe(0)
+    expect(Object.keys(found.counts)).toHaveLength(9)
+  })
+
+  it('drops a count for a type the Forge has never heard of', async () => {
+    stubFetch([page([], { total: 1, counts: { spell: 1, vehicle: 9 } })])
+
+    const found = await searchRef('cart')
+
+    expect(found.counts).not.toHaveProperty('vehicle')
+    expect(found.counts.spell).toBe(1)
+  })
+
+  it('still reads the older bare list, counting the records itself', async () => {
+    stubFetch([[
+      envelope('spell', 'a', 'Acid Splash', {}),
+      envelope('spell', 'b', 'Acid Arrow', {}),
+      envelope('monster', 'c', 'Aboleth', {}),
+    ]])
+
+    const found = await searchRef('ac')
+
+    expect(found.total).toBe(3)
+    expect(found.counts.spell).toBe(2)
+    expect(found.counts.monster).toBe(1)
+    expect(found.capped).toBe(false)
+  })
+
+  it('never reports a total smaller than the records in hand', async () => {
+    stubFetch([page([envelope('skill', 'stealth', 'Stealth', {})], { total: 0 })])
+
+    const found = await searchRef('stealth')
+
+    expect(found.total).toBe(1)
+    expect(found.capped).toBe(false)
+  })
+
+  it('marks a page capped only when the service holds more than it sent', async () => {
+    const one = [envelope('race', 'srd-2024_human', 'Human', {})]
+    stubFetch([page(one, { total: 1268 }), page(one)])
+
+    expect((await searchRef('a')).capped).toBe(true)
+    expect((await searchRef('human')).capped).toBe(false)
+  })
 })
 
 describe('searchAllRef', () => {
   it('stops asking once a page comes back short', async () => {
     const calls = stubFetch([[envelope('spell', 'a', 'Acid Splash', {})]])
 
-    const records = await searchAllRef('acid')
+    const found = await searchAllRef('acid')
 
-    expect(records).toHaveLength(1)
+    expect(found.result).toHaveLength(1)
     expect(calls).toHaveLength(1)
   })
 
   it('keeps walking while every page is full', async () => {
-    const full = Array.from({ length: 100 }, (_, i) => envelope('spell', `s${i}`, `Spell ${i}`, {}))
-    const calls = stubFetch([full, [envelope('spell', 'last', 'Last', {})]])
+    const calls = stubFetch([fill(100, 'spell'), [envelope('spell', 'last', 'Last', {})]])
 
-    const records = await searchAllRef('a')
+    const found = await searchAllRef('a')
 
-    expect(records).toHaveLength(101)
+    expect(found.result).toHaveLength(101)
     expect(calls).toHaveLength(2)
+  })
+
+  it('carries page ones global total and counts rather than summing the pages', async () => {
+    const global = { total: 1268, counts: { spell: 230, monster: 231 } }
+    stubFetch([
+      page(fill(100, 'spell'), global),
+      page([envelope('spell', 'last', 'Last', {})], global),
+    ])
+
+    const found = await searchAllRef('a')
+
+    expect(found.result).toHaveLength(101)
+    expect(found.total).toBe(1268)
+    expect(found.counts.spell).toBe(230)
+    expect(found.counts.monster).toBe(231)
+  })
+
+  it('reports capped when every page it read was full', async () => {
+    const calls = stubFetch([page(fill(100, 'monster'), { total: 1268 })])
+
+    const found = await searchAllRef('a', 3)
+
+    expect(calls).toHaveLength(3)
+    expect(found.result).toHaveLength(300)
+    expect(found.total).toBe(1268)
+    expect(found.capped).toBe(true)
+  })
+
+  it('reports not capped once a page comes back short, even after an exactly full one', async () => {
+    const global = { total: 100, counts: { skill: 100 } }
+    const calls = stubFetch([page(fill(100, 'skill'), global), page([], global)])
+
+    const found = await searchAllRef('a')
+
+    // 100 records in hand used to read as capped, because 100 is the page size.
+    expect(calls).toHaveLength(2)
+    expect(found.result).toHaveLength(100)
+    expect(found.capped).toBe(false)
   })
 })
 

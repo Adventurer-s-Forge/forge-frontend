@@ -61,6 +61,18 @@ function stubSearch(body: unknown, status = 200) {
   return fetchMock
 }
 
+/** The page body /search sends. `total` and `counts` describe the whole match set, so a
+ * page can report more matches than the records it carries. */
+const pageOf = (result: Envelope<unknown>[], total: number, counts: Record<string, number> = {}) => ({
+  total,
+  counts,
+  'num items on page': result.length,
+  result,
+})
+
+const fill = (count: number, type: string): Envelope<unknown>[] =>
+  Array.from({ length: count }, (_, i) => envelope(type, `${type}-${i}`, `${type} ${i}`, {}))
+
 const filters = () => within(screen.getByRole('group', { name: 'Filter by content type' }))
 
 beforeAll(seedTestCatalog)
@@ -147,6 +159,54 @@ describe('SearchPanel', () => {
     await userEvent.type(screen.getByRole('searchbox'), 'zzzz')
 
     await waitFor(() => expect(screen.getByText(/Nothing matches/)).toBeInTheDocument())
+  })
+
+  it('names the global total in the notice rather than the page size', async () => {
+    // Every page comes back full, so the walk stops at its ten page ceiling holding 1000.
+    stubSearch(pageOf(fill(100, 'monster'), 1268, { monster: 231, spell: 230 }))
+    render(<SearchPanel onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('searchbox'), 'aboleth')
+
+    const notice = await screen.findByText(/Showing 1000 of/, {}, { timeout: 5000 })
+
+    expect(notice).toHaveTextContent(`of ${(1268).toLocaleString()} matches`)
+  })
+
+  it('shows no notice when the whole match set is in hand', async () => {
+    stubSearch(pageOf(RESULTS, 2, { skill: 1, equipment: 1 }))
+    render(<SearchPanel onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('searchbox'), 'long')
+    await waitFor(() => expect(screen.getByText('Longsword')).toBeInTheDocument())
+
+    expect(screen.queryByText(/Showing/)).not.toBeInTheDocument()
+  })
+
+  it('counts the rows it can show on the chips, not the records the service counted', async () => {
+    const records = [
+      envelope('class', 'srd-2024_fighter', 'Fighter', {
+        subclass_of: null,
+        hit_dice: 'd10',
+        saving_throws: [{ name: 'strength' }, { name: 'constitution' }],
+        caster_type: null,
+        features: [],
+      }),
+      envelope('class', 'srd-2024_champion', 'Champion', {
+        subclass_of: { name: 'Fighter', key: 'srd-2024_fighter' },
+      }),
+    ]
+
+    // The service counts both as `class`; this panel files the subclass under Reference.
+    stubSearch(pageOf(records, 2, { class: 2 }))
+    render(<SearchPanel onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('searchbox'), 'fighter')
+    await waitFor(() => expect(screen.getByText('Fighter')).toBeInTheDocument())
+
+    expect(filters().getByRole('button', { name: /Classes/ })).toHaveTextContent(/^Classes1$/)
+    expect(filters().getByRole('button', { name: /Everything/ })).toHaveTextContent(/^Everything2$/)
+    expect(screen.getByRole('button', { name: /Champion/ })).toHaveTextContent('Reference')
   })
 })
 
