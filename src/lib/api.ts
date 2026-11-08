@@ -29,13 +29,11 @@ async function toApiError(response:Response, path: string): Promise<ApiError> {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T | null> {
   const base = baseUrl()
+  const headers = { ...(await authHeaders()), ...init.headers }
   let response: Response
 
   try {
-    response = await fetch(`${base}/${path}`, {
-      ...init,
-      headers: { ...(await authHeaders()), ...init.headers },
-    })
+    response = await fetch(`${base}/${path}`, { ...init, headers })
   } catch {
     throw new ApiError(`Could not reach the service at ${base}`)
   }
