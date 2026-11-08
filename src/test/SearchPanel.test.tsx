@@ -82,8 +82,23 @@ const pageOf = (result: Envelope<unknown>[], total: number, counts: Record<strin
   result,
 })
 
-const fill = (count: number, type: string): Envelope<unknown>[] =>
-  Array.from({ length: count }, (_, i) => envelope(type, `${type}-${i}`, `${type} ${i}`, {}))
+const fill = (count: number, type: string, from = 0): Envelope<unknown>[] =>
+  Array.from({ length: count }, (_, i) =>
+    envelope(type, `${type}-${from + i}`, `${type} ${from + i}`, {}),
+  )
+
+/** A walk where every page comes back full and each page holds different records, the way the
+ * service pages. One body repeated would hand the list ten copies of the same record, which
+ * collide on `hit.id`. */
+function stubWalk(perPage: number, type: string, total: number, counts: Record<string, number>) {
+  const fetchMock = vi.fn((url: string) => {
+    const page = Number(new URL(url, 'http://forge.test').searchParams.get('page') ?? '1')
+    const body = pageOf(fill(perPage, type, (page - 1) * perPage), total, counts)
+    return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
+}
 
 const filters = () => within(screen.getByRole('group', { name: 'Filter by content type' }))
 
@@ -263,7 +278,7 @@ describe('SearchPanel', () => {
 
   it('names the global total in the notice rather than the page size', async () => {
     // Every page comes back full, so the walk stops at its ten page ceiling holding 1000.
-    stubSearch(pageOf(fill(100, 'monster'), 1268, { monster: 231, spell: 230 }))
+    stubWalk(100, 'monster', 1268, { monster: 231, spell: 230 })
     render(<SearchPanel onClose={vi.fn()} />)
 
     await userEvent.type(screen.getByRole('searchbox'), 'aboleth')
