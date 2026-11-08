@@ -197,7 +197,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
             onChange={(e) => setConfirm(e.target.value)}
           />
           {confirmProblem && (
-            <p className="field-error" id="confrim-problem" role="alert">
+            <p className="field-error" id="confirm-problem" role="alert">
               {confirmProblem}
             </p>
           )}
