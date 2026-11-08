@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchPanel } from "../components/SearchPanel";
 import { seedTestCatalog } from "./fixtures";
 import type { Envelope } from "../lib/api";
@@ -122,6 +122,12 @@ beforeAll(seedTestCatalog)
 
 beforeEach(() => {
   vi.unstubAllGlobals()
+  // CI has no .env.local, so the service url has to come from the test itself.
+  vi.stubEnv('VITE_API_BASE_URL', 'http://content.test')
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
 })
 
 describe('reading a race (US-24, FR-9)', () => {
