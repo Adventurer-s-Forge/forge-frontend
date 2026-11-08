@@ -1,9 +1,13 @@
 import { FirebaseError } from 'firebase/app'
 
+export const PASSWORD_MIN = 8
+export const PASSWORD_TOO_SHORT = `Password must be at least ${PASSWORD_MIN} characters.`
+export const PASSWORD_MISMATCH = `Passwords do not match.`
+
 const messages: Record<string, string> = {
   'auth/invalid-email': 'That email address looks malformed.',
   'auth/missing-password': 'Enter a password.',
-  'auth/weak-password': 'Password must be at least 6 characters.',
+  'auth/weak-password': PASSWORD_TOO_SHORT,
   'auth/email-already-in-use': 'An account already exists for that email.',
   'auth/invalid-credential': 'Email or password is incorrect.',
   'auth/user-not-found': 'Email or password is incorrect.',
@@ -18,7 +22,7 @@ const messages: Record<string, string> = {
   'auth/popup-blocked': 'Your browser blocked the sign-in popup.',
   'auth/unauthorized-domain':
     'This domain is not in the Firebase authorized domains list.',
-  'auth/requires-recent-login': 'Please sign in again to continue',
+  'auth/requires-recent-login': 'Please sign in again to continue.',
   'auth/missing-email': 'Enter your email address.'
 }
 

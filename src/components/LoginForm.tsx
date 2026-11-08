@@ -1,16 +1,22 @@
 import { useState } from "react";
 import type { SubmitEvent } from "react";
-import { 
+import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   updateProfile,
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import { authErrorMessage, isUserCancelled } from "../auth/errors";
+import {
+  PASSWORD_MIN,
+  PASSWORD_MISMATCH,
+  PASSWORD_TOO_SHORT,
+  authErrorMessage,
+  isUserCancelled
+} from "../auth/errors";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
-import { 
+import {
   consumePendingCredential,
   signInWithProvider,
   stashPendingCredential,
@@ -28,7 +34,7 @@ type LoginFormProps = {
 }
 
 export function LoginForm({ initialMode = 'signin', showWordmark = true }: LoginFormProps) {
-    const { refreshUser, redirectError, clearRedirectError } = useAuth()
+  const { refreshUser, redirectError, clearRedirectError } = useAuth()
   const [mode, setMode] = useState<Mode>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -43,6 +49,16 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
   const busy = pending !== null
 
   const shownError = error ?? redirectError
+
+  const hasEmail = email.trim().length > 0
+
+  const passwordProblem = isSignup && password.length > 0 && password.length < PASSWORD_MIN ? PASSWORD_TOO_SHORT : null
+
+  const confirmProblem = isSignup && confirm.length > 0 && confirm !== password ? PASSWORD_MISMATCH : null
+
+  const canSubmit = isReset ? hasEmail : isSignup
+    ? hasEmail && password.length >= PASSWORD_MIN && confirm === password
+    : hasEmail && password.length > 0
 
   function resetFeedback() {
     setError(null)
@@ -72,13 +88,9 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
     event.preventDefault()
     resetFeedback()
 
+    if (!canSubmit) return
     if (isReset) return handleReset()
 
-    if (isSignup && password !== confirm) {
-      setError('Passwords do not match.')
-      return
-    }
-    
     setPending('email')
     try {
       const credential = isSignup
@@ -119,7 +131,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
     : isSignup
       ? 'Create account'
       : 'Sign in'
-  
+
   return (
     <form className="card" onSubmit={handleSubmit}>
       {showWordmark && <Wordmark />}
@@ -127,7 +139,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
 
       {isReset && (
         <p className="muted">
-          Enter your email and we'll send you a link to a set a new password
+          Enter your email and we'll send you a link to set a new password
         </p>
       )}
 
@@ -156,10 +168,17 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
             type="password"
             autoComplete={isSignup ? 'new-password' : 'current-password'}
             required
-            minLength={6}
+            minLength={isSignup ? PASSWORD_MIN : undefined}
+            aria-invalid={passwordProblem !== null}
+            aria-describedby={passwordProblem ? 'password-problem' : undefined}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          {passwordProblem && (
+            <p className="field-error" id="password-problem" role="alert">
+              {passwordProblem}
+            </p>
+          )}
         </>
       )}
 
@@ -171,10 +190,17 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
             type="password"
             autoComplete="new-password"
             required
-            minLength={6}
+            minLength={PASSWORD_MIN}
+            aria-invalid={confirmProblem !== null}
+            aria-describedby={confirmProblem ? 'confirm-problem' : undefined}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
           />
+          {confirmProblem && (
+            <p className="field-error" id="confirm-problem" role="alert">
+              {confirmProblem}
+            </p>
+          )}
         </>
       )}
 
@@ -190,7 +216,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
         </p>
       )}
 
-      <button type="submit" className="primary" disabled={busy}>
+      <button type="submit" className="primary" disabled={busy || !canSubmit}>
         {pending === 'email' || pending === 'reset' ? 'Working...' : heading}
       </button>
 
@@ -234,7 +260,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
               </>
             )}
           </>
-        )} 
+        )}
       </p>
     </form>
   )

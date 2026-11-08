@@ -135,6 +135,49 @@ describe('Login', () => {
     )
   })
 
+  it('rejects a password under 8 characters inline and keeps submit disabled', async () => {
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Create one' }))
+
+    await userEvent.type(screen.getByLabelText('Email'), 'a@b.com')
+    await userEvent.type(screen.getByLabelText('Password'), 'passwrd')
+    await userEvent.type(screen.getByLabelText('Confirm password'), 'passwrd')
+
+    // No submit click: typing alone has to produce the message.
+    expect(screen.getByRole('alert')).toHaveTextContent('at least 8 characters')
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeDisabled()
+
+    await userEvent.clear(screen.getByLabelText('Password'))
+    await userEvent.type(screen.getByLabelText('Password'), 'password')
+    await userEvent.clear(screen.getByLabelText('Confirm password'))
+    await userEvent.type(screen.getByLabelText('Confirm password'), 'password')
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeEnabled()
+    expect(fb.createUserWithEmailAndPassword).not.toHaveBeenCalled()
+  })
+
+  it('does not hold the 8 character rule against a returning account', async () => {
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>
+    )
+
+    await userEvent.type(screen.getByLabelText('Email'), 'a@b.com')
+    await userEvent.type(screen.getByLabelText('Password'), 'old6')
+
+    // An account made under the old 6 character minimum must still be able to sign in.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(fb.signInWithEmailAndPassword).toHaveBeenCalledWith({}, 'a@b.com', 'old6')
+  })
+
   it('keeps quiet when the user closes the provider popup', async () => {
     oauth.signInWithProvider.mockRejectedValue(
       new FirebaseError('auth/popup-closed-by-user', 'raw')

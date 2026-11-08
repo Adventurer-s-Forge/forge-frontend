@@ -1,8 +1,4 @@
 import type { Ability } from "../characters/character"
-import { SKILLS } from "./skills"
-import type { Skill } from "./skills"
-
-export type { Skill }
 
 export type CasterType = 'NONE' | 'FULL' | 'HALF' | 'PACT'
 
@@ -37,6 +33,14 @@ export type CharacterClass = {
   spellCounts: { cantrips: number; prepared: number }
   spellSlots: number
   startingEquipment: EquipmentOption[]
+}
+
+export type Subclass = {
+  id: string
+  name: string
+  parentName: string
+  desc: string
+  features: { name: string; desc: string; level: number | null }[]
 }
 
 export type Background = {
@@ -80,6 +84,7 @@ export type Catalog = {
   backgrounds: Background[]
   spells: Spell[]
   equipment: Equipment[]
+  sources: Source[]
 }
 
 export type EquipmentGrant = {
@@ -96,25 +101,34 @@ export type EquipmentOption = {
   goldCp: number
 }
 
+export type Skill = {
+  id: string
+  name: string
+  ability: Ability
+}
+
 /** A frozen copy of the option the player took. Saves the loadout into the backend shape.
  * Makes a saved record stay readable. */
 export type EquipmentPick = EquipmentOption
 
 export const catalog: Catalog = {
-  skills: SKILLS,
   races: [],
   classes: [],
   backgrounds: [],
   spells: [],
   equipment: [],
+  skills: [],
+  sources: [],
 }
 
-export function seedCatalog(next: Omit<Catalog, 'skills'>): void {
+export function seedCatalog(next: Catalog): void {
   catalog.races = next.races
   catalog.classes = next.classes
   catalog.backgrounds = next.backgrounds
   catalog.spells = next.spells
   catalog.equipment = next.equipment
+  catalog.skills = next.skills
+  catalog.sources = next.sources
 }
 
 export const getRace = (id: string | null) => catalog.races.find((race) => race.id === id)
@@ -125,6 +139,7 @@ export const getSpell = (id: string) => catalog.spells.find((spell) => spell.id 
 export const purchaseableEquipment = () => catalog.equipment.filter((eq) => eq.costCp > 0)
 export const getEquipment = (id: string) => catalog.equipment.find((eq) => eq.id === id)
 export const equipmentInCategory = (pattern: string) => catalog.equipment.filter((eq) => new RegExp(pattern).test(eq.id))
+export const getSource = (key: string) => catalog.sources.find((source) => source.key === key)
 
 export function classSkillOptions(cls: CharacterClass, background: Background | undefined): string[] {
   const pool = cls.skillChoices.from === 'any' ? catalog.skills.map((skill) => skill.id) : cls.skillChoices.from
@@ -172,4 +187,15 @@ export const EXPERTISE_PICKS = 2
 export function expertiseCounts(cls: CharacterClass | undefined, level: number): number {
   if (!cls || cls.expertiseAt === null || level < cls.expertiseAt) return 0
   return EXPERTISE_PICKS
+}
+
+export type License = { name: string; shortName: string; url: string }
+
+export type Source = {
+  key: string
+  name: string
+  displayName: string
+  publisher: string
+  permalink: string
+  license: License | null
 }

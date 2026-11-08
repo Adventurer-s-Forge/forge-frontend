@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Mode } from "../components/LoginForm";
 import { AuthModal } from "../components/AuthModal";
 import { ThemeToggle } from "../components/Themetoggle";
+import { AttributionLink } from "../components/Attribution";
 
 const STD_ARR = [
   { key: 'STR', score: 15, mod: '+2' },
@@ -119,12 +120,7 @@ export function Home() {
         </section>
       </main>
 
-      <footer className="site-footer">
-        <span>Adventurer's Forge</span>
-        <span className="muted">
-          Unofficial. Not affiliated with Wizards of the Coast.
-        </span>
-      </footer>
+      <AttributionLink />
 
       {authModal && <AuthModal initialMode={authModal} onClose={() => setAuthModal(null)} />}
     </div>

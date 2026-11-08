@@ -11,8 +11,11 @@ import type { Character } from "../characters/character";
 import { STEPS } from "../characters/character";
 import { firstIncompleteStep, isComplete, duplicateCharacter } from "../characters/progress";
 import { getBg, getClass, getRace } from "../data/catalog";
-import { FiCopy, FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiBookOpen, FiCopy, FiEdit2, FiHeart, FiTrash2 } from "react-icons/fi";
 import { ConfirmDelete } from "../components/ConfirmDelete";
+import { SearchPanel } from "../components/SearchPanel";
+import { AttributionLink } from "../components/Attribution";
+import { HpSimulator } from "../components/character/HpSimulator";
 
 export function Dashboard() {
   const { user } = useAuth()
@@ -22,6 +25,8 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [signingOut, setSigningOut] = useState(false)
   const [duplicating, setDuplicating] = useState<string | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [simulating, setSimulating] = useState<Character | null>(null)
 
   async function handleDuplicate(character: Character) {
     setError(null)
@@ -53,6 +58,10 @@ export function Dashboard() {
       <header className="app-bar">
         <Wordmark />
         <div className="app-bar-right">
+          <button type="button" className="btn btn-quiet" onClick={() => setSearching(true)}>
+            <FiBookOpen size={15} aria-hidden="true" />
+            Browse content
+          </button>
           <ThemeToggle />
           <span className="app-bar-user">{user?.displayName ?? user?.email}</span>
           <button type="button" className="btn btn-quiet" onClick={handleSignOut} disabled={signingOut}>
@@ -113,16 +122,34 @@ export function Dashboard() {
                   <div className="character-actions">
                     <button type="button" className="character-action" onClick={() => setEditing(character)}>
                       <FiEdit2 size={15} aria-hidden="true" />
-                      {done ? 'Edit' : 'Resume'}
+                      <span className="action-label">{done ? 'Edit' : 'Resume'}</span>
                     </button>
 
-                    <button type="button" className="character-action" onClick={() => handleDuplicate(character)} disabled={duplicating !== null}>
+                    <button
+                      type="button"
+                      className="character-action"
+                      disabled={!done}
+                      title={done ? undefined : 'Finish the character to simulate its hit points'}
+                      onClick={() => setSimulating(character)}
+                    >
+                      <FiHeart size={15} aria-hidden="true" />
+                      <span className="action-label">Simulate</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="character-action"
+                      onClick={() => handleDuplicate(character)}
+                      disabled={duplicating !== null}
+                      aria-busy={duplicating === character.id}
+                    >
                       <FiCopy size={15} aria-hidden="true" />
-                      {duplicating === character.id ? 'Duplicating...' : 'Duplicate'}
+                      <span className="action-label">{duplicating === character.id ? 'Duplicating...' : 'Duplicate'}</span>
                     </button>
 
                     <button type="button" className="character-delete" aria-label={`Delete ${character.name}`} onClick={() => setDeleting(character)}>
                       <FiTrash2 size={15} aria-hidden="true" />
+                      <span className="action-label" aria-hidden="true">Delete</span>
                     </button>
                   </div>
                 </li>
@@ -132,8 +159,15 @@ export function Dashboard() {
         )}
       </main>
 
+      <AttributionLink />
+
       {editing && (
-        <CharacterModal character={editing === 'new' ? undefined : editing} onSave={save} onClose={() => setEditing(null)} />
+        <CharacterModal
+          character={editing === 'new' ? undefined : editing}
+          onSave={save}
+          onSearch={() => setSearching(true)}
+          onClose={() => setEditing(null)}
+        />
       )}
 
       {deleting && (
@@ -146,6 +180,10 @@ export function Dashboard() {
           onClose={() => setDeleting(null)}
         />
       )}
+
+      {searching && <SearchPanel onClose={() => setSearching(false)} />}
+
+      {simulating && <HpSimulator character={simulating} onClose={() => setSimulating(null)} />}
     </div>
   )
 }
