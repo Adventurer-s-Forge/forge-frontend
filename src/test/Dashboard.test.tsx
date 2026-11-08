@@ -1,10 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FirebaseError } from "firebase/app";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Dashboard } from "../pages/Dashboard";
 import { MemoryRouter } from "react-router";
-import { createDraft, type Character } from "../characters/character";
+import { STEPS, createDraft, type Character } from "../characters/character";
+import { completeStep, setClass, setEquipmentChoice, setRace } from "../characters/progress";
+import { seedTestCatalog } from "./fixtures";
 
 const fb = vi.hoisted(() => ({ signOut: vi.fn() }))
 
@@ -103,5 +105,88 @@ describe('Dashboard', () => {
     await userEvent.click(screen.getByRole('button', { name: /duplicate/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Server said no')
+  })
+})
+/** Every step answered against the test catalog: a Dwarf Fighter with CON 13, so d10 + 1 = 11 HP. */
+function finished(): Character {
+  let c: Character = { ...createDraft(), id: 'c2', name: 'Brannoc', backgroundId: 'srd-2024_acolyte' }
+  c = setRace(c, 'srd-2024_dwarf')
+  c = setClass(c, 'srd-2024_fighter')
+  c = setEquipmentChoice(c, 'class', 'B')
+  c = {
+    ...c,
+    fightingStyleId: 'defense',
+    abilities: {
+      method: 'standard',
+      base: { STR: 15, DEX: 14, CON: 13, INT: 12, WIS: 10, CHA: 8 },
+      rolled: [],
+      originBonuses: { INT: 2, WIS: 1 },
+    },
+    proficientSkillIds: ['perception', 'survival'],
+  }
+  for (const { id } of STEPS) c = completeStep(c, id)
+  return c
+}
+
+describe('the card actions (FR-8)', () => {
+  beforeAll(seedTestCatalog)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    chars.characters = []
+  })
+
+  const show = () => render(<MemoryRouter><Dashboard /></MemoryRouter>)
+  const draft = (): Character => ({ ...createDraft(), id: 'c1', name: 'Arkes' })
+
+  it('keeps a name on every action while its label waits for a hover', () => {
+    chars.characters = [draft()]
+    show()
+
+    for (const name of ['Resume', 'Simulate', 'Duplicate', 'Delete Arkes']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
+  })
+
+  it('holds the simulator back until the character is finished', () => {
+    chars.characters = [draft()]
+    show()
+
+    const simulate = screen.getByRole('button', { name: 'Simulate' })
+    expect(simulate).toBeDisabled()
+    expect(simulate).toHaveAttribute('title', 'Finish the character to simulate its hit points')
+  })
+
+  it('opens a finished character in the simulator, at full every time', async () => {
+    chars.characters = [finished()]
+    show()
+    const current = () =>
+      screen.getByRole('region', { name: 'Hit points' }).querySelector('.hp-current')?.textContent
+
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+    expect(screen.getByRole('dialog', { name: 'Brannoc' })).toBeInTheDocument()
+    expect(current()).toBe('11')
+
+    await userEvent.type(screen.getByLabelText('Damage taken'), '4')
+    await userEvent.click(screen.getByRole('button', { name: 'Take 4 damage' }))
+    expect(current()).toBe('7')
+
+    const dialog = screen.getByRole('dialog', { name: 'Brannoc' })
+    await userEvent.click(within(dialog).getAllByRole('button', { name: 'Close' })[1])
+    expect(screen.queryByRole('dialog', { name: 'Brannoc' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Simulate' }))
+    expect(current()).toBe('11')
+  })
+
+  it('keeps the label showing while a duplicate is in flight', async () => {
+    chars.characters = [draft()]
+    chars.save.mockReturnValue(new Promise(() => {}))
+    show()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Duplicate' }))
+
+    expect(screen.getByRole('button', { name: 'Duplicating...' })).toHaveAttribute('aria-busy', 'true')
   })
 })
