@@ -210,7 +210,7 @@ export async function searchRef<T = unknown>(query: string, options: { page?: nu
     throw new ApiError(`The content service does not recognize the type "${options.type}".`, 400)
   }
   if (response.status === 422) {
-    throw new ApiError('That search needs a term and a page of 1 or mroe.', 422)
+    throw new ApiError('That search needs a term and a page of 1 or more.', 422)
   }
   if (!response.ok) {
     throw new ApiError(`The content service returned ${response.status} for /search`, response.status)

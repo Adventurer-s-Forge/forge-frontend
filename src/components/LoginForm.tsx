@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { SubmitEvent } from "react";
-import { 
+import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -16,7 +16,7 @@ import {
 } from "../auth/errors";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
-import { 
+import {
   consumePendingCredential,
   signInWithProvider,
   stashPendingCredential,
@@ -34,7 +34,7 @@ type LoginFormProps = {
 }
 
 export function LoginForm({ initialMode = 'signin', showWordmark = true }: LoginFormProps) {
-    const { refreshUser, redirectError, clearRedirectError } = useAuth()
+  const { refreshUser, redirectError, clearRedirectError } = useAuth()
   const [mode, setMode] = useState<Mode>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -51,7 +51,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
   const shownError = error ?? redirectError
 
   const hasEmail = email.trim().length > 0
-  
+
   const passwordProblem = isSignup && password.length > 0 && password.length < PASSWORD_MIN ? PASSWORD_TOO_SHORT : null
 
   const confirmProblem = isSignup && confirm.length > 0 && confirm !== password ? PASSWORD_MISMATCH : null
@@ -90,7 +90,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
 
     if (!canSubmit) return
     if (isReset) return handleReset()
-    
+
     setPending('email')
     try {
       const credential = isSignup
@@ -131,7 +131,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
     : isSignup
       ? 'Create account'
       : 'Sign in'
-  
+
   return (
     <form className="card" onSubmit={handleSubmit}>
       {showWordmark && <Wordmark />}
@@ -139,7 +139,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
 
       {isReset && (
         <p className="muted">
-          Enter your email and we'll send you a link to a set a new password
+          Enter your email and we'll send you a link to set a new password
         </p>
       )}
 
@@ -260,7 +260,7 @@ export function LoginForm({ initialMode = 'signin', showWordmark = true }: Login
               </>
             )}
           </>
-        )} 
+        )}
       </p>
     </form>
   )

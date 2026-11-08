@@ -22,7 +22,7 @@ const messages: Record<string, string> = {
   'auth/popup-blocked': 'Your browser blocked the sign-in popup.',
   'auth/unauthorized-domain':
     'This domain is not in the Firebase authorized domains list.',
-  'auth/requires-recent-login': 'Please sign in again to continue',
+  'auth/requires-recent-login': 'Please sign in again to continue.',
   'auth/missing-email': 'Enter your email address.'
 }
 

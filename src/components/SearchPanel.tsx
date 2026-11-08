@@ -333,7 +333,7 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
           {!tooShort && result.capped && (
             <p className="notice">
               Showing {result.hits.length} of {result.total.toLocaleString()} matches.
-              Narrow the saerch to see the rest.
+              Narrow the search to see the rest.
             </p>
           )}
 
