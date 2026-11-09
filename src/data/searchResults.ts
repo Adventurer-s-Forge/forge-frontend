@@ -9,6 +9,7 @@ import { catalog } from "./catalog";
 import type { Background, CharacterClass, Equipment, Race, Skill, Spell, Subclass } from "./catalog";
 import { toBackground, toClass, toEquipment, toRace, toSkill, toSpell, toSubclass } from "./normalize";
 import type { RawBackground, RawClass, RawEquipment, RawRace, RawSkill, RawSpell } from "./normalize";
+import { toCond, toFeat, toMagicItem, toMonster, type Condition, type Feat, type MagicItem, type Monster, type RawCond, type RawFeat, type RawMagicItem, type RawMonster } from "./reference";
 
 export type HitKind =
   | 'race'
@@ -18,6 +19,10 @@ export type HitKind =
   | 'equipment'
   | 'spell'
   | 'skill'
+  | 'feat'
+  | 'monster'
+  | 'magic_item'
+  | 'condition'
   | 'other'
 
 type HitMeta = {
@@ -37,12 +42,15 @@ export type SearchHit = HitMeta &
     | { kind: 'equipment'; value: Equipment }
     | { kind: 'spell'; value: Spell }
     | { kind: 'skill'; value: Skill }
+    | { kind: 'feat'; value: Feat }
+    | { kind: 'monster'; value: Monster }
+    | { kind: 'magic_item'; value: MagicItem }
+    | { kind: 'condition'; value: Condition }
     | { kind: 'other'; value: null }
   )
 
 /** The chips whose numbers the service can supply: the hit kinds whose name is also a
- * /search reference type. A subclass folds into `class`, so all six line up with `counts`.
- * Monsters, magic items, and conditions arrive as `other` and have no chip for now. */
+ * /search reference type. A subclass folds into `class`, so all ten line up with `counts`. */
 export type ChipKind = HitKind & RefType
 
 export const SEARCHABLE_KINDS: readonly { kind: ChipKind; label: string }[] = [
@@ -52,6 +60,10 @@ export const SEARCHABLE_KINDS: readonly { kind: ChipKind; label: string }[] = [
   { kind: 'equipment', label: 'Equipment' },
   { kind: 'spell', label: 'Spells' },
   { kind: 'skill', label: 'Skills' },
+  { kind: 'feat', label: 'Feats' },
+  { kind: 'monster', label: 'Monsters' },
+  { kind: 'magic_item', label: 'Magic items' },
+  { kind: 'condition', label: 'Conditions' },
 ]
 
 function meta(record: Envelope<unknown>): HitMeta {
@@ -94,9 +106,20 @@ function convert(record: Envelope<unknown>, base: HitMeta): SearchHit {
     case 'spell':
       return { ...base, kind: 'spell', value: toSpell(record as Envelope<RawSpell>) }
 
-    case 'skill': {
+    case 'skill':
       return { ...base, kind: 'skill', value: toSkill(record as Envelope<RawSkill>) }
-    }
+
+    case 'feat':
+      return { ...base, kind: 'feat', value: toFeat(record as Envelope<RawFeat>) }
+
+    case 'monster':
+      return { ...base, kind: 'monster', value: toMonster(record as Envelope<RawMonster>) }
+
+    case 'magic_item':
+      return { ...base, kind: 'magic_item', value: toMagicItem(record as Envelope<RawMagicItem>) }
+
+    case 'condition':
+      return { ...base, kind: 'condition', value: toCond(record as Envelope<RawCond>) }
 
     default:
       return { ...base, kind: 'other', value: null}
@@ -116,8 +139,8 @@ export function toSearchHit(record: Envelope<unknown>): SearchHit {
 export const toSearchHits = (records: Envelope<unknown>[]): SearchHit[] =>
   (Array.isArray(records) ? records : []).map(toSearchHit)
 
-/** A sublcas is a class, so it coutns and fitlers under the Classes chip. Keeping it a 
- * distinch kind is only so the row meta annd the detail view can tell them apart. */
+/** A subclass is a class, so it coutns and filters under the Classes chip. Keeping it a 
+ * distinct kind is only so the row meta and the detail view can tell them apart. */
 const CHIP_KIND: Partial<Record<HitKind, HitKind>> = { subclass: 'class' }
 
 const chipKind = (kind: HitKind): HitKind => CHIP_KIND[kind] ?? kind
