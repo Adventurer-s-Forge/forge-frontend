@@ -6,7 +6,7 @@ import { CP_PER } from "../../characters/currency";
 import { isComplete } from "../../characters/progress";
 import { getBg, getClass, getEquipment, getRace, getSpell, type Spell } from "../../data/catalog";
 import { fightingStyleName } from "../../data/classRules";
-import { abilityRows, derived, ownedItemIds, skillRows, spellDerived } from "./sheets";
+import { abilityRows, attackRows, derived, skillRows, spellDerived } from "./sheets";
 import "./CharacterSheet.css"
 
 const ABILITY_NAMES: Record<Ability, string> = {
@@ -37,7 +37,7 @@ function coins(cp: number): Record<'CP' | 'SP' | 'EP' | 'GP' | 'PP', string> {
   return { CP: String(cp % CP_PER.SP), SP: String(sp), EP: '', GP: String(gp), PP: ''}
 }
 
-/** The eq box: every kit grant and every purchase, merged by item, so two Daggers reads "Dagger x2". */
+/** The eq box: every kit grant and every purchase, merged by item, so two Daggers read "Dagger x2". */
 function inventory(c: Character): string[] {
   const lines = new Map<string, { name: string; count: number}>()
   const add = (key: string, name: string, count: number) =>
@@ -153,7 +153,6 @@ export function CharacterSheet({
   const spell = spellDerived(character)
   const done = isComplete(character)
 
-  const weapons = ownedItemIds(character).flatMap((i) => getEquipment(i) ?? []).filter((i) => i.category === 'weapon')
   const purse = coins(character.walletCp)
   const spells = character.spellIds.flatMap((i) => getSpell(i) ?? [])
   const isCaster = cls !== undefined && cls.casterType !== 'NONE'
@@ -345,11 +344,11 @@ export function CharacterSheet({
                       </tr>
                     </thead>
                     <tbody>
-                      {pad(weapons, 3).map((wpn, i) => (
-                        <tr key={wpn ? `${wpn.id}-${i}` : `blank-${i}`}>
-                          <td>{wpn?.name}</td>
-                          <td />
-                          <td />
+                      {pad(attackRows(character), 3).map((atk, i) => (
+                        <tr key={atk?.id ?? `blank-${i}`}>
+                          <td>{atk?.name}</td>
+                          <td>{atk?.bonus}</td>
+                          <td>{atk?.damage}</td>
                         </tr>
                       ))}
                     </tbody>
