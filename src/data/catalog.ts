@@ -61,6 +61,7 @@ export type Equipment = {
   desc: string
   costCp: number
   armor?: { base: number; addDex: boolean; capDex: number | null; stealthDisadvantage: boolean }
+  weapon?: { damage: string; damageType: string; martial: boolean; properties: string[] }
 }
 
 export type Spell = {
@@ -75,6 +76,7 @@ export type Spell = {
   castingTime: string
   range: string
   duration: string
+  attack?: { save: Ability | null; damage: string; damageType: string }
 }
 
 export type Catalog = {
