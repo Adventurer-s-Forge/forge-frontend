@@ -147,12 +147,3 @@ const chipKind = (kind: HitKind): HitKind => CHIP_KIND[kind] ?? kind
 
 export const hitsOfKind = (hits: SearchHit[], kind: HitKind | 'all'): SearchHit[] =>
   kind === 'all' ? hits : hits.filter((hit) => chipKind(hit.kind) === kind)
-
-export function countsByKind(hits: SearchHit[]): Record<string, number> {
-  const counts: Record<string, number> = {}
-  for (const hit of hits) {
-    const key = chipKind(hit.kind)
-    counts[key] = (counts[key] ?? 0) + 1
-  }
-  return counts
-}
