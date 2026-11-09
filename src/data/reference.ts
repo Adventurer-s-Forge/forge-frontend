@@ -45,7 +45,7 @@ export type RawCond = { descriptions: { desc: string }[] | null }
 export type Condition = { id: string; name: string; desc: string }
 
 export function toCond(record: Envelope<RawCond>): Condition {
-  const desc = record.data.descriptions?.[0].desc
+  const desc = record.data.descriptions?.[0]?.desc
   if (!desc) throw new Error(`condition ${record.key} has no description`)
 
   return { id: record.key, name: record.name, desc }
@@ -211,7 +211,7 @@ function actionName(action: RawAction): string {
 export function toMonster(record: Envelope<RawMonster>): Monster {
   const raw = record.data
   if (typeof raw.armor_class !== 'number' || typeof raw.hit_points !== 'number') {
-    throw new Error(`monster ${record.key} has no armor clas or hit points`)
+    throw new Error(`monster ${record.key} has no armor class or hit points`)
   }
 
   const scores = ABILITIES.map((ability) => {
@@ -245,7 +245,7 @@ export function toMonster(record: Envelope<RawMonster>): Monster {
     resistances: defenses.damage_resistances_display ?? '',
     immunities: [defenses.damage_immunities_display, defenses.condition_immunities_display].filter(Boolean).join('; '),
     senses: [
-      ...SENSES.flatMap(([label, field]) => (raw[field] ? [`${label} ${raw[field]} ft`] : [])),
+      ...SENSES.flatMap(([label, field]) => (raw[field] ? [`${label} ${raw[field]} ft.`] : [])),
       ...(typeof raw.passive_perception === 'number' ? [`Passive Perception ${raw.passive_perception}`] : []),
     ].join(', '),
     languages: raw.languages?.as_string || 'None',
