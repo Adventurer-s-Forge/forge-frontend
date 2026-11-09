@@ -3,6 +3,10 @@ import { ABILITIES, abilityModifier, finalScores, formatModifier, proficiencyBon
 import { catalog, getBg, getClass, getEquipment, getRace, getSkill, getSpell, type Equipment } from "../../data/catalog";
 import { SPELLCASTING_ABILITY, classKey } from "../../data/classRules";
 
+export function firstName(name?: string | null): string {
+  return name?.trim().split(/\s+/)[0] ?? ''
+}
+
 export type AbilityRow = {
   ability: Ability
   assigned?: number

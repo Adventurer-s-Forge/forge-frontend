@@ -20,6 +20,7 @@ import { CharacterSheet } from "../components/character/CharacterSheet";
 
 export function Dashboard() {
   const { user } = useAuth()
+  const playerName = user?.displayName ?? user?.providerData.find((p) => p.displayName)?.displayName
   const { characters, loading, save, remove } = useCharacters(user!.uid)
   const [editing, setEditing] = useState<null | 'new' | Character>(null)
   const [deleting, setDeleting] = useState<Character | null>(null)
@@ -190,6 +191,7 @@ export function Dashboard() {
       {viewing && (
         <CharacterSheet
           character={viewing}
+          playerName={playerName}
           onClose={() => setViewing(null)}
           onEdit={() => {
             setViewing(null)

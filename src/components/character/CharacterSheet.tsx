@@ -6,7 +6,7 @@ import { CP_PER } from "../../characters/currency";
 import { isComplete } from "../../characters/progress";
 import { getBg, getClass, getEquipment, getRace, getSpell, type Spell } from "../../data/catalog";
 import { fightingStyleName } from "../../data/classRules";
-import { abilityRows, attackRows, derived, skillRows, spellDerived } from "./sheets";
+import { abilityRows, attackRows, derived, firstName, skillRows, spellDerived } from "./sheets";
 import "./CharacterSheet.css"
 
 const ABILITY_NAMES: Record<Ability, string> = {
@@ -130,10 +130,12 @@ function SpellLevel({ level, spells, slots }: { level: number; spells: Spell[]; 
 
 export function CharacterSheet({
   character,
+  playerName,
   onClose,
   onEdit,
 } : {
   character: Character
+  playerName?: string | null
   onClose: () => void
   onEdit: () => void
 }) {
@@ -213,7 +215,7 @@ export function CharacterSheet({
               <div className="sh-head-fields">
                 <Field label="Class & level" value={cls && `${cls.name} ${character.level}`} />
                 <Field label="Background" value={bg?.name} />
-                <Field label="Player name" />
+                <Field label="Player name" value={firstName(playerName)} />
                 <Field label="Race" value={race?.name} />
                 <Field label="Alignment" />
                 <Field label="Experience points" />
