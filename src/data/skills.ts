@@ -7,7 +7,7 @@ export function skillIdsFromNames(csv: string, skills: readonly Skill[]): string
   const byName = new Map(skills.map((skill) => [skill.name.toLowerCase(), skill.id]))
 
   return csv
-    .split(/,|\s_and\s+/)
+    .split(/,|\s+and\s+/)
     .map((pt) => byName.get(pt.trim().toLowerCase()))
     .filter((id): id is string => id !== undefined)
 }
