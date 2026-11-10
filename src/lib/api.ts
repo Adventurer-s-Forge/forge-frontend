@@ -115,6 +115,7 @@ export const REF_TYPES = [
   'equipment',
   'spell',
   'skill',
+  'feat',
   'monster',
   'magic_item',
   'condition'

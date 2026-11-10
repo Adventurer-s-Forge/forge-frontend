@@ -298,6 +298,18 @@ describe('SearchPanel', () => {
     expect(screen.queryByText(/Showing/)).not.toBeInTheDocument()
   })
 
+  it('offers a chip for feats, monsters, magic items and conditions', async () => {
+    stubSearch(pageOf(RESULTS, 1280, { feat: 12, monster: 231, magic_item: 630, condition: 7 }))
+    render(<SearchPanel onClose={vi.fn()} />)
+
+    await userEvent.type(screen.getByRole('searchbox'), 'aa')
+
+    await waitFor(() => expect(filters().getByRole('button', { name: /Monsters/ })).toHaveTextContent('Monsters231'))
+    expect(filters().getByRole('button', { name: /Feats/ })).toHaveTextContent('Feats12')
+    expect(filters().getByRole('button', { name: /Magic items/ })).toHaveTextContent('Magic items630')
+    expect(filters().getByRole('button', { name: /Conditions/ })).toHaveTextContent('Conditions7')
+  })
+
   it('folds a subclass into the Classes chip, the way the service counts it', async () => {
     const records = [
       envelope('class', 'srd-2024_fighter', 'Fighter', {

@@ -48,14 +48,24 @@ export type RawSpell = {
   casting_time: string | null
   range_text: string| null
   duration: string | null
+  attack_roll?: boolean | null
+  saving_throw_ability?: string | null
+  damage_roll?: string | null
+  damage_types?: string[] | null
 }
 export type RawBackground = { benefits: { type: string; desc: string }[] }
 export type RawEquipment = {
   category: { key: string; name: string }
   desc: string
-  weapon: { damage_dice?: string; damage_type?: { name: string } | null; is_martial?: boolean } | null
+  weapon: {
+    damage_dice?: string
+    damage_type?: { name: string } | null
+    is_martial?: boolean | null
+    properties?: { property: { name: string; type: string | null } }[]
+  } | null
   cost: string | null
   armor: { ac_base?: number; ac_add_dexmod?: boolean; ac_cap_dexmod?: number | null; grants_stealth_disadvantage?: boolean } | null
+
 }
 
 export type RawSkill = { ability: string; descriptions?: { desc: string }[] }
@@ -322,6 +332,7 @@ function category(key: string): Equipment['category'] {
 
 export function toEquipment(record: Envelope<RawEquipment>): Equipment {
   const armor = record.data.armor
+  const weapon = record.data.weapon
   return {
     id: record.key,
     name: record.name,
@@ -336,7 +347,18 @@ export function toEquipment(record: Envelope<RawEquipment>): Equipment {
           addDex: armor.ac_add_dexmod ?? false,
           capDex: armor.ac_cap_dexmod ?? null,
           stealthDisadvantage: armor.grants_stealth_disadvantage ?? false,
-        }
+        },
+    weapon:
+        weapon?.damage_dice === undefined
+        ? undefined
+        : {
+          damage: weapon.damage_dice,
+          damageType: weapon.damage_type?.name.toLowerCase() ?? '',
+          martial: weapon.is_martial ?? false,
+          properties: (weapon.properties ?? [])
+            .filter((e) => e.property.type !== 'Mastery')
+            .map((e) => e.property.name),
+        },
   }
 }
 
@@ -367,7 +389,14 @@ export function toSpell(record: Envelope<RawSpell>): Spell {
     castingTime: record.data.casting_time ?? '',
     range: record.data.range_text ?? '',
     duration: record.data.duration ?? '',
+    attack: spellAttack(record.data),
   }
+}
+
+function spellAttack(raw: RawSpell): Spell['attack'] {
+  const save = ABILITY_BY_NAME[(raw.saving_throw_ability ?? '').toLowerCase()] ?? null
+  if (!raw.damage_roll || (save === null && !raw.attack_roll)) return undefined
+  return { save, damage: raw.damage_roll, damageType: raw.damage_types?.[0] ?? '' }
 }
 
 // ATTRIBUTION
