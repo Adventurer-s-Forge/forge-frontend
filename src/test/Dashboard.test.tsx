@@ -10,11 +10,28 @@ import { seedTestCatalog } from "./fixtures";
 
 const fb = vi.hoisted(() => ({ signOut: vi.fn() }))
 
+type TestUser = { uid: string; email: string; displayName: string | null; providerData: { displayName: string | null }[] }
+
+const signedInAs = (user: Partial<TestUser> = {}): TestUser => ({
+  uid: 'u1',
+  email: 'a@b.com',
+  displayName: 'TestName',
+  providerData: [],
+  ...user,
+})
+
+/** Whoever is signed in. A test can swap the user; each test starts back on the default. */
+const session = vi.hoisted(() => ({ user: null as unknown as TestUser }))
+
+beforeEach(() => {
+  session.user = signedInAs()
+})
+
 vi.mock('../lib/firebase', () => ({ auth: {}, app: {} }))
 vi.mock('firebase/auth', () => fb)
 vi.mock('../auth/useAuth', () => ({
   useAuth: () => ({
-    user: { uid: 'u1', email: 'a@b.com', displayName: 'TestName' },
+    user: session.user,
     loading: false,
     refreshUser: vi.fn(),
     redirectError: null,
@@ -188,5 +205,78 @@ describe('the card actions (FR-8)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Duplicate' }))
 
     expect(screen.getByRole('button', { name: 'Duplicating...' })).toHaveAttribute('aria-busy', 'true')
+  })
+})
+
+describe('opening the character sheet (US-32, FR-13)', () => {
+  beforeAll(seedTestCatalog)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    chars.characters = [finished()]
+  })
+
+  /** Opens Brannoc's sheet from the card, the way a player would. */
+  async function openSheet() {
+    render(<MemoryRouter><Dashboard /></MemoryRouter>)
+    await userEvent.click(screen.getByRole('button', { name: /^Brannoc/ }))
+    return screen.getByRole('dialog', { name: 'Brannoc' })
+  }
+
+  const playerName = (sheet: HTMLElement) =>
+    within(within(sheet).getByRole('article', { name: 'Character' })).getByText('Player name').previousSibling?.textContent
+
+  it('opens the sheet when the card is clicked, rather than the wizard', async () => {
+    const sheet = await openSheet()
+
+    expect(within(sheet).getByRole('article', { name: 'Character' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Create character' })).not.toBeInTheDocument()
+  })
+
+  it('keeps Edit on the card going straight to the wizard', async () => {
+    render(<MemoryRouter><Dashboard /></MemoryRouter>)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+    expect(screen.getByRole('dialog', { name: 'Create character' })).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: 'Character' })).not.toBeInTheDocument()
+  })
+
+  it("swaps the sheet for the wizard when the sheet's own Edit is pressed", async () => {
+    const sheet = await openSheet()
+
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Edit' }))
+
+    expect(screen.queryByRole('article', { name: 'Character' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Create character' })).toBeInTheDocument()
+  })
+
+  it('closes the sheet back to the dashboard', async () => {
+    const sheet = await openSheet()
+
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
+
+    expect(screen.queryByRole('article', { name: 'Character' })).not.toBeInTheDocument()
+  })
+
+  it('prints the first word of the account name as the player name', async () => {
+    session.user = signedInAs({ displayName: 'Paul De Silos' })
+
+    expect(playerName(await openSheet())).toBe('Paul')
+  })
+
+  it('takes the name from a linked Google or GitHub account when the account has none of its own', async () => {
+    session.user = signedInAs({
+      displayName: null,
+      providerData: [{ displayName: null }, { displayName: 'Ada Lovelace' }],
+    })
+
+    expect(playerName(await openSheet())).toBe('Ada')
+  })
+
+  it('leaves the player name blank when no account carries a name', async () => {
+    session.user = signedInAs({ displayName: null, providerData: [{ displayName: null }] })
+
+    expect(playerName(await openSheet())).toBe('')
   })
 })

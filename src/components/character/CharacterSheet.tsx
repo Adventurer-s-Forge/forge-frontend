@@ -79,8 +79,8 @@ function Box({ label, className = '', children }: { label: string; className?: s
   )
 }
 
-function Dot({ on, expert = false }: { on: boolean; expert?: boolean }) {
-  const name = expert ? 'Expertise' : 'Proficient'
+function Dot({ on, expert = false, label }: { on: boolean; expert?: boolean; label?: string }) {
+  const name = label ?? (expert ? 'Expertise' : 'Proficient')
   return on ? (
     <span className={`sh-dot is-on${expert ? ' is-expert' : ''}`} role="img" aria-label={name} />
   ) : (
@@ -119,7 +119,7 @@ function SpellLevel({ level, spells, slots }: { level: number; spells: Spell[]; 
       <ul className="sh-spell-lines">
         {lines.map((spell, i) => (
           <li key={spell?.id ?? `blank-${i}`}>
-            {level > 0 && <Dot on={spell !== null} />}
+            {level > 0 && <Dot on={spell !== null} label="Prepared" />}
             <span>{spell?.name}</span>
           </li>
         ))}
