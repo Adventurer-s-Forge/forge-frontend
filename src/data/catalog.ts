@@ -17,6 +17,8 @@ export type Race = {
   traits: RaceTrait[]
 }
 
+export type FightingStyle = { id: string; name: string; note: string }
+
 export type CharacterClass = {
   id: string
   name: string
@@ -25,6 +27,9 @@ export type CharacterClass = {
   primaryAbilities: Ability[]
   savingThrows: Ability[]
   fightingStyleAt: number | null
+  /** The level-one style options the seed publishes with the class; empty when the class
+   * gains no Fighting Style at level 1. */
+  fightingStyles: FightingStyle[]
   features: ClassFeature[]
   proficiencies: { armor: string; weapons: string; skills: string }
   skillChoices: { count: number; from: string[] | 'any' }

@@ -502,6 +502,12 @@
 .app-head h1 {
   font-size: 30px;
 }
+.app-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
 .empty {
   display: flex;

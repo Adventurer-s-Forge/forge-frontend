@@ -7,11 +7,12 @@ import { Wordmark } from "../components/Wordmark";
 import { ThemeToggle } from "../components/Themetoggle";
 import { CharacterModal } from "../components/character/CharacterModal";
 import { useCharacters } from "../characters/useCharacters";
+import { characterStore } from "../characters/storage";
 import type { Character } from "../characters/character";
 import { STEPS } from "../characters/character";
 import { firstIncompleteStep, isComplete, duplicateCharacter } from "../characters/progress";
 import { getBg, getClass, getRace } from "../data/catalog";
-import { FiBookOpen, FiCopy, FiEdit2, FiHeart, FiTrash2 } from "react-icons/fi";
+import { FiBookOpen, FiCopy, FiEdit2, FiHeart, FiShuffle, FiTrash2 } from "react-icons/fi";
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { SearchPanel } from "../components/SearchPanel";
 import { AttributionLink } from "../components/Attribution";
@@ -30,6 +31,33 @@ export function Dashboard() {
   const [searching, setSearching] = useState(false)
   const [simulating, setSimulating] = useState<Character | null>(null)
   const [viewing, setViewing] = useState<Character | null>(null)
+  const [randomizing, setRandomizing] = useState(false)
+  const [randomPreview, setRandomPreview] = useState<Character | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  /** Generate an unsaved character to review. Nothing is written until Keep (US-39). */
+  async function handleRandomize() {
+    setError(null)
+    setNotice(null)
+    setRandomizing(true)
+
+    try {
+      setRandomPreview(await characterStore.randomize())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't generate a character.")
+    } finally {
+      setRandomizing(false)
+    }
+  }
+
+  /** Keep goes through the ordinary save, so the card appears exactly like a manual one. */
+  async function handleKeepRandom() {
+    if (!randomPreview) return
+
+    await save(randomPreview)
+    setRandomPreview(null)
+    setNotice('Character Saved')
+  }
 
   async function handleDuplicate(character: Character) {
     setError(null)
@@ -76,14 +104,37 @@ export function Dashboard() {
       <main className="app-main">
         <div className="app-head">
           <h1>Your characters</h1>
-          <button type="button" className="btn btn-primary" onClick={() => setEditing('new')}>
-            New character
-          </button>
+          <div className="app-head-actions">
+            <button
+              type="button"
+              className="btn btn-quiet"
+              onClick={handleRandomize}
+              disabled={randomizing}
+              aria-busy={randomizing}
+            >
+              <FiShuffle size={15} aria-hidden="true" />
+              {randomizing ? 'Randomizing...' : 'Randomize'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setEditing('new')}
+              disabled={randomizing}
+            >
+              New character
+            </button>
+          </div>
         </div>
 
         {error && (
           <p className="error" role="alert">
             {error}
+          </p>
+        )}
+
+        {notice && (
+          <p className="notice" role="status">
+            {notice}
           </p>
         )}
 
@@ -197,6 +248,17 @@ export function Dashboard() {
             setViewing(null)
             setEditing(viewing)
           }}
+        />
+      )}
+
+      {randomPreview && (
+        <CharacterSheet
+          key={randomPreview.id}
+          character={randomPreview}
+          playerName={playerName}
+          mode="random-review"
+          onClose={() => setRandomPreview(null)}
+          onKeep={handleKeepRandom}
         />
       )}
     </div>

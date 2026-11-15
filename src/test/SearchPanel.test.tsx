@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SearchPanel } from "../components/SearchPanel";
 import { Dashboard } from "../pages/Dashboard";
-import { seedTestCatalog } from "./fixtures";
+import { seedTestCatalog, TEST_FIGHTING_STYLES, TEST_SKILL_CHOICES } from "./fixtures";
 import type { Envelope } from "../lib/api";
 import type { Character } from "../characters/character";
 
@@ -36,12 +36,19 @@ vi.mock('../characters/useCharacters', () => ({
   }),
 }))
 
-const envelope = (type: string, key: string, name: string, data: unknown): Envelope<unknown> => ({
+const envelope = (
+  type: string,
+  key: string,
+  name: string,
+  data: unknown,
+  extra: Partial<Envelope<unknown>> = {},
+): Envelope<unknown> => ({
   type,
   key,
   name,
   document: 'srd-2024',
   data,
+  ...extra,
 })
 
 const RESULTS = [
@@ -318,7 +325,7 @@ describe('SearchPanel', () => {
         saving_throws: [{ name: 'strength' }, { name: 'constitution' }],
         caster_type: null,
         features: [],
-      }),
+      }, { creationRules: { skillChoices: TEST_SKILL_CHOICES.fighter, fightingStyles: TEST_FIGHTING_STYLES } }),
       envelope('class', 'srd-2024_champion', 'Champion', {
         subclass_of: { name: 'Fighter', key: 'srd-2024_fighter' },
         desc: '*Pursue Physical Excellence in Combat*',

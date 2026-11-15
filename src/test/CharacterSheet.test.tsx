@@ -381,3 +381,106 @@ describe('exporting the sheet (US-32, FR-13)', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('reviewing an unsaved generation (US-39, FR-14)', () => {
+  function review(character: Character = fighter()) {
+    const onClose = vi.fn()
+    const onKeep = vi.fn(async () => {})
+    render(
+      <CharacterSheet
+        character={character}
+        playerName="Paul De Silos"
+        mode="random-review"
+        onClose={onClose}
+        onKeep={onKeep}
+      />,
+    )
+    return { onClose, onKeep }
+  }
+
+  it('marks the sheet unsaved and swaps Edit for Keep and Discard', () => {
+    review()
+
+    expect(screen.getByText('Not saved')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Keep character' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Discard' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    // Printing stays available: a review is a finished character.
+    expect(screen.getByRole('button', { name: 'Print or save as PDF' })).toBeEnabled()
+  })
+
+  it('keeps through the handler without closing itself', async () => {
+    const { onClose, onKeep } = review()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Keep character' }))
+
+    expect(onKeep).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('discards without keeping', async () => {
+    const { onClose, onKeep } = review()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }))
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onKeep).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed keep and leaves the sheet up for a retry', async () => {
+    const onKeep = vi.fn().mockRejectedValueOnce(new Error('Storage unavailable'))
+    render(
+      <CharacterSheet
+        character={fighter()}
+        mode="random-review"
+        onClose={vi.fn()}
+        onKeep={onKeep}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Keep character' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Storage unavailable')
+    expect(screen.getByRole('dialog', { name: 'Brannoc' })).toBeInTheDocument()
+    expect(screen.getByText('Not saved')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Keep character' })).toBeEnabled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Keep character' }))
+
+    expect(onKeep).toHaveBeenCalledTimes(2)
+  })
+
+  it('disables every control and ignores dismissal while a keep is in flight', async () => {
+    const onClose = vi.fn()
+    render(
+      <CharacterSheet
+        character={fighter()}
+        mode="random-review"
+        onClose={onClose}
+        onKeep={() => new Promise(() => {})}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Keep character' }))
+
+    expect(screen.getByRole('button', { name: 'Keeping...' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Discard' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeDisabled()
+
+    const dialog = screen.getByRole('dialog', { name: 'Brannoc' })
+    expect(fireEvent(dialog, new Event('cancel', { cancelable: true }))).toBe(false)
+    fireEvent.click(dialog)
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Brannoc' })).toBeInTheDocument()
+  })
+
+  it('leaves the saved sheet exactly as it was', () => {
+    sheet(fighter())
+
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.queryByText('Not saved')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Keep character' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Discard' })).not.toBeInTheDocument()
+  })
+})

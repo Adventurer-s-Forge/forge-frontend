@@ -1,11 +1,10 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FiEdit2, FiPrinter, FiX } from "react-icons/fi";
 import type { Ability, Character } from "../../characters/character";
 import { formatModifier } from "../../characters/abilities";
 import { CP_PER } from "../../characters/currency";
 import { isComplete } from "../../characters/progress";
 import { getBg, getClass, getEquipment, getRace, getSpell, type Spell } from "../../data/catalog";
-import { fightingStyleName } from "../../data/classRules";
 import { abilityRows, attackRows, derived, firstName, skillRows, spellDerived } from "./sheets";
 import "./CharacterSheet.css"
 
@@ -128,17 +127,22 @@ function SpellLevel({ level, spells, slots }: { level: number; spells: Spell[]; 
   )
 }
 
-export function CharacterSheet({
-  character,
-  playerName,
-  onClose,
-  onEdit,
-} : {
+type SheetFields = {
   character: Character
   playerName?: string | null
   onClose: () => void
-  onEdit: () => void
-}) {
+}
+
+/** A saved sheet offers Edit; an unsaved generation offers Keep or Discard instead. */
+export type CharacterSheetProps =
+  | (SheetFields & { mode?: 'saved'; onEdit: () => void })
+  | (SheetFields & { mode: 'random-review'; onKeep: () => Promise<void> })
+
+export function CharacterSheet(props: CharacterSheetProps) {
+  const { character, playerName, onClose } = props
+  const reviewing = props.mode === 'random-review'
+  const [keeping, setKeeping] = useState(false)
+  const [keepError, setKeepError] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -147,6 +151,27 @@ export function CharacterSheet({
     dialog.showModal()
     return () => dialog.close()
   }, [])
+
+  /** A dismissal while a keep is in flight would look like discarding a saved character. */
+  function requestClose() {
+    if (keeping) return
+    onClose()
+  }
+
+  async function handleKeep() {
+    if (props.mode !== 'random-review') return
+    setKeepError(null)
+    setKeeping(true)
+
+    try {
+      await props.onKeep()
+      // Keep succeeded: the dashboard clears the preview and unmounts this sheet, so the
+      // controls stay disabled rather than flashing back to an editable state.
+    } catch (err) {
+      setKeepError(err instanceof Error ? err.message : "Couldn't save that character.")
+      setKeeping(false)
+    }
+  }
 
   const race = getRace(character.raceId)
   const cls = getClass(character.classId)
@@ -158,7 +183,7 @@ export function CharacterSheet({
   const purse = coins(character.walletCp)
   const spells = character.spellIds.flatMap((i) => getSpell(i) ?? [])
   const isCaster = cls !== undefined && cls.casterType !== 'NONE'
-  const style = fightingStyleName(character.fightingStyleId)
+  const style = cls?.fightingStyles.find((s) => s.id === character.fightingStyleId)?.name ?? null
   const tool = character.toolChoiceId ? getEquipment(character.toolChoiceId)?.name : bg?.tool.text
 
   const features = [
@@ -179,15 +204,43 @@ export function CharacterSheet({
       ref={dialogRef}
       className="modal modal-sheet"
       aria-labelledby="sheet-title"
-      onCancel={(e) => {e.preventDefault(); onClose()}}
-      onClick={(e) => {if (e.target === dialogRef.current) onClose()}}
+      onCancel={(e) => {e.preventDefault(); requestClose()}}
+      onClick={(e) => {if (e.target === dialogRef.current) requestClose()}}
     >
       <div className="sheet-toolbar">
-        <h2 id="sheet-title">{character.name}</h2>
+        <div className="sheet-heading">
+          <h2 id="sheet-title">{character.name}</h2>
+          {reviewing && <span className="sheet-badge">Not saved</span>}
+        </div>
         <div className="sheet-actions">
-          <button type="button" className="btn btn-quiet" onClick={onEdit}>
-            <FiEdit2 size={15} aria-hidden="true" /> Edit
-          </button>
+          {reviewing ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-quiet"
+                disabled={keeping}
+                onClick={requestClose}
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={keeping}
+                onClick={() => void handleKeep()}
+              >
+                {keeping ? 'Keeping...' : 'Keep character'}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-quiet"
+              onClick={() => { if ('onEdit' in props) props.onEdit() }}
+            >
+              <FiEdit2 size={15} aria-hidden="true" /> Edit
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-primary"
@@ -197,11 +250,17 @@ export function CharacterSheet({
           >
             <FiPrinter size={15} aria-hidden="true" /> Print or save as PDF
           </button>
-          <button type="button"className="btn btn-quiet sheet-close" aria-label="Close" onClick={onClose}>
+          <button type="button"className="btn btn-quiet sheet-close" aria-label="Close" disabled={keeping} onClick={requestClose}>
             <FiX size={16} />
           </button>
         </div>
       </div>
+
+      {keepError && (
+        <p className="error sheet-error" role="alert">
+          {keepError}
+        </p>
+      )}
 
       <div className="sheet-scroll">
         <div className="sheet">

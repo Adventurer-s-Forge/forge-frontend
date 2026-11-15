@@ -17,6 +17,9 @@ export const STEPS: readonly { id: StepId; label: string }[] = [
   { id: 'spells', label: 'Spells' },
 ]
 
+/** A feat picked from a class opportunity at a level; level 1 grants none. */
+export type ClassFeatChoice = { level: number; featId: string }
+
 export type Character = {
   id: string
   name: string
@@ -35,6 +38,10 @@ export type Character = {
   proficientSkillIds: string[]
   expertiseIds: string[]
   spellIds: string[]
+  /** Automatic background grants plus any class-opportunity picks. The service re-derives
+   * these on save, so a client only has to carry them faithfully. */
+  featIds: string[]
+  classFeatChoices: ClassFeatChoice[]
   equipmentChoice: { class: EquipmentPick | null; background: EquipmentPick | null }
   purchasedItemIds: string[]
   toolChoiceId: string | null
@@ -59,6 +66,8 @@ export function createDraft(): Character {
     proficientSkillIds: [],
     expertiseIds: [],
     spellIds: [],
+    featIds: [],
+    classFeatChoices: [],
     equipmentChoice: { class: null, background: null },
     purchasedItemIds: [],
     toolChoiceId: null,

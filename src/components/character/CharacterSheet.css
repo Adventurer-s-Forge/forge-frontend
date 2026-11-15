@@ -34,6 +34,28 @@ are the same layout. Colors come from the app theme on screen and turn to black 
   color: var(--ink);
 }
 
+.sheet-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* The review sheet is not in the roster yet; say so where the name is. */
+.sheet-badge {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.sheet-error {
+  margin: 12px 16px 0;
+}
+
 .sheet-actions {
   display: flex;
   flex-wrap: wrap;
