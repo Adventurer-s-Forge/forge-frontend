@@ -150,13 +150,13 @@ describe('searchRef', () => {
     await expect(searchRef('rope')).rejects.toThrow(/did not return a list/)
   })
 
-  it('reads the total, the nine per-type counts and the records off a page body', async () => {
+  it('reads the total, the ten per-type counts and the records off a page body', async () => {
     stubFetch([
       {
-        total: 1268,
+        total: 1280,
         counts: {
           race: 5, class: 14, background: 3, equipment: 136, spell: 230,
-          skill: 12, monster: 231, magic_item: 630, condition: 7,
+          skill: 12, feat: 12, monster: 231, magic_item: 630, condition: 7,
         },
         'num items on page': 2,
         result: [
@@ -168,14 +168,14 @@ describe('searchRef', () => {
 
     const found = await searchRef('a')
 
-    expect(found.total).toBe(1268)
+    expect(found.total).toBe(1280)
     expect(found.result.map((record) => record.name)).toEqual(['Human', 'Fire Bolt'])
     expect(found.counts).toEqual({
       race: 5, class: 14, background: 3, equipment: 136, spell: 230,
-      skill: 12, monster: 231, magic_item: 630, condition: 7,
+      skill: 12, feat: 12, monster: 231, magic_item: 630, condition: 7,
     })
     // Every type is carried through, so the counts still account for the whole total.
-    expect(Object.values(found.counts).reduce((sum, count) => sum + count, 0)).toBe(1268)
+    expect(Object.values(found.counts).reduce((sum, count) => sum + count, 0)).toBe(1280)
   })
 
   it('zero-fills a reference type the service leaves out of counts', async () => {
@@ -185,7 +185,7 @@ describe('searchRef', () => {
 
     expect(found.counts.monster).toBe(0)
     expect(found.counts.background).toBe(0)
-    expect(Object.keys(found.counts)).toHaveLength(9)
+    expect(Object.keys(found.counts)).toHaveLength(10)
   })
 
   it('drops a count for a type the Forge has never heard of', async () => {
@@ -327,11 +327,11 @@ describe('search result mapping', () => {
   })
 
   it('files a type the Forge has no view for under other', () => {
-    const hit = toSearchHit(envelope('magic_item', 'bag-of-holding', 'Bag of Holding', {}))
+    const hit = toSearchHit(envelope('vehicle', 'srd-2024_rowboat', 'Rowboat', {}))
 
     expect(hit.kind).toBe('other')
-    expect(hit.type).toBe('magic_item')
-    expect(hit.name).toBe('Bag of Holding')
+    expect(hit.type).toBe('vehicle')
+    expect(hit.name).toBe('Rowboat')
   })
 
   it('reads a subclass as a subclass, naming the class it belongs to', () => {
@@ -421,12 +421,12 @@ describe('search result mapping', () => {
     const hits = toSearchHits([
       envelope('skill', 'arcana', 'Arcana', { ability: 'int' }),
       envelope('skill', 'athletics', 'Athletics', { ability: 'str' }),
-      envelope('condition', 'prone', 'Prone', {}),
+      envelope('condition', 'prone', 'Prone', { descriptions: [{ desc: 'You can only crawl.' }] }),
     ])
 
     expect(hitsOfKind(hits, 'skill')).toHaveLength(2)
+    expect(hitsOfKind(hits, 'condition')).toHaveLength(1)
     expect(hitsOfKind(hits, 'all')).toHaveLength(3)
-    // A condition has no chip, so no filter claims it -- it shows only under Everything.
     expect(hitsOfKind(hits, 'spell')).toHaveLength(0)
   })
 })

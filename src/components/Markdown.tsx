@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
  * The pipe tables in the source are unevenly spaced, so cells are trimmed.  */
 
 const INLINE = /(\*\*[^*]+\*\*|\*[^*]+\*)/g
-const BULLET = /^\s*[-+]\s+/
+const BULLET = /^\s*[-+*]\s+/
 
 function inline(text: string): ReactNode[] {
   return text
@@ -37,8 +37,15 @@ function listItems(lines: string[]): string[] {
   return items
 }
 
+function splitLeadIn(block: string): string[] {
+  const lines = block.split('\n')
+  const start = lines.findIndex((ln) => BULLET.test(ln))
+  if (start <= 0 || lines[0].trim().startsWith('|')) return [block]
+  return [lines.slice(0, start).join('\n'), lines.slice(start).join('\n')]
+}
+
 export function Markdown({ source, className }: { source: string; className?: string }) {
-  const blocks = source.trim().split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean)
+  const blocks = source.trim().split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean).flatMap(splitLeadIn)
 
   return (
     <div className={className ? `md ${className}` : 'md'}>

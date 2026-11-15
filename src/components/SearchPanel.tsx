@@ -6,6 +6,7 @@ import { SEARCHABLE_KINDS, hitsOfKind, toSearchHits } from "../data/searchResult
 import type { ChipKind, HitKind, SearchHit } from "../data/searchResults";
 import { formatCoins } from "../characters/currency";
 import { Markdown } from "./Markdown";
+import { formatModifier } from "../characters/abilities";
 
 const DEBOUNCE_MS = 280
 const MIN_QUERY = 2
@@ -51,6 +52,10 @@ const KIND_LABEL: Record<HitKind, string> = {
   equipment: 'Equipment',
   spell: 'Spell',
   skill: 'Skill',
+  feat: 'Feat',
+  monster: 'Monster',
+  magic_item: 'Magic item',
+  condition: 'Condition',
   other: 'Reference',
 }
 
@@ -178,6 +183,108 @@ function HitDetail( { hit }: { hit: SearchHit }) {
     case 'skill':
       return <Facts rows={[['Ability', hit.value.ability]]} />
 
+    case 'feat':
+      return (
+        <>
+          <Facts
+            rows={[
+              ['Category', hit.value.category],
+              ['Prerequisite', hit.value.prerequisite || 'None'],
+            ]}
+          />
+          {hit.value.desc && <Markdown source={hit.value.desc} />}
+          <Markdown source={hit.value.benefits.map((bn) => `- ${bn}`).join('\n')} />
+        </>
+      )
+
+    case 'condition':
+      return <Markdown source={hit.value.desc} />
+
+    case 'magic_item':
+      return (
+        <>
+          <Facts
+            rows={[
+              ['Category', hit.value.category],
+              ['Rarity', hit.value.rarity],
+              ['Attunement', hit.value.attunement || 'Not required'],
+              ['Damage', hit.value.damage],
+              ['Armor class', hit.value.armorClass],
+            ]}
+          />
+          {hit.value.desc && <Markdown source={hit.value.desc} />}
+        </>
+      )
+
+    case 'monster': {
+      const monster = hit.value
+      return (
+        <>
+          <Facts
+            rows={[
+              ['Creature', monster.creature],
+              ['Armor class', String(monster.armorClass)],
+              ['Hit points', monster.hitPoints],
+              ['Initiative', monster.initiative],
+              ['Speed', monster.speed],
+            ]}
+          />
+          <div className="md-table-wrap">
+            <table className="md-table" aria-label="Ability scores">
+              <thead>
+                <tr>
+                  <td />
+                  {monster.scores.map((r) => (
+                    <th scope="col" key={r.ability}>{r.ability}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Score</th>
+                  {monster.scores.map((r) => <td key={r.ability}>{r.score}</td>)}
+                </tr>
+                <tr>
+                  <th scope="row">Modifier</th>
+                  {monster.scores.map((r) => <td key={r.ability}>{formatModifier(r.modifier)}</td>)}
+                </tr>
+                <tr>
+                  <th scope="row">Save</th>
+                  {monster.scores.map((r) => <td key={r.ability}>{formatModifier(r.save)}</td>)}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <Facts
+            rows={[
+              ['Skills', monster.skills],
+              ['Vulnerabilities', monster.vulnerabilities],
+              ['Resistances', monster.resistances],
+              ['Immunities', monster.immunities],
+              ['Senses', monster.senses],
+              ['Languages', monster.languages],
+              ['Challenge', monster.challenge],
+            ]}
+          />
+          {monster.blocks.map((b) => (
+            <div className="trait-card" key={b.title}>
+              <p className="detail-eyebrow">{b.title}</p>
+              <dl className="trait-list">
+                {b.entries.map((e, i) => (
+                  <div className="trait-row" key={i}>
+                    <dt className="trait-term">{e.name}</dt>
+                    <dd className="trait-desc">
+                      <Markdown source={e.desc} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
+        </>
+      )
+    }
+
     case 'other':
       return (
         <p className="step-hint">
@@ -273,7 +380,8 @@ export function SearchPanel({ onClose }: { onClose: () => void }) {
         <header className="wizard-head">
           <h2>Browse content</h2>
           <p className="wizard-sub">
-            Races, classes, backgrounds, equipment, spells, and skills. Straight from the content service.
+            Races, classes, backgrounds, equipment, spells, skills, feats, monsters, magic items, and 
+            conditions. Straight from the content service.
             Nothing here changes your character.
           </p>
         </header>

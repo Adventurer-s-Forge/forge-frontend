@@ -1,7 +1,11 @@
 import type { Ability, Character } from "../../characters/character";
 import { ABILITIES, abilityModifier, finalScores, formatModifier, proficiencyBonus } from "../../characters/abilities";
-import { catalog, getBg, getClass, getEquipment, getRace, getSkill } from "../../data/catalog";
+import { catalog, getBg, getClass, getEquipment, getRace, getSkill, getSpell, type Equipment } from "../../data/catalog";
 import { SPELLCASTING_ABILITY, classKey } from "../../data/classRules";
+
+export function firstName(name?: string | null): string {
+  return name?.trim().split(/\s+/)[0] ?? ''
+}
 
 export type AbilityRow = {
   ability: Ability
@@ -226,4 +230,64 @@ export function spellDerived(c: Character): SpellDerived {
   const pb = proficiencyBonus(c.level)
   const modifier = abilityModifier(score)
   return { ability, abilityModifier: modifier, saveDC: 8 + pb + modifier, attackBonus: pb + modifier, slots }
+}
+
+/** Attacks and spellcasting */
+
+export type AttackRow = {id: string; name: string; bonus: string; damage: string }
+
+/** Classes give weap. proficiency as prose. The martial half can be limited to weaps with
+ * certain properties: "Martial weapons that have the Finesse or Light property." */
+function wpnProf(c: Character, weapon: NonNullable<Equipment['weapon']>): boolean {
+  const text = getClass(c.classId)?.proficiencies.weapons ?? ''
+  if (!weapon.martial) return /\bsimple\b/i.test(text)
+
+  const martial = text.match(/martial weapons(?: that have the (.+?) property)?/i)
+  if (!martial) return false
+  if (!martial[1]) return true
+  return martial[1].split(/\s+or\s+/i).some((prop) => weapon.properties.includes(prop.trim()))
+}
+
+const withModifier = (dice: string, modifier: number) =>
+  modifier === 0 ? dice : `${dice}${modifier < 0 ? '\u2212' : '+'}${Math.abs(modifier)}`
+
+/** One row per wpn owned, then each damaging cantrip. Finesse takes the better STR and DEX,
+ * Ammo takes DEX, everything else (thrown wpns too) STR. */
+export function attackRows(c: Character): AttackRow[] {
+  const totals = finalScores(c.abilities.base, c.abilities.originBonuses)
+  const str = totals.STR === undefined ? undefined : abilityModifier(totals.STR)
+  const dex = totals.DEX === undefined ? undefined : abilityModifier(totals.DEX)
+  const pb = proficiencyBonus(c.level)
+  const rows: AttackRow[] = []
+
+  for (const id of new Set(ownedItemIds(c))) {
+    const item = getEquipment(id)
+    const weapon = item?.weapon
+    if (!item || !weapon) continue
+
+    const ranged = weapon.properties.includes('Ammunition')
+    const finesse = weapon.properties.includes('Finesse')
+    const ability = finesse && str !== undefined && dex !== undefined ? Math.max(str, dex) : ranged ? dex : str
+    const archery = ranged && c.fightingStyleId === 'archery' ? 2 : 0
+    const bonus = ability === undefined ? undefined : ability + (wpnProf(c, weapon) ? pb : 0) + archery
+
+    rows.push({
+      id,
+      name: item.name,
+      bonus: bonus === undefined ? '' : formatModifier(bonus),
+      damage: `${ability === undefined ? weapon.damage : withModifier(weapon.damage, ability)} ${weapon.damageType}`,
+    })
+  }
+
+  const magic = spellDerived(c)
+  for (const spell of c.spellIds.flatMap((i) => getSpell(i) ?? [])) {
+    if (spell.level !== 0 || !spell.attack) continue
+    const { save, damage, damageType } = spell.attack
+    const bonus = save
+      ? magic.saveDC === undefined ? '' : `DC ${magic.saveDC} ${save.charAt(0)}${save.slice(1).toLowerCase()}`
+      : magic.attackBonus === undefined ? '' : formatModifier(magic.attackBonus)
+    rows.push({ id: spell.id, name: spell.name, bonus, damage: `${damage} ${damageType}`.trim() })
+  }
+
+  return rows
 }

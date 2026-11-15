@@ -228,23 +228,118 @@ describe('reading a background and a skill (US-24, FR-9)', () => {
   })
 })
 
-describe('a content type with no detail view yet (FR-11)', () => {
-  it('says so for a monster rather than rendering an empty panel', async () => {
-    const detail = await open(
-      [envelope('monster', 'srd-2024_aboleth', 'Aboleth', { challenge_rating: '10' })],
-      /^Aboleth/,
-    )
+describe('reading a feat, a condition and a magic item (US-24, FR-9)', () => {
+  it('lists the benefits of a feat under its lead-in, with no prerequisite as None', async () => {
+    const alert = envelope('feat', 'srd-2024_alert', 'Alert', {
+      type: 'Origin',
+      desc: 'You gain the following benefits.',
+      prerequisite: '',
+      benefits: [{ desc: 'Initiative Proficiency.' }, { desc: 'Initiative Swap.' }],
+    })
+    const detail = await open([alert], /^Alert/)
 
-    expect(detail.getByText(/no detail view for a monster yet/)).toBeInTheDocument()
+    expect(detail.getByText('Category').nextSibling).toHaveTextContent('Origin')
+    expect(detail.getByText('Prerequisite').nextSibling).toHaveTextContent('None')
+    expect(detail.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Initiative Proficiency.',
+      'Initiative Swap.',
+    ])
+  })
+
+  it('shows the effects of a condition as a list', async () => {
+    const charmed = envelope('condition', 'charmed', 'Charmed', {
+      descriptions: [{ desc: 'While Charmed:\n* Can\u2019t Harm the Charmer.\n* Social Advantage.' }],
+    })
+    const detail = await open([charmed], /^Charmed/)
+
+    expect(detail.getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('names the rarity and who can attune to a magic item', async () => {
+    const wand = envelope('magic_item', 'srd-2024_wand-of-fireballs', 'Wand of Fireballs', {
+      desc: 'This wand has 7 charges.',
+      category: { name: 'Wand' },
+      rarity: { name: 'Rare' },
+      requires_attunement: true,
+      attunement_detail: 'Requires Attunement by a Spellcaster',
+      weapon: null,
+      armor: null,
+    })
+    const detail = await open([wand], /^Wand of Fireballs/)
+
+    expect(detail.getByText('Rarity').nextSibling).toHaveTextContent('Rare')
+    expect(detail.getByText('Attunement').nextSibling).toHaveTextContent('Required by a Spellcaster')
+    expect(detail.queryByText('Damage')).not.toBeInTheDocument()
+  })
+})
+
+describe('reading a monster (US-24, FR-9)', () => {
+  const WOLF = envelope('monster', 'srd-2024_wolf', 'Wolf', {
+    size: { name: 'Medium' },
+    type: { name: 'Beast' },
+    alignment: 'unaligned',
+    armor_class: 12,
+    hit_points: 11,
+    hit_dice: '2d8 + 2',
+    initiative_bonus: 2,
+    speed: { walk: 40 },
+    ability_scores: { strength: 14, dexterity: 15, constitution: 12, intelligence: 3, wisdom: 12, charisma: 6 },
+    saving_throws: { strength: 2, dexterity: 2, constitution: 1, intelligence: -4, wisdom: 1, charisma: -2 },
+    skill_bonuses: { perception: 5, stealth: 4 },
+    passive_perception: 15,
+    darkvision_range: 60,
+    languages: { as_string: '' },
+    resistances_and_immunities: null,
+    challenge_rating: 0.25,
+    experience_points: 50,
+    traits: [{ name: 'Pack Tactics', desc: 'The wolf has Advantage on an attack roll against a creature.' }],
+    actions: [
+      { name: 'Bite', desc: 'Melee Attack Roll: +4.', action_type: 'ACTION', order_in_statblock: 1, usage_limits: null },
+    ],
+  })
+
+  it('reads the stat block facts', async () => {
+    const detail = await open([WOLF], /^Wolf/)
+
+    expect(detail.getByText('Creature').nextSibling).toHaveTextContent('Medium Beast, unaligned')
+    expect(detail.getByText('Hit points').nextSibling).toHaveTextContent('11 (2d8 + 2)')
+    expect(detail.getByText('Languages').nextSibling).toHaveTextContent('None')
+    expect(detail.getByText('Challenge').nextSibling).toHaveTextContent('1/4 (XP 50)')
+    expect(detail.queryByText('Immunities')).not.toBeInTheDocument()
+  })
+
+  it('tables the ability scores with their modifiers and saves', async () => {
+    const detail = await open([WOLF], /^Wolf/)
+    const table = within(detail.getByRole('table', { name: 'Ability scores' }))
+
+    expect(table.getByRole('row', { name: /^Score/ })).toHaveTextContent('Score1415123126')
+    expect(table.getByRole('row', { name: /^Save/ })).toHaveTextContent('Save+2+2+1\u22124+1\u22122')
+  })
+
+  it('lists traits and actions under their own headings', async () => {
+    const detail = await open([WOLF], /^Wolf/)
+
+    expect(detail.getByText('Traits')).toBeInTheDocument()
+    expect(detail.getByText('Pack Tactics')).toBeInTheDocument()
+    expect(detail.getByText('Actions')).toBeInTheDocument()
+    expect(detail.getByText('Bite')).toBeInTheDocument()
+  })
+})
+
+describe('a content type with no detail view yet (FR-11)', () => {
+  it('says so for a type it has never heard of rather than rendering an empty panel', async () => {
+    const detail = await open([envelope('vehicle', 'srd-2024_rowboat', 'Rowboat', {})], /^Rowboat/)
+
+    expect(detail.getByText(/no detail view for a vehicle yet/)).toBeInTheDocument()
   })
 
   it('reads the underscore in a type name as a word break', async () => {
     const detail = await open(
-      [envelope('magic_item', 'srd-2024_bag-of-holding', 'Bag of Holding', {})],
-      /^Bag of Holding/,
+      [envelope('spell_list', 'srd-2024_wizard', 'Wizard Spell List', {})],
+      /^Wizard Spell List/,
     )
 
-    expect(detail.getByText(/no detail view for a magic item yet/)).toBeInTheDocument()
+    expect(detail.getByText(/no detail view for a spell list yet/)).toBeInTheDocument()
   })
 
   it('degrades a record it cannot read instead of taking the list down', async () => {

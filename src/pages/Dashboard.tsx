@@ -16,9 +16,11 @@ import { ConfirmDelete } from "../components/ConfirmDelete";
 import { SearchPanel } from "../components/SearchPanel";
 import { AttributionLink } from "../components/Attribution";
 import { HpSimulator } from "../components/character/HpSimulator";
+import { CharacterSheet } from "../components/character/CharacterSheet";
 
 export function Dashboard() {
   const { user } = useAuth()
+  const playerName = user?.displayName ?? user?.providerData.find((p) => p.displayName)?.displayName
   const { characters, loading, save, remove } = useCharacters(user!.uid)
   const [editing, setEditing] = useState<null | 'new' | Character>(null)
   const [deleting, setDeleting] = useState<Character | null>(null)
@@ -27,6 +29,7 @@ export function Dashboard() {
   const [duplicating, setDuplicating] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
   const [simulating, setSimulating] = useState<Character | null>(null)
+  const [viewing, setViewing] = useState<Character | null>(null)
 
   async function handleDuplicate(character: Character) {
     setError(null)
@@ -111,7 +114,7 @@ export function Dashboard() {
 
               return (
                 <li className="character-card" key={character.id}>
-                  <button type="button" className="character-open" onClick={() => setEditing(character)}>
+                  <button type="button" className="character-open" onClick={() => setViewing(character)}>
                     <span className="character-name">{character.name}</span>
                     <span className="character-meta">{summary || 'Nothing chosen yet'}</span>
                     <span className={`character-status${done ? ' is-done' : ''}`}>
@@ -184,6 +187,18 @@ export function Dashboard() {
       {searching && <SearchPanel onClose={() => setSearching(false)} />}
 
       {simulating && <HpSimulator character={simulating} onClose={() => setSimulating(null)} />}
+
+      {viewing && (
+        <CharacterSheet
+          character={viewing}
+          playerName={playerName}
+          onClose={() => setViewing(null)}
+          onEdit={() => {
+            setViewing(null)
+            setEditing(viewing)
+          }}
+        />
+      )}
     </div>
   )
 }

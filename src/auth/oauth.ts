@@ -21,7 +21,7 @@ const providers = { google, github }
 
 const popupUnavailable = new Set([
   'auth/popup-blocked',
-  'auth/operatrion-not-supported-in-this-environment',
+  'auth/operation-not-supported-in-this-environment',
   'auth/web-storage-unsupported',
 ])
 
