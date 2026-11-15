@@ -83,7 +83,7 @@ export function RaceStep({ character, onChange }: StepProps) {
   return (
     <div className="step">
       <p className="step-intro">
-        Pick a race. Its detail open below so you can compare before moving on; picking another swaps the panel.
+        Pick a race. Its details are displayed below so you can compare before moving on; picking another swaps the panel.
       </p>
 
       <fieldset className="pick-set">

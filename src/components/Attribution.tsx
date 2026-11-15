@@ -37,6 +37,14 @@ export function AttributionNotice() {
         ))}
       </ul>
 
+      <p className="attribution-sources" aria-label="UI attribution">
+        This work bases its User Interface (UI) off of the following sources:
+        <ul>
+          <li>The <em>v2.1 sheet</em> [Google Sheet template file] created by Evans, F. (n.d.).</li>
+          <li>The <a href="https://sw5e.com/tools/mycharacter">SW5e Character Creator</a> created by Galiphile [Username]., et al. (n.d.).</li>
+        </ul>
+      </p>
+      
       <p className="attribution-credit">
         Adventurer&rsquo;s Forge is an academic project completed by Penn State Graduate Students.
         This is unofficial and is not affiliated with, endorsed by, or sponsored by any publisher
