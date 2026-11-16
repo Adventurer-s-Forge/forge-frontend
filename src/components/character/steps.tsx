@@ -710,7 +710,7 @@ export function AttributeStep({ character, onChange }: StepProps) {
           <p
             className="trait-desc"
           >
-            Roll Results: {rolled.toSorted((a, b) => b - a).join(', ')}
+            Roll Results: {rolled.toSorted((a, b) => b - a).join(', ') /* [5] */}
             <br /><span className="step-hint">NOTE: The dropdowns to assign the scores, will only show each number once, even if there were 2 or more rolls with the same number.</span>
           </p>
         )}
