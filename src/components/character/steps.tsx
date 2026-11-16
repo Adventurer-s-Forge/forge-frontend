@@ -706,6 +706,15 @@ export function AttributeStep({ character, onChange }: StepProps) {
           </button>
         )}
 
+        {method === 'roll' && rolled.length > 0 && (
+          <p
+            className="trait-desc"
+          >
+            Roll Results: {rolled.toSorted((a, b) => b - a).join(', ')}
+            <br /><span className="step-hint">NOTE: The dropdowns to assign the scores, will only show each number once, even if there were 2 or more rolls with the same number.</span>
+          </p>
+        )}
+
         {method === 'pointbuy' && (
           <p className={`budget${spent > POINT_BUY_BUDGET ? ' is-over' : ''}`}>
             {spent === Infinity ? 'Invalid spread' : `${spent} / ${POINT_BUY_BUDGET} points spent`}
