@@ -103,7 +103,7 @@ describe('the attribution notice (UT-78)', () => {
 
     // The bare 'core' document has no publisher, permalink or license, so it offers no links.
     expect(notice).toHaveTextContent(/does not state/)
-    expect(screen.getAllByRole('link')).toHaveLength(2)
+    expect(screen.getAllByRole('link')).toHaveLength(3)
   })
 
   it('reads the nested document object and the bare key string alike', () => {
