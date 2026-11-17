@@ -2,7 +2,6 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createDraft } from "../characters/character";
-import type { Character } from "../characters/character";
 import {
   AttributeStep,
   BackgroundStep,
@@ -15,6 +14,7 @@ import {
 } from "../components/character/steps";
 import { seedTestCatalog } from './fixtures'
 import { setEquipmentChoice } from "../characters/progress";
+import type { AbilityScores, Character } from "../characters/character";
 
 beforeAll(seedTestCatalog)
 
@@ -261,6 +261,103 @@ describe('AttributeStep', () => {
     expect(screen.getByText(/3 \/ 3 assigned/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Increase CHA bonus' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Decrease INT bonus' })).toBeEnabled()
+  })
+})
+
+describe('point-buy advice (US-39, FR-14)', () => {
+  /** A Wizard with the Acolyte background (INT, WIS, CHA) on point buy, every score 8 unless given. */
+  const wizard = (base: Partial<AbilityScores>, originBonuses: Partial<AbilityScores>) =>
+    fighter({
+      classId: 'srd-2024_wizard',
+      abilities: {
+        method: 'pointbuy',
+        base: { STR: 8, DEX: 8, CON: 8, INT: 8, WIS: 8, CHA: 8, ...base },
+        rolled: [],
+        originBonuses,
+      },
+    })
+
+  const panel = () => screen.getByRole('group', { name: 'Point-buy advice' })
+  const advice = () => within(panel())
+  const flags = () => advice().queryAllByRole('listitem').map((item) => item.textContent)
+
+  it('flags a score that a cheaper one matches once its bonus is added, naming the cheaper score', () => {
+    render(<AttributeStep character={wizard({ INT: 13, WIS: 14 }, { WIS: 1, CHA: 2 })} onChange={vi.fn()} />)
+
+    expect(flags()).toEqual([
+      'INT 13 gives +1, the same as 12, which costs 1 point less.',
+      'WIS 14 + 1 gives +2, the same as 13 + 1, which costs 2 points less.',
+    ])
+    expect(advice().getByText('2 scores waste points')).toBeInTheDocument()
+  })
+
+  it('leaves an odd score alone when a +1 bonus lifts it to the next modifier', () => {
+    render(<AttributeStep character={wizard({ INT: 13 }, { INT: 1, WIS: 2 })} onChange={vi.fn()} />)
+
+    expect(flags()).toEqual([])
+    expect(advice().getByText('No wasted points')).toBeInTheDocument()
+  })
+
+  it('recommends the best spread for the class and background, with a reason on every score', () => {
+    render(<AttributeStep character={wizard({}, {})} onChange={vi.fn()} />)
+    const table = within(advice().getByRole('table', { name: 'Recommended scores' }))
+    const rows = table.getAllByRole('row').slice(1).map((row) => [...row.children].map((cell) => cell.textContent))
+
+    expect(rows).toEqual([
+      ['STR', '12', '\u2014', '12', '+1', 'Lower priority for a Wizard.'],
+      ['DEX', '12', '\u2014', '12', '+1', 'Lower priority for a Wizard.'],
+      ['CON', '14', '\u2014', '14', '+2', 'Constitution adds hit points for every class.'],
+      ['INT', '14', '+2', '16', '+3', 'Primary ability for a Wizard. Takes the +2.'],
+      ['WIS', '13', '+1', '14', '+2', 'Wizard saving throw. Odd on purpose: the +1 brings it to 14.'],
+      ['CHA', '8', '\u2014', '8', '\u22121', 'Lower priority for a Wizard. Left at 8 so the points go further elsewhere.'],
+    ])
+    expect(advice().getByText(/using 27 of 27 points/)).toBeInTheDocument()
+  })
+
+  it("never changes the player's scores or bonuses", () => {
+    const onChange = vi.fn()
+    const character = wizard({ INT: 13 }, { WIS: 2, CHA: 1 })
+    const before = structuredClone(character)
+
+    render(<AttributeStep character={character} onChange={onChange} />)
+
+    expect(advice().queryAllByRole('button')).toEqual([])
+    expect(onChange).not.toHaveBeenCalled()
+    expect(character).toEqual(before)
+    expect(screen.getByRole('button', { name: 'Increase INT' }).previousSibling).toHaveTextContent('13')
+  })
+
+  it('follows the player as they change a score or a bonus', () => {
+    const { rerender } = render(<AttributeStep character={wizard({ INT: 13 }, { WIS: 2, CHA: 1 })} onChange={vi.fn()} />)
+    expect(flags()).toHaveLength(1)
+
+    rerender(<AttributeStep character={wizard({ INT: 12 }, { WIS: 2, CHA: 1 })} onChange={vi.fn()} />)
+    expect(flags()).toEqual([])
+
+    rerender(<AttributeStep character={wizard({ INT: 12 }, { INT: 1, WIS: 2 })} onChange={vi.fn()} />)
+    expect(flags()).toEqual(['INT 12 + 1 gives +1, the same as 11 + 1, which costs 1 point less.'])
+  })
+
+  it('opens above the calculated values, and stays folded once the player folds it', async () => {
+    const { rerender } = render(<AttributeStep character={wizard({ INT: 13 }, {})} onChange={vi.fn()} />)
+    const calculated = screen.getByText('Calculated for you')
+
+    expect(panel().parentElement).toBe(calculated.parentElement)
+    expect(panel().compareDocumentPosition(calculated) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(panel()).toHaveAttribute('open')
+
+    await userEvent.click(advice().getByText('Point-buy advice'))
+    expect(panel()).not.toHaveAttribute('open')
+    expect(advice().getByText('1 score wastes points')).toBeInTheDocument()
+
+    rerender(<AttributeStep character={wizard({ INT: 12 }, {})} onChange={vi.fn()} />)
+    expect(panel()).not.toHaveAttribute('open')
+  })
+
+  it('stays out of the way for the standard array and rolled scores', () => {
+    render(<AttributeStep character={fighter({ abilities: { method: 'standard', base: {}, rolled: [], originBonuses: {} } })} onChange={vi.fn()} />)
+
+    expect(screen.queryByRole('group', { name: 'Point-buy advice' })).not.toBeInTheDocument()
   })
 })
 
