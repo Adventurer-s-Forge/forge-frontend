@@ -34,7 +34,7 @@ export function seedTestCatalog(): void {
         speed: 30, darkvisionFt: 120, traits: [] },
     ],
     classes: [
-      { id: 'srd-2024_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
+      { id: 'srd-2024_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: ['STR', 'DEX'], savingThrows: ['STR', 'CON'],
         skillChoices: CLASS_SKILL_CHOICES.fighter,
         casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
       startingEquipment: [
@@ -52,12 +52,12 @@ export function seedTestCatalog(): void {
           weapons: 'Simple and Martial weapons',
           skills: 'Choose 2: Acrobatics, Athletics, History, Insight, Intimidation, Persuasion, Perception, or Survival',
         }, },
-      { id: 'srd-2024_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
+      { id: 'srd-2024_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: ['INT'], savingThrows: ['INT', 'WIS'],
         skillChoices: CLASS_SKILL_CHOICES.wizard, casterType: 'FULL', 
         spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2, startingEquipment: [], expertiseAt: null,
         fightingStyleAt: null, features: [], primaryAbilityText: 'Intelligence', 
         proficiencies: { armor: '', weapons: '', skills: '' } },
-      { id: 'srd-2024_rogue', name: 'Rogue', hitDie: 8, primaryAbilities: [],
+      { id: 'srd-2024_rogue', name: 'Rogue', hitDie: 8, primaryAbilities: ['DEX'],
         savingThrows: ['DEX', 'INT'], skillChoices: CLASS_SKILL_CHOICES.rogue,
         casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
         startingEquipment: [], expertiseAt: 1, fightingStyleAt: null, features: [], primaryAbilityText: 'Dexterity',

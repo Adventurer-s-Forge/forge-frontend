@@ -87,6 +87,20 @@ describe('class saving throws read from the features table (UT-65)', () => {
   })
 })
 
+describe('class primary abilities read from the features table', () => {
+  it('keeps every ability the row names, whether joined by "or" or "and"', () => {
+    const either = toClass(classRecord([coreTrait('|Primary Ability|Strength or Dexterity|')], []), [])
+    const both = toClass(classRecord([coreTrait('|Primary Ability|Dexterity and Wisdom|')], []), [])
+
+    expect(either.primaryAbilities).toEqual(['STR', 'DEX'])
+    expect(both.primaryAbilities).toEqual(['DEX', 'WIS'])
+  })
+
+  it('leaves the list empty when the class has no such row', () => {
+    expect(toClass(classRecord([], []), []).primaryAbilities).toEqual([])
+  })
+})
+
 describe('spellcasting profile (UT-60, UT-61)', () => {
   it('derives ability, save DC, attack bonus and slots for a full caster', () => {
     const wizard = scores(character({ classId: 'srd-2024_wizard' }), { INT: 14 }, { INT: 2 })
