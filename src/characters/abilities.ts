@@ -9,7 +9,9 @@ export const POINT_BUY_MIN = 8
 export const POINT_BUY_MAX = 15
 export const ABILITY_CAP = 20
 export const ORIGIN_TOTAL = 3
-const POINT_BUY_COST: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9}
+
+export const POINT_BUY_COST: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9}
+
 
 export function abilityModifier(score: number): number {
   return Math.floor((score - 10) / 2)
