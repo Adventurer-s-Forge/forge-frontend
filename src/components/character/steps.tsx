@@ -814,12 +814,11 @@ export function AttributeStep({ character, onChange }: StepProps) {
             </p>
           </fieldset>
         )}
-
       </div>
 
       <aside className="derived-panel">
         {method === 'pointbuy' && <PointBuyAdvice character={character} />}
-        
+
         <p className="derived-title">Calculated for you</p>
         <p className="derived-intro">
           None of this is stored. It recomputes from your scores plus race, class, background, and equipment.

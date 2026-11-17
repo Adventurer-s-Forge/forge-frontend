@@ -264,7 +264,7 @@ describe('AttributeStep', () => {
   })
 })
 
-describe('point-buy advice (US-39, FR-14)', () => {
+describe('point-buy advice (US-41, FR-15)', () => {
   /** A Wizard with the Acolyte background (INT, WIS, CHA) on point buy, every score 8 unless given. */
   const wizard = (base: Partial<AbilityScores>, originBonuses: Partial<AbilityScores>) =>
     fighter({

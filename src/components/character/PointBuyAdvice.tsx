@@ -29,7 +29,7 @@ function reason(cls: CharacterClass, ability: Ability, score: number, bonus: num
 }
 
 /**
- * US-39: flags point-buy scores that waste points, and shows the best spread for the class and background.
+ * US-41: flags point-buy scores that waste points, and shows the best spread for the class and background.
  * A native <details>, so it folds without any state, and starts open so the flags are seen. Text only --
  * it reads the character and never changes it.
  */
