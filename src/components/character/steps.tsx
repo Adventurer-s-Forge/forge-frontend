@@ -83,7 +83,7 @@ export function RaceStep({ character, onChange }: StepProps) {
   return (
     <div className="step">
       <p className="step-intro">
-        Pick a race. Its detail open below so you can compare before moving on; picking another swaps the panel.
+        Pick a race. Its details are displayed below so you can compare before moving on; picking another swaps the panel.
       </p>
 
       <fieldset className="pick-set">
@@ -704,6 +704,15 @@ export function AttributeStep({ character, onChange }: StepProps) {
           >
             {rolled.length ? 'Roll again' : 'Roll six scores'}
           </button>
+        )}
+
+        {method === 'roll' && rolled.length > 0 && (
+          <p
+            className="trait-desc"
+          >
+            Roll Results: {rolled.toSorted((a, b) => b - a).join(', ') /* [5] */}
+            <br /><span className="step-hint">NOTE: The dropdowns to assign the scores, will only show each number once, even if there were 2 or more rolls with the same number.</span>
+          </p>
         )}
 
         {method === 'pointbuy' && (

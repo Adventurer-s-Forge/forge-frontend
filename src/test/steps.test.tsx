@@ -243,6 +243,15 @@ describe('AttributeStep', () => {
     expect(screen.getByText('27 / 27 points spent')).toBeInTheDocument()
   })
 
+  it('reports the results of using the roll method', () => {
+    const character = fighter({
+      abilities: { method: 'roll', base: {}, rolled: [10, 15, 9, 8, 15, 8], originBonuses: {} },
+    })
+    render(<AttributeStep character={character} onChange={vi.fn()} />)
+
+    expect(screen.getByText('Roll Results: 15, 15, 10, 9, 8, 8')).toBeInTheDocument()
+  })
+
   it('caps the origin allocation at +3', () => {
     const character = fighter({
       abilities: { method: 'standard', base: {}, rolled: [], originBonuses: { INT: 2, WIS: 1 } },
