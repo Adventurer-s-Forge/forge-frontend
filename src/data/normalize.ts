@@ -160,13 +160,14 @@ function featureLevel(features: RawClass['features'], name: string): number | nu
 
 export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): CharacterClass {
   const choices = CLASS_SKILL_CHOICES[classKey(record.key)] ?? { count: 2, from: 'any' as const }
+  const primaryAbilityText = coreTraitRow(record.data.features, 'Primary Ability').trim()
 
   return {
     id: record.key,
     name: record.name,
     hitDie: Number(record.data.hit_dice.replace(/^d/i, '')),
-    primaryAbilityText: coreTraitRow(record.data.features, 'Primary Ability').trim(),
-    primaryAbilities: [],
+    primaryAbilityText,
+    primaryAbilities: abilitiesNamed(primaryAbilityText),
     savingThrows: savingThrows(record.data),
     fightingStyleAt: featureLevel(record.data.features, 'Fighting Style'),
     features: levelOneFeatures(record.data.features),
@@ -250,12 +251,14 @@ const featName = (benefits: RawBackground['benefits']) => benefits.find((ben) =>
 
 const ABILITY_WORDS = /Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma/g
 
-function savingThrows(record: RawClass): Ability[] {
-  const row = coreTraitRow(record.features, 'Saving Throw Proficiencies')
-  const fromTable = (row.match(ABILITY_WORDS) ?? [])
+function abilitiesNamed(text: string): Ability[] {
+  return (text.match(ABILITY_WORDS) ?? [])
     .map((word) => ABILITY_BY_NAME[word.toLowerCase()])
     .filter((ability): ability is Ability => ability !== undefined)
+}
 
+function savingThrows(record: RawClass): Ability[] {
+  const fromTable = abilitiesNamed(coreTraitRow(record.features, 'Saving Throw Proficiencies'))
   if (fromTable.length > 0) return fromTable
 
   return record.saving_throws

@@ -3,12 +3,34 @@
 A D&D character creator. React 19 + TypeScript on Vite, with Firebase Authentication 
 and game content served by [`forge-backend`](https://github.com/Adventurer-s-Forge/forge-backend) (FastAPI + Redis)
 
+## What it does
+
+- **Character wizard** -- Name, Race, Class, Background, Equipment, Attributes, Skills, Spells. Each step
+  offers only legal choices and holds Continue until the step is valid. Spells is skipped when neither the
+  class nor the background grants any.
+- **Point-buy advice** (US-41) -- under point buy, the Attributes step flags any score that wastes points and
+  recommends the spread and background bonus placement with the best weighted modifiers for the class, with
+  a reason for each. It never changes the player's scores. The algorithm is `src/characters/optimizer.ts`.
+- **Dashboard** -- clicking a card opens the character's sheet; Edit or Resume reopens the wizard; Duplicate
+  copies a character; Delete asks first.
+- **Character sheet** (US-32, US-33) -- three pages laid out like the paper sheet: character, appearance and
+  backstory, and spellcasting. Attack rows are worked out for every weapon and damaging cantrip (US-8).
+  **Print or save as PDF** opens the browser's print dialog once the character is finished.
+- **HP simulator** (US-11) -- practise damage, healing, temporary hit points and hit dice on a finished
+  character. Nothing is saved.
+- **Reference search** (US-24 to US-26) -- search ten content types by name, filter by type and open a detail
+  view, from the dashboard or partway through the wizard without losing the draft.
+- **Attribution** (US-23) -- `/attribution`, readable signed out, names where the game content comes from and
+  the licence it is used under.
+- **Accounts** -- email/password, Google and GitHub sign-in through Firebase, with password reset and account
+  linking. Light and dark themes.
+
 ## Prerequisite
 
 - **Node 22 or newer** (CI runs 22; `npm ci` needs the committed lockfile)
 - A **Firebase project** with Authentication enabled
-- **`forge-backend` running locally** for game content -- the character wizard 
-cannot populate its race, class, background or item steps without it
+- **`forge-backend` running locally** for game content -- the wizard, the skills list and the reference
+search all read from it
 
 ## Setup
 
@@ -67,9 +89,20 @@ app.add_middleware(
 npm run dev
 ```
 
+## Game content
+
+Read anonymously. `CatalogProvider` loads the six collections once at start-up, and `src/data/normalize.ts`
+turns each record into what the wizard and sheet use. Search-only content (feats, monsters, magic items and
+conditions) is normalized separately in `src/data/reference.ts`, since a character never uses it.
+
+| Method | Path | Used by |
+|--------|------|---------|
+| `GET` | `/races`, `/classes`, `/backgrounds`, `/equipment`, `/spells`, `/skills` | The wizard, the sheet and the point-buy advice |
+| `GET` | `/search?q=…&page=…&content_filter=…` | The reference search; `content_filter` is one of the ten singular types in `REF_TYPES` |
+
 ## Character Persistence
 
-Game content is read anonymously. Characters are per-user and require authentication.
+Characters are per-user and require authentication.
 
 > **Status:** implemented on both sides. `POST`, `PUT` and `DELETE /characters` all exist, the
 > service verifies the Firebase ID token on every character request, and records are namespaced per
@@ -81,7 +114,7 @@ Game content is read anonymously. Characters are per-user and require authentica
 | Method | Path | Used by |
 |--------|------|---------|
 | `GET`  | `/characters` | Dashboard, on load |
-| `POST` | `/characters` | First save of a new character -- the Name step |
+| `POST` | `/characters` | First save of a new character -- the Name step; Duplicate on a card |
 | `PUT`  | `/characters/{id}` | Every later step, full replace |
 | `DELETE` | `/characters/{id}` | The delete button on a character card |
 
@@ -183,11 +216,17 @@ Server-owned and never sent: `ownerUid`, `createdAt`, `updatedAt`, `schemaVersio
 | `npm run dev` | Dev server on `localhost:5173` |
 | `npm run build` | Typecheck then production build |
 | `npm run lint` | ESLint |
+| `npm run preview` | Serve the production build locally |
 | `npm test` | Vitest in watch mode |
 | `npm run test:run` | Single test pass |
 
 CI runs four gates on every push and on pull requests to `main`: `npx tsc -b`, `npm run lint`,
 `npx vitest run`, `npm run build`.
+
+> **CI has no `.env.local`.** Locally it supplies `VITE_API_BASE_URL`, so a test that forgets to stub it
+> passes on your machine and fails in CI. Reproduce CI before pushing with
+> **`VITE_API_BASE_URL= npx vitest run`** -- an empty variable overrides `.env.local`. Tests that reach the
+> API stub it with `vi.stubEnv('VITE_API_BASE_URL', ...)`.
 
 > **`tsc --noEmit` checks nothing here.** The root `tsconfig.json` is solution-style, so it only
 > points at the project references. Use **`npx tsc -b`** -- that is what CI runs and the only
@@ -197,12 +236,14 @@ CI runs four gates on every push and on pull requests to `main`: `npx tsc -b`, `
 ```
 src/
   auth/         Firebase auth: provider, context, error mapping, OAuth + linking
-  characters/   Rules engine -- ability maths, step validation, currency, storage
-  components/   Shared UI; character/ holds the creation wizard
-  data/         Content catalog, API adapter, local SRD rules
+  characters/   Rules engine -- ability maths, step validation, currency, hit points,
+                the point-buy optimizer, storage
+  components/   Shared UI: search panel, attribution, markdown; character/ holds the wizard
+                steps, the character sheet, the HP simulator and the point-buy advice
+  data/         Content catalog and normalizers, search-only reference content, local SRD rules
   lib/          Firebase init and the typed API client
-  pages/        Home, Login, Dashboard, NotFound
+  pages/        Home, Login, Dashboard, Attribution, NotFound
   routes/       Route guards
   theme/        Light/dark theme hook
-  test/         Vitest suites
+  test/         Vitest suites and the seeded test catalog
 ```

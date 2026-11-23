@@ -1,0 +1,90 @@
+/* POINT-BUY ADVICE (US-41): folds open above "Calculated for you" in the Attributes step's aside. */
+
+.pb-advice {
+  margin-bottom: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.pb-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.pb-summary::-webkit-details-marker {
+  display: none;
+}
+
+.pb-summary:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-radius: var(--radius);
+}
+
+.pb-advice-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pb-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pb-count.is-wasted {
+  color: var(--oxblood);
+}
+
+.pb-chevron {
+  flex: none;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.pb-advice[open] .pb-chevron {
+  transform: rotate(180deg);
+}
+
+.pb-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+}
+
+.pb-body .step-hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+.pb-wasted {
+  margin: 0;
+  padding: 10px 12px 10px 28px;
+  border: 1px solid var(--oxblood-line);
+  border-radius: var(--radius);
+  background: var(--oxblood-soft);
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+/* The shared ability table right-aligns its last column; the reasons read better from the left. */
+.ability-table.pb-table thead th:last-child,
+.ability-table.pb-table tbody td.pb-why {
+  text-align: left;
+  padding-left: 12px;
+}
+
+.ability-table.pb-table tbody td.pb-why {
+  font-size: 13px;
+  color: var(--ink-2);
+}

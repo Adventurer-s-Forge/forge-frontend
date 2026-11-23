@@ -53,6 +53,7 @@ import { ConfirmDelete } from "../ConfirmDelete";
 import { formatCoins } from "../../characters/currency";
 import { Markdown } from "../Markdown";
 import { FIGHTING_STYLES } from "../../data/classRules";
+import { PointBuyAdvice } from "./PointBuyAdvice";
 
 export type StepProps = {
   character: Character
@@ -816,6 +817,8 @@ export function AttributeStep({ character, onChange }: StepProps) {
       </div>
 
       <aside className="derived-panel">
+        {method === 'pointbuy' && <PointBuyAdvice character={character} />}
+
         <p className="derived-title">Calculated for you</p>
         <p className="derived-intro">
           None of this is stored. It recomputes from your scores plus race, class, background, and equipment.
