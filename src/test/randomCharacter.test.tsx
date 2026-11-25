@@ -1,4 +1,4 @@
-/** US-39 parity: the fixture the backend tests use must also satisfy the real client.
+/** US-39 parity: the generation fixture must also satisfy the real client.
 
  * Everything here goes through the production normalizers and the production sheet, so a
  * drift in the class metadata contract, in the equipment prose reader, or in the level-one
@@ -39,13 +39,14 @@ import {
 } from "../data/normalize";
 import type { Envelope } from "../lib/api";
 
-/** The exact file the Python tests read, so one fixture serves both sides. Resolved from
+/** Vendored copy of `forge-backend/tests/fixtures/us39_creation_cases.json`: the two repos
+ * check out separately in CI, so this test cannot read across the repo boundary. Re-copy
+ * from the backend repo whenever that fixture changes. Resolved from
  * `import.meta.dirname` rather than `new URL(..., import.meta.url)`, which Vite rewrites
  * into a dev-server asset URL. */
 const FIXTURE = resolve(
   import.meta.dirname,
-  '../../..',
-  'forge-backend/tests/fixtures/us39_creation_cases.json',
+  'fixtures/us39_creation_cases.json',
 )
 
 const CASES = JSON.parse(readFileSync(FIXTURE, 'utf8')) as {
