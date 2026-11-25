@@ -245,10 +245,12 @@ describe('SearchPanel', () => {
     await userEvent.type(screen.getByRole('searchbox'), 'sword')
 
     // A new term is a new search: unfiltered, so the counts belong to what is searched now.
+    // The chip state flips synchronously, but the request waits out the debounce, so poll
+    // for the request itself rather than the chip (the chip check above alone raced it).
     await waitFor(() =>
       expect(filters().getByRole('button', { name: /Everything/ })).toHaveAttribute('aria-pressed', 'true'),
     )
-    expect(lastUrl(fetchMock)).toContain('q=longsword')
+    await waitFor(() => expect(lastUrl(fetchMock)).toContain('q=longsword'))
     expect(lastUrl(fetchMock)).not.toContain('content_filter')
   })
 
