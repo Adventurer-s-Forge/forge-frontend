@@ -52,7 +52,6 @@ import { useState } from "react";
 import { ConfirmDelete } from "../ConfirmDelete";
 import { formatCoins } from "../../characters/currency";
 import { Markdown } from "../Markdown";
-import { FIGHTING_STYLES } from "../../data/classRules";
 import { PointBuyAdvice } from "./PointBuyAdvice";
 
 export type StepProps = {
@@ -225,6 +224,7 @@ export function RaceStep({ character, onChange }: StepProps) {
 
 export function ClassStep({ character, onChange }: StepProps) {
   const chosen = getClass(character.classId)
+  const styles = chosen?.fightingStyles ?? []
   const needStyle = chosen?.fightingStyleAt === 1
   const [pending, setPending] = useState<{ classId: string | null} | null>(null)
 
@@ -345,12 +345,12 @@ export function ClassStep({ character, onChange }: StepProps) {
                     onChange={(e) => onChange(setFightingStyle(character, e.target.value || null))}
                   >
                     <option value="">Choose a style</option>
-                    {FIGHTING_STYLES.map((st) => (
+                    {styles.map((st) => (
                       <option value={st.id} key={st.id}>{st.name}</option>
                     ))}
                   </select>
                   <p className="choice-note">
-                    {FIGHTING_STYLES.find((s) => s.id === character.fightingStyleId)?.note ?? 'Defense is recommended.'}
+                    {styles.find((s) => s.id === character.fightingStyleId)?.note ?? 'Defense is recommended.'}
                   </p>
                 </div>
               )}

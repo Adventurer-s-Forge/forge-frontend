@@ -38,10 +38,9 @@ import {
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
 import { catalog, seedCatalog } from "../data/catalog";
-import { CLASS_SKILL_CHOICES } from "../data/classRules";
 import { authed } from "../lib/api";
 import { derived, ownedItemIds, purseCp, skillModifier, skillSource, spentCp, startingCp } from "../components/character/sheets";
-import { pick, TEST_SKILLS, TEST_SOURCES } from "./fixtures";
+import { pick, TEST_FIGHTING_STYLES, TEST_SKILL_CHOICES, TEST_SKILLS, TEST_SOURCES } from "./fixtures";
 import { parseStartingEquipment } from "../data/normalize";
 
 function dice(...faces: number[]) {
@@ -96,7 +95,7 @@ beforeAll(() => {
     ],
     classes: [
       { id: 'srd-2024_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: [], savingThrows: ['STR', 'CON'],
-        skillChoices: CLASS_SKILL_CHOICES.fighter, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0, 
+        skillChoices: TEST_SKILL_CHOICES.fighter, fightingStyles: TEST_FIGHTING_STYLES, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0, 
         startingEquipment: [
           { key: 'A', label: 'Chain mail, Longsword, and 5 GP',
             grants: [
@@ -113,11 +112,11 @@ beforeAll(() => {
           skills: 'Choose 2: Acrobatics, Athletics, History, Insight, Intimidation, Persuasion, Perception, or Survival',
         } },
       { id: 'srd-2024_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: [], savingThrows: ['INT', 'WIS'],
-        skillChoices: CLASS_SKILL_CHOICES.wizard, casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2,
+        skillChoices: TEST_SKILL_CHOICES.wizard, fightingStyles: [], casterType: 'FULL', spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2,
       startingEquipment: [], expertiseAt: null, fightingStyleAt: null, features: [], primaryAbilityText: 'Intelligence',
     proficiencies: { armor: '', weapons: '', skills: '' } },
       { id: 'srd-2024_rogue', name: 'Rogue', hitDie: 8, primaryAbilities: [], savingThrows: ['DEX', 'INT'], 
-        skillChoices: CLASS_SKILL_CHOICES.rogue, casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
+        skillChoices: TEST_SKILL_CHOICES.rogue, fightingStyles: [], casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
         startingEquipment: [], expertiseAt: 1, fightingStyleAt: null, features: [], primaryAbilityText: 'Dexterity',
       proficiencies: { armor: '', weapons: '', skills: '' } },
     ],

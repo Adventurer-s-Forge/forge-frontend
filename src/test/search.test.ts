@@ -4,7 +4,7 @@ import { hitsOfKind, toSearchHit, toSearchHits } from "../data/searchResults";
 import { isBaseClass } from "../data/normalize";
 import type { Envelope } from "../lib/api";
 import type { RawClass } from "../data/normalize";
-import { seedTestCatalog } from "./fixtures";
+import { seedTestCatalog, TEST_FIGHTING_STYLES, TEST_SKILL_CHOICES } from "./fixtures";
 
 vi.mock('../lib/firebase', () => ({ auth: {}, app: {} }))
 
@@ -32,12 +32,19 @@ function stubStatus(status: number) {
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}', { status }))))
 }
 
-const envelope = (type: string, key: string, name: string, data: unknown): Envelope<unknown> => ({
+const envelope = (
+  type: string,
+  key: string,
+  name: string,
+  data: unknown,
+  extra: Partial<Envelope<unknown>> = {},
+): Envelope<unknown> => ({
   type,
   key,
   name,
   document: 'srd-2024',
   data,
+  ...extra,
 })
 
 /** The body /search sends now. `total` and `counts` describe the whole match set rather
@@ -76,6 +83,8 @@ const FIGHTER = {
   caster_type: null,
   features: [],
 }
+
+const FIGHTER_RULES = { skillChoices: TEST_SKILL_CHOICES.fighter, fightingStyles: TEST_FIGHTING_STYLES }
 
 beforeAll(seedTestCatalog)
 
@@ -358,7 +367,7 @@ describe('search result mapping', () => {
 
   it('counts and filters a subclass under Classes, the way the service counts it', () => {
     const hits = toSearchHits([
-      envelope('class', 'srd-2024_fighter', 'Fighter', FIGHTER),
+      envelope('class', 'srd-2024_fighter', 'Fighter', FIGHTER, { creationRules: FIGHTER_RULES }),
       envelope('class', 'srd-2024_champion', 'Champion', CHAMPION),
     ])
 
@@ -377,13 +386,19 @@ describe('search result mapping', () => {
 
   it('reads a base class, whose subclass_of is null', () => {
     const hit = toSearchHit(
-      envelope('class', 'srd-2024_fighter', 'Fighter', {
-        subclass_of: null,
-        hit_dice: 'd10',
-        saving_throws: [{ name: 'strength' }, { name: 'constitution' }],
-        caster_type: null,
-        features: [],
-      }),
+      envelope(
+        'class',
+        'srd-2024_fighter',
+        'Fighter',
+        {
+          subclass_of: null,
+          hit_dice: 'd10',
+          saving_throws: [{ name: 'strength' }, { name: 'constitution' }],
+          caster_type: null,
+          features: [],
+        },
+        { creationRules: FIGHTER_RULES },
+      ),
     )
 
     expect(hit.kind).toBe('class')

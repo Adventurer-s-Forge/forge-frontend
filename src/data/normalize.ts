@@ -16,8 +16,7 @@ import type {
   Spell,
   Subclass
 } from "./catalog";
-import type { Envelope } from "../lib/api";
-import { CLASS_SKILL_CHOICES, classKey } from "./classRules";
+import type { ClassCreationRules, Envelope } from "../lib/api";
 import { skillIdsFromNames } from "./skills";
 import { gpToCp, parseCostCp } from "../characters/currency";
 import { LICENSES } from "./licenses";
@@ -158,8 +157,44 @@ function featureLevel(features: RawClass['features'], name: string): number | nu
   return levels.length > 0 ? Math.min(...levels) : null
 }
 
+/** A base class carries its skill pool and its level-one fighting styles, seeded with the
+ * class itself. A client that cannot read them refuses the class rather than inventing a
+ * pool of its own, so a stale seed shows up as "content unavailable" instead of a
+ * silently different creator contract. */
+function creationRules(record: Envelope<RawClass>): ClassCreationRules {
+  const choices = record.creationRules?.skillChoices
+  const styles = record.creationRules?.fightingStyles
+  const count = choices?.count
+  const from = choices?.from
+
+  const poolOk = from === 'any' || (Array.isArray(from) && from.every((id) => typeof id === 'string'))
+  const stylesOk =
+    Array.isArray(styles) &&
+    styles.every(
+      (style) =>
+        typeof style?.id === 'string' &&
+        typeof style?.name === 'string' &&
+        typeof style?.note === 'string',
+    )
+
+  if (
+    typeof count !== 'number' ||
+    !Number.isInteger(count) ||
+    count < 0 ||
+    !poolOk ||
+    !stylesOk
+  ) {
+    throw new Error('Class creation rules are unavailable. Refresh the reference seed.')
+  }
+
+  return {
+    skillChoices: { count, from: from === 'any' ? 'any' : [...from] },
+    fightingStyles: styles.map((style) => ({ id: style.id, name: style.name, note: style.note })),
+  }
+}
+
 export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): CharacterClass {
-  const choices = CLASS_SKILL_CHOICES[classKey(record.key)] ?? { count: 2, from: 'any' as const }
+  const rules = creationRules(record)
   const primaryAbilityText = coreTraitRow(record.data.features, 'Primary Ability').trim()
 
   return {
@@ -170,13 +205,14 @@ export function toClass(record: Envelope<RawClass>, equipment: Equipment[]): Cha
     primaryAbilities: abilitiesNamed(primaryAbilityText),
     savingThrows: savingThrows(record.data),
     fightingStyleAt: featureLevel(record.data.features, 'Fighting Style'),
+    fightingStyles: rules.fightingStyles,
     features: levelOneFeatures(record.data.features),
     proficiencies: {
       armor: coreTraitRow(record.data.features, 'Armor Training'),
       weapons: coreTraitRow(record.data.features, 'Weapon Proficiencies'),
       skills: coreTraitRow(record.data.features, 'Skill Proficiencies'),
     },
-    skillChoices: choices,
+    skillChoices: rules.skillChoices,
     expertiseAt: featureLevel(record.data.features, 'Expertise'),
     casterType: record.data.caster_type ?? 'NONE',
     spellCounts: {

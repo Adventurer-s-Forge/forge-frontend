@@ -1,5 +1,22 @@
-import { seedCatalog, type EquipmentPick, type Skill, type Source } from "../data/catalog";
-import { CLASS_SKILL_CHOICES } from "../data/classRules";
+import { seedCatalog, type EquipmentPick, type FightingStyle, type Skill, type Source } from "../data/catalog";
+
+/** Local copies of the class-choice data these tests need. The production table now lives in
+ * the seed's `creation_options.json` and reaches the client on the class envelope, so a test
+ * that wants a skill pool or a style list spells out its own. */
+export const TEST_SKILL_CHOICES: Record<string, { count: number; from: string[] | 'any' }> = {
+  fighter: { count: 2, from: ['acrobatics', 'animal-handling', 'athletics', 'history', 'insight', 'intimidation', 'perception', 'survival'] },
+  wizard: { count: 2, from: ['arcana', 'history', 'insight', 'investigation', 'medicine', 'religion'] },
+  rogue: { count: 4, from: ['acrobatics', 'athletics', 'deception', 'insight', 'intimidation', 'investigation', 'perception', 'performance', 'persuasion', 'sleight-of-hand', 'stealth'] },
+}
+
+export const TEST_FIGHTING_STYLES: FightingStyle[] = [
+  { id: 'archery', name: 'Archery', note: '+2 to attack rolls with ranged weapons.' },
+  { id: 'defense', name: 'Defense', note: '+1 AC while wearing armor.' },
+  { id: 'dueling', name: 'Dueling', note: '+2 damage with a single one-handed weapon.' },
+  { id: 'great-weapon-fighting', name: 'Great Weapon Fighting', note: 'Reroll low damage dice with two-handed weapons.' },
+  { id: 'protection', name: 'Protection', note: 'Impose disadvantage on an attack against a nearby ally.' },
+  { id: 'two-weapon-fighting', name: 'Two-Weapon Fighting', note: 'Add your ability modifier to the second attack.' },
+]
 
 export const TEST_SKILLS: readonly Skill[] = [
   { id: 'acrobatics', name: 'Acrobatics', ability: 'DEX'},
@@ -35,7 +52,7 @@ export function seedTestCatalog(): void {
     ],
     classes: [
       { id: 'srd-2024_fighter', name: 'Fighter', hitDie: 10, primaryAbilities: ['STR', 'DEX'], savingThrows: ['STR', 'CON'],
-        skillChoices: CLASS_SKILL_CHOICES.fighter,
+        skillChoices: TEST_SKILL_CHOICES.fighter, fightingStyles: TEST_FIGHTING_STYLES,
         casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
       startingEquipment: [
         { key: 'A', label: 'Chain mail, Longsword, and 5 GP',
@@ -53,12 +70,12 @@ export function seedTestCatalog(): void {
           skills: 'Choose 2: Acrobatics, Athletics, History, Insight, Intimidation, Persuasion, Perception, or Survival',
         }, },
       { id: 'srd-2024_wizard', name: 'Wizard', hitDie: 6, primaryAbilities: ['INT'], savingThrows: ['INT', 'WIS'],
-        skillChoices: CLASS_SKILL_CHOICES.wizard, casterType: 'FULL', 
+        skillChoices: TEST_SKILL_CHOICES.wizard, fightingStyles: [], casterType: 'FULL', 
         spellCounts: { cantrips: 1, prepared: 1 }, spellSlots: 2, startingEquipment: [], expertiseAt: null,
         fightingStyleAt: null, features: [], primaryAbilityText: 'Intelligence', 
         proficiencies: { armor: '', weapons: '', skills: '' } },
       { id: 'srd-2024_rogue', name: 'Rogue', hitDie: 8, primaryAbilities: ['DEX'],
-        savingThrows: ['DEX', 'INT'], skillChoices: CLASS_SKILL_CHOICES.rogue,
+        savingThrows: ['DEX', 'INT'], skillChoices: TEST_SKILL_CHOICES.rogue, fightingStyles: [],
         casterType: 'NONE', spellCounts: { cantrips: 0, prepared: 0 }, spellSlots: 0,
         startingEquipment: [], expertiseAt: 1, fightingStyleAt: null, features: [], primaryAbilityText: 'Dexterity',
         proficiencies: { armor: '', weapons: '', skills: '' } },

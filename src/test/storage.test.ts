@@ -40,10 +40,12 @@ describe('saving a character (US-19)', () => {
     expect(Object.keys(payload).sort()).toEqual([
       'abilities',
       'backgroundId',
+      'classFeatChoices',
       'classId',
       'completedSteps',
       'equipmentChoice',
       'expertiseIds',
+      'featIds',
       'fightingStyleId',
       'id',
       'level',
@@ -56,6 +58,21 @@ describe('saving a character (US-19)', () => {
       'toolChoiceId',
       'walletCp',
     ])
+  })
+
+  it('carries the feat fields the service re-derives on save', async () => {
+    api.post.mockResolvedValue(named())
+
+    await characterStore.create(
+      named({
+        featIds: ['srd-2024_magic-initiate'],
+        classFeatChoices: [{ level: 4, featId: 'srd-2024_grappler' }],
+      }),
+    )
+
+    const [, payload] = api.post.mock.calls[0] as [string, Record<string, unknown>]
+    expect(payload.featIds).toEqual(['srd-2024_magic-initiate'])
+    expect(payload.classFeatChoices).toEqual([{ level: 4, featId: 'srd-2024_grappler' }])
   })
 
   it('leaves the timestamps to the service rather than sending stale ones', async () => {
@@ -105,6 +122,57 @@ describe('saving a character (US-19)', () => {
     await characterStore.remove('c-9')
 
     expect(api.del).toHaveBeenCalledWith('characters/c-9')
+  })
+})
+
+describe('generating a character (US-39)', () => {
+  const generated = {
+    id: 'g-1',
+    name: 'Random Dwarf Fighter',
+    level: 1,
+    classId: 'srd-2024_fighter',
+    featIds: ['srd-2024_savage-attacker'],
+    classFeatChoices: [],
+    proficientSkillIds: ['perception', 'survival'],
+    equipmentChoice: { class: pick('A', 400), background: pick('B', 5000) },
+    walletCp: 5400,
+    completedSteps: ['name', 'race', 'class', 'background', 'equipment', 'attributes', 'skills'],
+  }
+
+  it('asks the generation endpoint and writes nothing else', async () => {
+    api.post.mockResolvedValue(generated)
+
+    await characterStore.randomize()
+
+    expect(api.post).toHaveBeenCalledTimes(1)
+    const [path, body] = api.post.mock.calls[0] as [string, unknown]
+    expect(path).toBe('characters/randomize')
+    expect(body).toEqual({})
+    expect(api.put).not.toHaveBeenCalled()
+  })
+
+  it('keeps the returned UUID and every selection, filling only client-local timestamps', async () => {
+    api.post.mockResolvedValue(generated)
+
+    const character = await characterStore.randomize()
+
+    expect(character.id).toBe('g-1')
+    expect(character.name).toBe('Random Dwarf Fighter')
+    expect(character.classId).toBe('srd-2024_fighter')
+    expect(character.proficientSkillIds).toEqual(['perception', 'survival'])
+    expect(character.equipmentChoice).toEqual(generated.equipmentChoice)
+    expect(character.walletCp).toBe(5400)
+    expect(character.featIds).toEqual(['srd-2024_savage-attacker'])
+    expect(character.classFeatChoices).toEqual([])
+    expect(character.completedSteps).toEqual(generated.completedSteps)
+    expect(character.createdAt).toBe(character.updatedAt)
+    expect(Number.isNaN(Date.parse(character.createdAt))).toBe(false)
+  })
+
+  it('reports an empty generation response instead of returning undefined', async () => {
+    api.post.mockResolvedValue(null)
+
+    await expect(characterStore.randomize()).rejects.toThrow(/did not return a randomized character/)
   })
 })
 

@@ -156,6 +156,50 @@ describe('an authenticated request (FR-3)', () => {
   })
 })
 
+describe('generating a character (US-39)', () => {
+  beforeEach(signIn)
+
+  it('posts an empty body to the generation path with the bearer token', async () => {
+    const fetchMock = stub(200, { id: 'g-1' })
+
+    await authed.post('characters/randomize', {})
+
+    expect(fetchMock.mock.calls[0][0]).toBe(`${BASE}/characters/randomize`)
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('POST')
+    expect(fetchMock.mock.calls[0][1]?.body).toBe('{}')
+    expect(headersOf(fetchMock)).toMatchObject({ Authorization: 'Bearer tok-1' })
+  })
+
+  it('shows the wording the service supplies when generation is unavailable', async () => {
+    stub(503, { detail: 'Random character generation is unavailable because reference data is incomplete.' })
+
+    const error = await authed.post('characters/randomize', {}).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).status).toBe(503)
+    expect((error as ApiError).message).toBe(
+      'Random character generation is unavailable because reference data is incomplete.',
+    )
+  })
+
+  it('falls back to its own wording when generation answers 503 without a detail', async () => {
+    stub(503)
+
+    await expect(authed.post('characters/randomize', {})).rejects.toThrow(
+      'Random character generation is unavailable. Please try again later.',
+    )
+  })
+
+  it('leaves every other path on the generic message', async () => {
+    stub(503)
+
+    const error = await authed.get('characters').catch((e: unknown) => e)
+
+    expect((error as ApiError).message).toBe('Request to characters failed (503).')
+    expect((error as ApiError).status).toBe(503)
+  })
+})
+
 describe('the messages a failed request carries', () => {
   beforeEach(signIn)
 

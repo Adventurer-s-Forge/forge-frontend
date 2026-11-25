@@ -1,4 +1,5 @@
 import { auth } from "./firebase"
+import type { FightingStyle } from "../data/catalog"
 
 async function authHeaders(): Promise<Record<string, string>> {
   const user = auth.currentUser
@@ -7,6 +8,15 @@ async function authHeaders(): Promise<Record<string, string>> {
   const token = await user.getIdToken()
 
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+}
+
+/** The one path whose 503 carries wording meant for the player (US-39). */
+const RANDOMIZE_PATH = 'characters/randomize'
+
+/** The service's own explanation when it sends one as a string. */
+async function readDetail(response: Response): Promise<string | null> {
+  const body = (await response.json().catch(() => null)) as { detail?: unknown } | null
+  return typeof body?.detail === 'string' ? body.detail : null
 }
 
 async function toApiError(response:Response, path: string): Promise<ApiError> {
@@ -20,9 +30,13 @@ async function toApiError(response:Response, path: string): Promise<ApiError> {
     return new ApiError('That character has already been saved.', 409)
   }
   if (response.status === 422) {
-    const body = (await response.json().catch(() => null)) as { detail?: unknown } | null
-    const detail = typeof body?.detail === 'string' ? body.detail : null
-    return new ApiError(detail ?? 'The server rejected that character', 422)
+    return new ApiError((await readDetail(response)) ?? 'The server rejected that character', 422)
+  }
+  if (response.status === 503 && path === RANDOMIZE_PATH) {
+    return new ApiError(
+      (await readDetail(response)) ?? 'Random character generation is unavailable. Please try again later.',
+      503,
+    )
   }
   return new ApiError(`Request to ${path} failed (${response.status}).`, response.status)
 }
@@ -66,6 +80,16 @@ export type Envelope<T> = {
   name: string
   document: string
   data: T
+  /** Creator metadata the seed attaches to a base-class envelope. Absent on every other
+   * record type, and on a class envelope written by a seed older than this client. */
+  creationRules?: ClassCreationRules
+}
+
+/** Skill pool + level-one fighting styles, published by the seed with the class itself
+ * so the client and the service draw the creator contract from one source. */
+export type ClassCreationRules = {
+  skillChoices: { count: number; from: string[] | 'any' }
+  fightingStyles: FightingStyle[]
 }
 
 export type Resource = 'races' | 'classes' | 'backgrounds' | 'equipment' | 'spells' | 'skills'

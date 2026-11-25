@@ -16,6 +16,8 @@ function toPayload(character: Character) {
     proficientSkillIds: character.proficientSkillIds,
     expertiseIds: character.expertiseIds,
     spellIds: character.spellIds,
+    featIds: character.featIds,
+    classFeatChoices: character.classFeatChoices,
     equipmentChoice: character.equipmentChoice,
     walletCp: character.walletCp,
     purchasedItemIds: character.purchasedItemIds,
@@ -63,6 +65,9 @@ function requireName(character: Character): void {
 
 }
 
+/** What generation answers with: the record before the server owns it. */
+type UnsavedCharacter = Omit<Character, 'createdAt' | 'updatedAt'>
+
 export const characterStore = {
   async list(): Promise<Character[]> {
     return ((await authed.get<Character[]>('characters')) ?? []).map(fromResponse)
@@ -73,6 +78,17 @@ export const characterStore = {
     const created = await authed.post<Character>('characters', toPayload(character))
     if (!created) throw new Error('The server did not return the created character.')
     return created
+  },
+
+  /** Ask the service for a complete character it has not stored (US-39). The preview keeps
+   * the returned UUID and every selection; only the client-local timestamps are filled in,
+   * because the record is not saved yet. */
+  async randomize(): Promise<Character> {
+    const generated = await authed.post<UnsavedCharacter>('characters/randomize', {})
+    if (!generated) throw new Error('The server did not return a randomized character.')
+
+    const now = new Date().toISOString()
+    return fromResponse({ ...generated, createdAt: now, updatedAt: now })
   },
 
   async update(character: Character): Promise<Character> {
@@ -97,5 +113,7 @@ function fromResponse(raw: Character): Character {
     abilities: { ...createDraft().abilities, ...raw.abilities },
     ...migrateEquipment(raw),
     expertiseIds: raw.expertiseIds ?? [],
+    featIds: raw.featIds ?? [],
+    classFeatChoices: raw.classFeatChoices ?? [],
   }
 }

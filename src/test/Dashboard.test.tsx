@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FirebaseError } from "firebase/app";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -54,6 +54,11 @@ vi.mock('../characters/useCharacters', () => ({
     remove: chars.remove,
   }),
 }))
+
+/** Generation is a store call, not a hook one: it must not touch the roster. */
+const store = vi.hoisted(() => ({ randomize: vi.fn() }))
+
+vi.mock('../characters/storage', () => ({ characterStore: { randomize: store.randomize } }))
 
 describe('Dashboard', () => {
   beforeEach(() => {
@@ -278,5 +283,171 @@ describe('opening the character sheet (US-32, FR-13)', () => {
     session.user = signedInAs({ displayName: null, providerData: [{ displayName: null }] })
 
     expect(playerName(await openSheet())).toBe('')
+  })
+})
+
+describe('generating a random character (US-39, FR-14)', () => {
+  beforeAll(seedTestCatalog)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    chars.characters = []
+  })
+
+  /** A generated record as the service hands one back: complete, unsaved, own UUID. */
+  const generated = (overrides: Partial<Character> = {}): Character => ({
+    ...finished(),
+    id: 'g-1',
+    name: 'Random Dwarf Fighter',
+    ...overrides,
+  })
+
+  function deferred<T>() {
+    let settle: (value: T) => void = () => {}
+    const promise = new Promise<T>((resolve) => { settle = resolve })
+    return { promise, resolve: (value: T) => settle(value) }
+  }
+
+  const show = () => render(<MemoryRouter><Dashboard /></MemoryRouter>)
+  const dialog = () => screen.queryByRole('dialog', { name: 'Random Dwarf Fighter' })
+
+  async function review(): Promise<HTMLElement> {
+    await userEvent.click(screen.getByRole('button', { name: 'Randomize' }))
+    return await screen.findByRole('dialog', { name: 'Random Dwarf Fighter' })
+  }
+
+  it('generates once, shows the review unsaved, and writes nothing', async () => {
+    const pending = deferred<Character>()
+    store.randomize.mockReturnValue(pending.promise)
+    show()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Randomize' }))
+
+    expect(screen.getByRole('button', { name: 'Randomizing...' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'New character' })).toBeDisabled()
+    expect(store.randomize).toHaveBeenCalledTimes(1)
+
+    pending.resolve(generated())
+
+    const sheet = await screen.findByRole('dialog', { name: 'Random Dwarf Fighter' })
+    expect(within(sheet).getByText('Not saved')).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Keep character' })).toBeInTheDocument()
+    expect(chars.save).not.toHaveBeenCalled()
+    expect(chars.remove).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Randomize' })).toBeEnabled()
+    expect(screen.getByText('No characters yet')).toBeInTheDocument()
+  })
+
+  it('ignores a second activation while a generation is in flight', async () => {
+    store.randomize.mockReturnValue(new Promise(() => {}))
+    show()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Randomize' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Randomizing...' }))
+
+    expect(store.randomize).toHaveBeenCalledTimes(1)
+  })
+
+  it('discarding a preview saves nothing', async () => {
+    store.randomize.mockResolvedValue(generated())
+    show()
+
+    const sheet = await review()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Discard' }))
+
+    expect(dialog()).not.toBeInTheDocument()
+    expect(chars.save).not.toHaveBeenCalled()
+    expect(chars.remove).not.toHaveBeenCalled()
+  })
+
+  it('closing, escaping or clicking away saves nothing', async () => {
+    store.randomize.mockResolvedValue(generated())
+    show()
+
+    await userEvent.click(within(await review()).getByRole('button', { name: 'Close' }))
+    expect(dialog()).not.toBeInTheDocument()
+
+    const escaped = await review()
+    expect(fireEvent(escaped, new Event('cancel', { cancelable: true }))).toBe(false)
+    expect(dialog()).not.toBeInTheDocument()
+
+    fireEvent.click(await review())
+    expect(dialog()).not.toBeInTheDocument()
+
+    expect(chars.save).not.toHaveBeenCalled()
+  })
+
+  it('keeps the exact candidate once, adds the card and announces success', async () => {
+    const candidate = generated()
+    store.randomize.mockResolvedValue(candidate)
+    chars.save.mockImplementation(async (character: Character) => {
+      chars.characters = [...chars.characters, character]
+      return character
+    })
+    show()
+
+    const sheet = await review()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Keep character' }))
+
+    await waitFor(() => expect(chars.save).toHaveBeenCalledTimes(1))
+    expect(chars.save.mock.calls[0][0]).toEqual(candidate)
+    await waitFor(() => expect(dialog()).not.toBeInTheDocument())
+    expect(screen.getByRole('status')).toHaveTextContent('Character Saved')
+    expect(screen.getByRole('button', { name: /^Random Dwarf Fighter/ })).toBeInTheDocument()
+    expect(screen.queryByText('No characters yet')).not.toBeInTheDocument()
+  })
+
+  it('blocks every dismissal while a keep is in flight', async () => {
+    store.randomize.mockResolvedValue(generated())
+    chars.save.mockReturnValue(new Promise(() => {}))
+    show()
+
+    const sheet = await review()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Keep character' }))
+
+    expect(within(sheet).getByRole('button', { name: 'Keeping...' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Discard' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Close' })).toBeDisabled()
+
+    fireEvent(sheet, new Event('cancel', { cancelable: true }))
+    fireEvent.click(sheet)
+
+    expect(dialog()).toBeInTheDocument()
+  })
+
+  it('surfaces a failed generation and restores the controls', async () => {
+    store.randomize.mockRejectedValue(
+      new Error('Random character generation is unavailable because reference data is incomplete.'),
+    )
+    show()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Randomize' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Random character generation is unavailable')
+    expect(screen.getByRole('button', { name: 'Randomize' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'New character' })).toBeEnabled()
+    expect(dialog()).not.toBeInTheDocument()
+  })
+
+  it('keeps the candidate on screen when a keep fails, and retries', async () => {
+    const candidate = generated()
+    store.randomize.mockResolvedValue(candidate)
+    chars.save.mockRejectedValueOnce(new Error('That character has already been saved.'))
+    show()
+
+    const sheet = await review()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Keep character' }))
+
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('already been saved')
+    expect(dialog()).toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Keep character' })).toBeEnabled()
+    expect(within(sheet).getByRole('heading', { name: 'Random Dwarf Fighter' })).toBeInTheDocument()
+
+    chars.save.mockResolvedValue(candidate)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Keep character' }))
+
+    await waitFor(() => expect(chars.save).toHaveBeenCalledTimes(2))
+    expect(chars.save.mock.calls[1][0]).toEqual(candidate)
+    await waitFor(() => expect(dialog()).not.toBeInTheDocument())
   })
 })

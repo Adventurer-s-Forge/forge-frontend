@@ -8,7 +8,7 @@ import { Markdown } from "../components/Markdown";
 import { toClass } from "../data/normalize";
 import type { RawClass } from "../data/normalize";
 import type { Envelope } from "../lib/api";
-import { seedTestCatalog } from "./fixtures";
+import { seedTestCatalog, TEST_FIGHTING_STYLES, TEST_SKILL_CHOICES } from "./fixtures";
 
 beforeAll(seedTestCatalog)
 
@@ -211,4 +211,5 @@ const classRecord = (
   name: 'Fighter',
   document: 'srd-2024',
   data: { hit_dice: 'd10', saving_throws, subclass_of: null, caster_type: null, features },
+  creationRules: { skillChoices: TEST_SKILL_CHOICES.fighter, fightingStyles: TEST_FIGHTING_STYLES },
 })

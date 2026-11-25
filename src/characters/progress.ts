@@ -333,6 +333,8 @@ export function duplicateCharacter(c: Character): Character {
     proficientSkillIds: [...c.proficientSkillIds],
     expertiseIds: [...c.expertiseIds],
     spellIds: [...c.spellIds],
+    featIds: [...c.featIds],
+    classFeatChoices: c.classFeatChoices.map((choice) => ({ ...choice })),
     purchasedItemIds: [...c.purchasedItemIds],
     completedSteps: [...c.completedSteps],
     createdAt: now,
