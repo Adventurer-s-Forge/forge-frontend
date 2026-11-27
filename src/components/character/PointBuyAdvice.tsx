@@ -1,22 +1,41 @@
 import { FiChevronDown } from "react-icons/fi";
-import type { Ability, AbilityScores, Character } from "../../characters/character";
+import type { Ability, Character, CharacterTypePreset } from "../../characters/character";
 import { ABILITIES, POINT_BUY_BUDGET, POINT_BUY_COST, POINT_BUY_MIN, abilityModifier, formatModifier } from "../../characters/abilities";
-import { cheaperScore, classWeights, recommend } from "../../characters/optimizer";
+import { adviceWeights, cheaperScore, recommend } from "../../characters/optimizer";
 import { getBg, getClass, type CharacterClass } from "../../data/catalog";
 import "./PointBuyAdvice.css"
 
 /** " + 1" when the ability has a bonus, nothing when it has none, so "CON 14 + 1" and "INT 13" read alike. */
 const plus = (bonus: number) => (bonus ? ` + ${bonus}` : '')
 
-/** Why the recommendation buys this score: how much the class cares about it, then what its bonus does. */
-function reason(cls: CharacterClass, ability: Ability, score: number, bonus: number): string {
-  const role = cls.primaryAbilities.includes(ability)
-    ? `Primary ability for a ${cls.name}.`
-    : cls.savingThrows.includes(ability)
-      ? `${cls.name} saving throw.`
-      : ability === 'CON'
-        ? 'Constitution adds hit points for every class.'
-        : `Lower priority for a ${cls.name}.`
+/** How each preset weighs the 6 abilities, in words. The numbers live in PRESET_WEIGHTS in optimizer.ts */
+const PRESET_NOTES: Record<CharacterTypePreset, string> = {
+  Tank: 'Strength and Constitution 3, Dexterity 2, the rest 1.',
+  Striker: 'Primary ability 3, Dexterity and Constitution 2, the rest 1.',
+  Caster: 'Primary ability 3, Constitution and Wisdom 2, the rest 1.',
+  'Skill-Focused': 'Dexterity 3, Intelligence, Wisdom and Charisma 2, the rest 1.',
+}
+
+/** Why the recommendation buys this score: how much the class (or the preset) cares about it, then what its bonus does. */
+function reason(
+  cls: CharacterClass,
+  preset: CharacterTypePreset | null,
+  weight: number,
+  ability: Ability,
+  score: number,
+  bonus: number,
+): string {
+  const role = preset
+    ? weight === 3 ? `Top priority for the ${preset} preset.`
+      : weight === 2 ? `Next priority for the ${preset} preset.`
+      : `Lower priority for the ${preset} preset.`
+    : cls.primaryAbilities.includes(ability)
+      ? `Primary ability for a ${cls.name}.`
+      : cls.savingThrows.includes(ability)
+        ? `${cls.name} saving throw.`
+        : ability === 'CON'
+          ? 'Constitution adds hit points for every class.'
+          : `Lower priority for a ${cls.name}.`
 
   const effect =
     bonus === 2 ? 'Takes the +2.'
@@ -28,21 +47,12 @@ function reason(cls: CharacterClass, ability: Ability, score: number, bonus: num
   return effect ? `${role} ${effect}` : role
 }
 
-/** This is used so the function for retrieving the recommended ability scores can be passed from steps.tsx into PointBuyAdvice.tsx, as well as the character [4] [5] [6]. */
-interface Props {
-  character: Character
-  retrieveRecommendedAbilityScores: (recommendedScoresForAutoAssign: AbilityScores | null) => void
-}
-
 /**
  * US-41: flags point-buy scores that waste points, and shows the best spread for the class and background.
  * A native <details>, so it folds without any state, and starts open so the flags are seen. Text only --
  * it reads the character and never changes it.
- * 
- * US-42: The retrieveRecommendedAbilityScores function from steps.tsx is passed into PointBuyAdvice.tsx,
- * so the recommended ability scores can be sent back to steps.tsx as part of autommatically updating the character with the recommended ability scores [4] [5] [6].
  */
-export function PointBuyAdvice({character, retrieveRecommendedAbilityScores} : Props) {
+export function PointBuyAdvice({ character }: { character: Character }) {
   const cls = getClass(character.classId)
   const background = getBg(character.backgroundId)
   if (!cls || !background) return null
@@ -54,10 +64,9 @@ export function PointBuyAdvice({character, retrieveRecommendedAbilityScores} : P
     const cheaper = cheaperScore(score, bonus)
     return cheaper === null ? [] : [{ ability, score, bonus, cheaper }]
   })
-  const rec = recommend(classWeights(cls), background.abilityOptions)
-
-  /** Send the recommended ability scores back to steps.tsx so they can be automatically set when the user clicks the pertinent button [4] [5] [6]. */
-  retrieveRecommendedAbilityScores(rec ? rec.base : null)
+  const preset = character.characterTypePresetChoice
+  const weights = adviceWeights(cls, preset)
+  const rec = recommend(weights, background.abilityOptions)
 
   const count =
     wasted.length === 0
@@ -90,7 +99,7 @@ export function PointBuyAdvice({character, retrieveRecommendedAbilityScores} : P
         {rec && (
           <>
             <p className="step-hint">
-              Recommended for a {cls.name} with the {background.name} background, using {rec.spent} of {POINT_BUY_BUDGET} points.
+              Recommended for a {cls.name} with the {background.name} background{preset && <>, with the {preset} preset</>}, using {rec.spent} of {POINT_BUY_BUDGET} points.
               A suggestion only: nothing here changes your scores.
             </p>
             <table className="ability-table pb-table" aria-label="Recommended scores">
@@ -115,13 +124,17 @@ export function PointBuyAdvice({character, retrieveRecommendedAbilityScores} : P
                       <td className="is-origin">{bonus ? `+${bonus}` : '\u2014'}</td>
                       <td className="is-total">{score + bonus}</td>
                       <td className="is-mod">{formatModifier(abilityModifier(score + bonus))}</td>
-                      <td className="pb-why">{reason(cls, ability, score, bonus)}</td>
+                      <td className="pb-why">{reason(cls, preset, weights[ability], ability, score, bonus)}</td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
-            <p className="step-hint">Weighted for the class: primary ability 3, saving throws and Constitution 2, the rest 1.</p>
+            <p className="step-hint">
+              {preset
+                ? `Weighted for the ${preset} preset: ${PRESET_NOTES[preset]} A preset is a judgement call, not a rule.`
+                : 'Weighted for the class: primary ability 3, saving throws and Constitution 2, the rest 1.'}
+            </p>
           </>
         )}
       </div>

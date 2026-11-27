@@ -20,6 +20,9 @@ export const STEPS: readonly { id: StepId; label: string }[] = [
 /** A feat picked from a class opportunity at a level; level 1 grants none. */
 export type ClassFeatChoice = { level: number; featId: string }
 
+export const CHARACTER_TYPE_PRESETS = ['Tank', 'Striker', 'Caster', 'Skill-Focused'] as const
+export type CharacterTypePreset = (typeof CHARACTER_TYPE_PRESETS)[number]
+
 export type Character = {
   id: string
   name: string
@@ -45,7 +48,7 @@ export type Character = {
   equipmentChoice: { class: EquipmentPick | null; background: EquipmentPick | null }
   purchasedItemIds: string[]
   toolChoiceId: string | null
-  characterTypePresetChoice: string | null
+  characterTypePresetChoice: CharacterTypePreset | null
   walletCp: number
   completedSteps: StepId[]
   createdAt: string

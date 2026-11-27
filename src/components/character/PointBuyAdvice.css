@@ -52,7 +52,7 @@
   transition: transform 0.15s ease;
 }
 
-.pb-advice[open] .pb-chevron, .auto-assign-scores[open] .auto-assign-scores-chevron {
+.pb-advice[open] .pb-chevron, .auto-assign-scores-advice[open] .auto-assign-scores-chevron {
   transform: rotate(180deg);
 }
 

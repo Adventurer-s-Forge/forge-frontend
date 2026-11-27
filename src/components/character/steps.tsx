@@ -54,6 +54,7 @@ import { ConfirmDelete } from "../ConfirmDelete";
 import { formatCoins } from "../../characters/currency";
 import { Markdown } from "../Markdown";
 import { PointBuyAdvice } from "./PointBuyAdvice";
+import { adviceWeights, presetOptions, recommend } from "../../characters/optimizer";
 
 export type StepProps = {
   character: Character
@@ -681,33 +682,16 @@ export function AttributeStep({ character, onChange }: StepProps) {
   const d = derived(character)
   const originSpent = ABILITIES.reduce((sum, a) => sum + (originBonuses[a] ?? 0), 0)
   const cls = getClass(character.classId)
-  const options = spellOptions(cls, background)
-  const characterTypePresets = options.length === 0 ? ["Tank", "Striker", "Skill-Focused"] : ["Tank", "Striker", "Caster", "Skill-Focused"]
+  const presets = presetOptions(cls)
+  const rec = cls && background
+    ? recommend(adviceWeights(cls, character.characterTypePresetChoice), background.abilityOptions)
+    : null
 
-  /** Use the state and the retrieveRecommendedAbilityScores function to retrieve the recommended ability scores from PointBuyAdvice.tsx [4] [5] [6]. */
-  const [recommendedScoresForAutoAssign, setRecommendedScoresForAutoAssign] = useState<AbilityScores | null>()
-  const retrieveRecommendedAbilityScores = (recommendedAbilityScoresFromOptimizer: AbilityScores | null): void => {
-    setRecommendedScoresForAutoAssign(recommendedAbilityScoresFromOptimizer)
-  }
-
-  /**
-   * Update the character's ability scores with the ones recommended by the ability score optimizer.
-   * Use the recommended ability scores that were retrieved from PointBuyAdvice.tsx [4] [5] [6].
-   * 
-   * @param character The user's character to update the ability scores for
-   * @param abilities The list of available abilities: STR, DEX, CON, INT, WIS, and CHA
-   * @returns The updated character
-   */
-  const automaticallyAssignRecommendedAbiityScores = (character: Character, abilities: readonly Ability[]): Character => {
-    const recommendedAbilityScores = recommendedScoresForAutoAssign
-    if (recommendedAbilityScores)
-    {
-      for (let i=0; i<abilities.length; i++)
-      {
-        character = setAbilityScore(character, abilities[i], recommendedAbilityScores[abilities[i]])
-      }
-    }
-    return character
+  /** US-42: writes the recommended scores and the bonus placement together; the spread is only optimal with both. */
+  const assignRecommended = () => {
+    if (!rec) return
+    const scored = ABILITIES.reduce((c, ability) => setAbilityScore(c, ability, rec.base[ability]), character)
+    onChange(setOriginBonuses(scored, rec.bonuses))
   }
 
   return (
@@ -761,19 +745,17 @@ export function AttributeStep({ character, onChange }: StepProps) {
               id="character-type-preset-choice"
               className="choice-select"
               value={character.characterTypePresetChoice ?? ''}
-              onChange={(e) => onChange(setCharacterTypePresetChoice(character, e.target.value || null))}
+              onChange={(e) => onChange(setCharacterTypePresetChoice(character, presets.find((p) => p === e.target.value) ?? null))}
             >
               <option value="">No Character-Type Preset</option>
-              {characterTypePresets.map((characterType) => (
+              {presets.map((characterType) => (
                 <option value={characterType} key={characterType}>{characterType}</option>
               ))}
             </select>
             <p className="choice-note">Choosing a Character-Type Preset will adjust the Point-Buy Advice to also account for the chosen preset, as well as your Class and Background. If you do not want to use this, select the "No Character-Type Preset" option.</p>
-            {
-              options.length === 0 && (
-                <p className="choice-note">The Caster preset has been removed since this character cannot cast spells.</p>
-              )
-            }
+            {cls?.casterType === 'NONE' && (
+              <p className="choice-note">Caster isn't offered: a {cls.name} doesn't cast spells at level 1.</p>
+            )}
           </div>
         )}
 
@@ -873,7 +855,7 @@ export function AttributeStep({ character, onChange }: StepProps) {
 
       <aside className="derived-panel">
         {/* Pass in both the character and the function to retrieve the recommended ability cores from PointBuyAdvice.tsx [4] [5] [6]. */}
-        {method === 'pointbuy' && <PointBuyAdvice character={character} retrieveRecommendedAbilityScores={retrieveRecommendedAbilityScores} />}
+        {method === 'pointbuy' && <PointBuyAdvice character={character} />}
 
         {method === 'pointbuy' && (
           <details className="auto-assign-scores-advice" aria-labelledby="auto-assign-scores-title" open>
@@ -889,18 +871,14 @@ export function AttributeStep({ character, onChange }: StepProps) {
               </p>
 
               <div className="auto-assign-ability-scores-btn">
-                <button
-                  id="zebras"
-                  type="button"
-                  aria-label="automatically-assign-recommended-ability-scores"
-                  className="btn btn-primary"
-                  onClick={() => onChange(automaticallyAssignRecommendedAbiityScores(character, ABILITIES))}
-                >
+                <button type="button" className="btn btn-primary" disabled={!rec} onClick={assignRecommended}>
                   Automatically Assign Recommended Ability Scores
                 </button>
               </div>
 
-              <p className="auto-assign-ablity-scores-warning">This will <strong>overwrite</strong> your current ability scores!</p>
+              <p className="auto-assign-ability-scores-warning">
+                This will <strong>overwrite</strong> your current ability scores and background bonuses!
+              </p>
             </div>
           </details>
         )}

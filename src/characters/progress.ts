@@ -1,9 +1,10 @@
 import { STEPS } from './character'
-import type { Ability, AbilityMethod, AbilityScores, Character, StepId } from './character'
+import type { Ability, AbilityMethod, AbilityScores, Character, CharacterTypePreset, StepId } from './character'
 import { ABILITIES, ABILITY_CAP, finalScores, originSpreadValid, POINT_BUY_BUDGET, POINT_BUY_MIN, pointBuySpent, STD_ARR } from './abilities'
 import { classSkillOptions, expertiseCounts, getBg, getClass, getRace, spellBudget, spellOptions, type Size } from '../data/catalog'
 import { purseCp, spentCp } from '../components/character/sheets'
 import { getEquipment, type EquipmentOption, type EquipmentPick } from '../data/catalog'
+import { presetOptions } from './optimizer'
 
 function sameValues(a: readonly number[], b: readonly number[]): boolean {
   if (a.length !== b.length) return false
@@ -22,6 +23,7 @@ function attributesValid(c: Character): boolean {
   const { method, base, rolled, originBonuses } = c.abilities
   const scores = ABILITIES.map((ability) => base[ability])
   if (!method || scores.some((score) => score === undefined)) return false
+  if (!presetLegal(c)) return false
   const assigned = scores as number[]
 
   if (method === 'standard' && !sameValues(assigned, STD_ARR)) return false
@@ -148,6 +150,15 @@ function keepLegalSpells(c: Character): Character {
   return legal.length === c.spellIds.length ? c : { ...c, spellIds: legal }
 }
 
+function presetLegal(c: Character): boolean {
+  const preset = c.characterTypePresetChoice
+  return !preset || (c.abilities.method === 'pointbuy' && presetOptions(getClass(c.classId)).includes(preset))
+}
+
+function keepLegalPreset(c: Character): Character {
+  return presetLegal(c) ? c : { ...c, characterTypePresetChoice: null }
+}
+
 function freezePick(option: EquipmentOption): EquipmentPick {
   return {
     key: option.key,
@@ -168,7 +179,7 @@ function applyPick(c: Character, source: 'class' | 'background', pick: Equipment
 export function setClass(c: Character, classId: string | null): Character {
   if (classId === c.classId) return c
   const next = applyPick({ ...c, classId, fightingStyleId: null }, 'class', null)
-  return keepLegalSpells(keepOfferedSkills(next))
+  return keepLegalPreset(keepLegalSpells(keepOfferedSkills(next)))
 }
 
 export function setBackground(c: Character, backgroundId: string): Character {
@@ -186,7 +197,7 @@ export function setAbilityMethod(c: Character, method: AbilityMethod): Character
   const m = POINT_BUY_MIN
   const base: Partial<AbilityScores> =
     method === 'pointbuy' ? { STR: m, DEX: m, CON: m, INT: m, WIS: m, CHA: m } : {}
-  return { ...c, abilities: { ...c.abilities, method, base, rolled: [] } }
+  return keepLegalPreset({ ...c, abilities: { ...c.abilities, method, base, rolled: [] } })
 }
 
 export function setName(c: Character, name: string): Character {
@@ -305,8 +316,8 @@ export function setToolChoice(c: Character, toolChoiceId: string | null): Charac
   return { ...c, toolChoiceId }
 }
 
-export function setCharacterTypePresetChoice(c: Character, characterTypePresetChoice: string | null): Character {
-  return { ...c, characterTypePresetChoice }
+export function setCharacterTypePresetChoice(c: Character, preset: CharacterTypePreset | null): Character {
+  return keepLegalPreset({ ...c, characterTypePresetChoice: preset })
 }
 
 /** A BG that offers a tool category cannot be left unchosen. */
