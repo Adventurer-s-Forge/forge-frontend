@@ -68,7 +68,7 @@ export type StepProps = {
  */
 function automaticallyAssignRecommendedAbiityScores(character: Character, abilities: readonly Ability[])
 {
-  let recommendedAbilityScores = getRecommendedScoresForAutoAssign()
+  const recommendedAbilityScores = getRecommendedScoresForAutoAssign()
   if (recommendedAbilityScores)
   {
     for (let i=0; i<abilities.length; i++)
@@ -701,7 +701,7 @@ export function AttributeStep({ character, onChange }: StepProps) {
   const originSpent = ABILITIES.reduce((sum, a) => sum + (originBonuses[a] ?? 0), 0)
   const cls = getClass(character.classId)
   const options = spellOptions(cls, background)
-  let characterTypePresets = options.length === 0 ? ["Tank", "Striker", "Skill-Focused"] : ["Tank", "Striker", "Caster", "Skill-Focused"]
+  const characterTypePresets = options.length === 0 ? ["Tank", "Striker", "Skill-Focused"] : ["Tank", "Striker", "Caster", "Skill-Focused"]
 
   return (
     <div className="step step-split">
