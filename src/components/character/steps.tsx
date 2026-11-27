@@ -53,30 +53,11 @@ import { useState } from "react";
 import { ConfirmDelete } from "../ConfirmDelete";
 import { formatCoins } from "../../characters/currency";
 import { Markdown } from "../Markdown";
-import { getRecommendedScoresForAutoAssign, PointBuyAdvice } from "./PointBuyAdvice";
+import { PointBuyAdvice } from "./PointBuyAdvice";
 
 export type StepProps = {
   character: Character
   onChange: (next: Character) => void
-}
-
-/**
- * Update the character's ability scores with the ones recommended by the ability score optimizer.
- * @param character The user's character to update the ability scores for
- * @param abilities The list of available abilities: STR, DEX, CON, INT, WIS, and CHA
- * @returns The updated character
- */
-function automaticallyAssignRecommendedAbiityScores(character: Character, abilities: readonly Ability[])
-{
-  const recommendedAbilityScores = getRecommendedScoresForAutoAssign()
-  if (recommendedAbilityScores)
-  {
-    for (let i=0; i<abilities.length; i++)
-    {
-      character = setAbilityScore(character, abilities[i], recommendedAbilityScores[abilities[i]])
-    }
-  }
-  return character
 }
 
 export function NameStep({ character, onChange }: StepProps) {
@@ -703,6 +684,32 @@ export function AttributeStep({ character, onChange }: StepProps) {
   const options = spellOptions(cls, background)
   const characterTypePresets = options.length === 0 ? ["Tank", "Striker", "Skill-Focused"] : ["Tank", "Striker", "Caster", "Skill-Focused"]
 
+  /** Use the state and the retrieveRecommendedAbilityScores function to retrieve the recommended ability scores from PointBuyAdvice.tsx [4] [5] [6]. */
+  const [recommendedScoresForAutoAssign, setRecommendedScoresForAutoAssign] = useState<AbilityScores | null>()
+  const retrieveRecommendedAbilityScores = (recommendedAbilityScoresFromOptimizer: AbilityScores | null): void => {
+    setRecommendedScoresForAutoAssign(recommendedAbilityScoresFromOptimizer)
+  }
+
+  /**
+   * Update the character's ability scores with the ones recommended by the ability score optimizer.
+   * Use the recommended ability scores that were retrieved from PointBuyAdvice.tsx [4] [5] [6].
+   * 
+   * @param character The user's character to update the ability scores for
+   * @param abilities The list of available abilities: STR, DEX, CON, INT, WIS, and CHA
+   * @returns The updated character
+   */
+  const automaticallyAssignRecommendedAbiityScores = (character: Character, abilities: readonly Ability[]): Character => {
+    const recommendedAbilityScores = recommendedScoresForAutoAssign
+    if (recommendedAbilityScores)
+    {
+      for (let i=0; i<abilities.length; i++)
+      {
+        character = setAbilityScore(character, abilities[i], recommendedAbilityScores[abilities[i]])
+      }
+    }
+    return character
+  }
+
   return (
     <div className="step step-split">
       <div className="step-main">
@@ -865,7 +872,8 @@ export function AttributeStep({ character, onChange }: StepProps) {
       </div>
 
       <aside className="derived-panel">
-        {method === 'pointbuy' && <PointBuyAdvice character={character} />}
+        {/* Pass in both the character and the function to retrieve the recommended ability cores from PointBuyAdvice.tsx [4] [5] [6]. */}
+        {method === 'pointbuy' && <PointBuyAdvice character={character} retrieveRecommendedAbilityScores={retrieveRecommendedAbilityScores} />}
 
         {method === 'pointbuy' && (
           <details className="pb-advice" aria-labelledby="pb-advice-title" open>
