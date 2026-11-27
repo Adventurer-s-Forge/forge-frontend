@@ -876,14 +876,14 @@ export function AttributeStep({ character, onChange }: StepProps) {
         {method === 'pointbuy' && <PointBuyAdvice character={character} retrieveRecommendedAbilityScores={retrieveRecommendedAbilityScores} />}
 
         {method === 'pointbuy' && (
-          <details className="pb-advice" aria-labelledby="pb-advice-title" open>
-            <summary className="pb-summary">
-              <span className="pb-advice-title" id="pb-advice-title">Automatically Set Recommended Ability Scores?</span>
-              <span className={`pb-count`}></span>
-              <FiChevronDown className="pb-chevron" size={16} aria-hidden="true" />
+          <details className="auto-assign-scores-advice" aria-labelledby="auto-assign-scores-title" open>
+            <summary className="auto-assign-scores-summary">
+              <span className="auto-assign-scores-title" id="auto-assign-scores-title">Automatically Set Recommended Ability Scores?</span>
+              <span className={`auto-assign-scores-spacing`}></span>
+              <FiChevronDown className="auto-assign-scores-chevron" size={16} aria-hidden="true" />
             </summary>
 
-            <div className="pb-body">
+            <div className="auto-assign-scores-body">
               <p className="step-hint">
                 Clicking the button below will automatically set your ability scores to the ones recommended in the Point-Buy Advice section.
               </p>

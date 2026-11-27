@@ -40,6 +40,7 @@ describe('saving a character (US-19)', () => {
     expect(Object.keys(payload).sort()).toEqual([
       'abilities',
       'backgroundId',
+      'characterTypePresetChoice',
       'classFeatChoices',
       'classId',
       'completedSteps',
