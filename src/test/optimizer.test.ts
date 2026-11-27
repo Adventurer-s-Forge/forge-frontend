@@ -8,7 +8,17 @@ import {
   POINT_BUY_COST,
   pointBuySpent,
 } from '../characters/abilities'
-import { bonusPlacements, cheaperScore, classWeights, recommend, worthBuying, type Weights } from '../characters/optimizer'
+import {
+  adviceWeights,
+  bonusPlacements,
+  cheaperScore,
+  classWeights,
+  presetOptions,
+  presetWeight,
+  recommend,
+  worthBuying,
+  type Weights,
+} from '../characters/optimizer'
 
 /** The twelve SRD 2024 classes: primary abilities, then saving throws. */
 const CLASSES: Record<string, { primaryAbilities: Ability[]; savingThrows: Ability[] }> = {
@@ -150,5 +160,60 @@ describe('the recommended spread (UT-87)', () => {
 
   it('recommends nothing when the background offers no abilities', () => {
     expect(recommend(classWeights(CLASSES.Wizard), [])).toBeNull()
+  })
+})
+
+/** The SRD 2024 classes with no Spellcasting feature at level 1. */
+const NON_CASTERS = new Set(['Barbarian', 'Fighter', 'Monk', 'Rogue'])
+
+describe('character-type presets (US-42)', () => {
+  it('offers Caster only to a class that casts at level 1', () => {
+    expect(presetOptions({ casterType: 'NONE' })).toEqual(['Tank', 'Striker', 'Skill-Focused'])
+    expect(presetOptions({ casterType: 'FULL' })).toEqual(['Tank', 'Striker', 'Caster', 'Skill-Focused'])
+    expect(presetOptions({ casterType: 'HALF' })).toContain('Caster')
+    expect(presetOptions({ casterType: 'PACT' })).toContain('Caster')
+    expect(presetOptions(undefined)).toEqual([])
+  })
+
+  it('weighs the abilities by the deep dive table, lifting a primary ability only where the preset says to', () => {
+    // Tank and Skill-Focused name every ability they care about; the class's primary ability gets nothing extra.
+    expect(presetWeight(CLASSES.Wizard, 'Tank')).toEqual({ STR: 3, DEX: 2, CON: 3, INT: 1, WIS: 1, CHA: 1 })
+    expect(presetWeight(CLASSES.Wizard, 'Skill-Focused')).toEqual({ STR: 1, DEX: 3, CON: 1, INT: 2, WIS: 2, CHA: 2 })
+    // Striker and Caster put the primary ability at 3, and a listed 2 never pulls it down.
+    expect(presetWeight(CLASSES.Wizard, 'Striker')).toEqual({ STR: 1, DEX: 2, CON: 2, INT: 3, WIS: 1, CHA: 1 })
+    expect(presetWeight(CLASSES.Fighter, 'Striker')).toEqual({ STR: 3, DEX: 3, CON: 2, INT: 1, WIS: 1, CHA: 1 })
+    expect(presetWeight(CLASSES.Cleric, 'Caster')).toEqual({ STR: 1, DEX: 1, CON: 2, INT: 1, WIS: 3, CHA: 1 })
+    expect(presetWeight(CLASSES.Bard, 'Caster')).toEqual({ STR: 1, DEX: 1, CON: 2, INT: 1, WIS: 2, CHA: 3 })
+  })
+
+  it('falls back to the class weights when no preset is chosen', () => {
+    for (const traits of Object.values(CLASSES)) expect(adviceWeights(traits, null)).toEqual(classWeights(traits))
+    expect(adviceWeights(CLASSES.Wizard, 'Tank')).toEqual(presetWeight(CLASSES.Wizard, 'Tank'))
+  })
+
+  /**
+   * Every preset a class can pick, on every background, each distinct weighting once: Tank and Skill-Focused
+   * weigh all classes alike (4 + 4), Striker has 8 distinct weightings and Caster 5, one of them, the Ranger's,
+   * the same as its Striker (32 + 16). That's 56 of the 176.
+   */
+  const cases = Object.entries(CLASSES)
+    .flatMap(([cls, traits]) =>
+      presetOptions({ casterType: NON_CASTERS.has(cls) ? 'NONE' : 'FULL' }).flatMap((preset) =>
+        Object.entries(BACKGROUNDS).map(([bg, options]) => ({ cls, preset, bg, weights: presetWeight(traits, preset), options })),
+      ),
+    )
+    .filter((c, i, all) => all.findIndex((d) => JSON.stringify([d.weights, d.options]) === JSON.stringify([c.weights, c.options])) === i)
+
+  it('covers every distinct weighting', () => {
+    expect(cases).toHaveLength(56)
+  })
+
+  it.each(cases)('matches the true optimum for the $preset preset on a $cls with the $bg background', ({ weights, options }) => {
+    const rec = recommend(weights, options)!
+
+    expect({ value: rec.value, spent: rec.spent }).toEqual(bruteForce(weights, options))
+    expect(valueOf(weights, rec.base, rec.bonuses)).toBe(rec.value)
+    expect(pointBuySpent(rec.base)).toBe(rec.spent)
+    expect(originSpreadValid(rec.bonuses)).toBe(true)
   })
 })
