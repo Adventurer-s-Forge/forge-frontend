@@ -1,13 +1,13 @@
 /* POINT-BUY ADVICE (US-41): folds open above "Calculated for you" in the Attributes step's aside. */
 
-.pb-advice {
+.pb-advice, .auto-assign-scores-advice {
   margin-bottom: 18px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
-.pb-summary {
+.pb-summary, .auto-assign-scores-summary {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -16,7 +16,7 @@
   cursor: pointer;
 }
 
-.pb-summary::-webkit-details-marker {
+.pb-summary::-webkit-details-marker, .auto-assign-scores-summary::-webkit-details-marker {
   display: none;
 }
 
@@ -26,7 +26,7 @@
   border-radius: var(--radius);
 }
 
-.pb-advice-title {
+.pb-advice-title, .auto-assign-scores-title {
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 500;
@@ -35,7 +35,7 @@
   color: var(--muted);
 }
 
-.pb-count {
+.pb-count, .auto-assign-scores-spacing {
   margin-left: auto;
   font-family: var(--mono);
   font-size: 11px;
@@ -46,17 +46,17 @@
   color: var(--oxblood);
 }
 
-.pb-chevron {
+.pb-chevron, .auto-assign-scores-chevron {
   flex: none;
   color: var(--muted);
   transition: transform 0.15s ease;
 }
 
-.pb-advice[open] .pb-chevron {
+.pb-advice[open] .pb-chevron, .auto-assign-scores-advice[open] .auto-assign-scores-chevron {
   transform: rotate(180deg);
 }
 
-.pb-body {
+.pb-body, .auto-assign-scores-body {
   display: grid;
   gap: 10px;
   padding: 0 14px 14px;

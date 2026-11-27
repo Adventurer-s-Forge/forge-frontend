@@ -35,6 +35,7 @@ import {
   setFightingStyle,
   setToolChoice,
   duplicateCharacter,
+  setCharacterTypePresetChoice,
 } from "../characters/progress";
 import { characterStore } from "../characters/storage";
 import { catalog, seedCatalog } from "../data/catalog";
@@ -380,6 +381,65 @@ describe('character mutations', () => {
     expect(copy.abilities.base).toEqual(source.abilities.base)
     expect(copy.abilities.base).not.toBe(source.abilities.base)
     expect(copy.proficientSkillIds).not.toBe(source.proficientSkillIds)
+  })
+})
+
+describe('character-type presets (US-42)', () => {
+  /** A legal point-buy spread for the class: 27 points, the Acolyte's +2 on INT and +1 on WIS. */
+  const pointBuy = (classId: string): Character => ({
+    ...setClass({ ...createDraft(), backgroundId: 'srd-2024_acolyte' }, classId),
+    abilities: {
+      method: 'pointbuy',
+      base: { STR: 8, DEX: 14, CON: 14, INT: 15, WIS: 12, CHA: 8 },
+      rolled: [],
+      originBonuses: { INT: 2, WIS: 1 },
+    },
+  })
+  const preset = (c: Character) => c.characterTypePresetChoice
+
+  it('keeps a preset the class can use', () => {
+    expect(preset(setCharacterTypePresetChoice(pointBuy('srd-2024_wizard'), 'Caster'))).toBe('Caster')
+    expect(preset(setCharacterTypePresetChoice(pointBuy('srd-2024_fighter'), 'Tank'))).toBe('Tank')
+    expect(preset(setCharacterTypePresetChoice(pointBuy('srd-2024_fighter'), null))).toBeNull()
+  })
+
+  it('refuses Caster for a class that casts no spells', () => {
+    expect(preset(setCharacterTypePresetChoice(pointBuy('srd-2024_fighter'), 'Caster'))).toBeNull()
+    expect(preset(setCharacterTypePresetChoice(pointBuy('srd-2024_rogue'), 'Caster'))).toBeNull()
+  })
+
+  it('refuses any preset outside point buy', () => {
+    const standard = setAbilityMethod(pointBuy('srd-2024_fighter'), 'standard')
+    expect(preset(setCharacterTypePresetChoice(standard, 'Tank'))).toBeNull()
+  })
+
+  it('drops Caster when the class changes to one that casts no spells, and keeps the other presets', () => {
+    const caster = setCharacterTypePresetChoice(pointBuy('srd-2024_wizard'), 'Caster')
+    const tank = setCharacterTypePresetChoice(pointBuy('srd-2024_wizard'), 'Tank')
+
+    expect(preset(setClass(caster, 'srd-2024_fighter'))).toBeNull()
+    expect(preset(setClass(tank, 'srd-2024_fighter'))).toBe('Tank')
+  })
+
+  it('drops the preset when the player leaves point buy', () => {
+    const tank = setCharacterTypePresetChoice(pointBuy('srd-2024_fighter'), 'Tank')
+
+    expect(preset(setAbilityMethod(tank, 'standard'))).toBeNull()
+    expect(preset(setAbilityMethod(tank, 'roll'))).toBeNull()
+  })
+
+  it('blocks the attributes step on a preset the character cannot have, such as one loaded from an old record', () => {
+    const fighter = pointBuy('srd-2024_fighter')
+    const standard: Character = {
+      ...fighter,
+      abilities: { method: 'standard', base: { STR: 15, DEX: 14, CON: 13, INT: 12, WIS: 10, CHA: 8 }, rolled: [], originBonuses: { INT: 2, WIS: 1 } },
+    }
+
+    expect(isStepValid('attributes', fighter)).toBe(true)
+    expect(isStepValid('attributes', { ...fighter, characterTypePresetChoice: 'Tank' })).toBe(true)
+    expect(isStepValid('attributes', { ...fighter, characterTypePresetChoice: 'Caster' })).toBe(false)
+    expect(isStepValid('attributes', standard)).toBe(true)
+    expect(isStepValid('attributes', { ...standard, characterTypePresetChoice: 'Tank' })).toBe(false)
   })
 })
 

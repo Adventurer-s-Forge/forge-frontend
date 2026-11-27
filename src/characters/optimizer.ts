@@ -1,5 +1,5 @@
 import type { CharacterClass } from "../data/catalog";
-import type { Ability, AbilityScores } from "./character";
+import { CHARACTER_TYPE_PRESETS, type Ability, type AbilityScores, type CharacterTypePreset } from "./character";
 import { ABILITIES, abilityModifier, POINT_BUY_BUDGET, POINT_BUY_COST, POINT_BUY_MAX, POINT_BUY_MIN } from "./abilities";
 
 export type Weights = AbilityScores
@@ -19,6 +19,31 @@ export function classWeights(cls: Pick<CharacterClass, 'primaryAbilities' | 'sav
     : cls.savingThrows.includes(ability) || ability === 'CON' ? 2
     : 1
   return Object.fromEntries(ABILITIES.map((ab) => [ab, weight(ab)])) as Weights
+}
+
+export function presetOptions(cls: Pick<CharacterClass, 'casterType'> | undefined): CharacterTypePreset[] {
+  if (!cls) return []
+  return CHARACTER_TYPE_PRESETS.filter((p) => p !== 'Caster' || cls.casterType !== 'NONE')
+}
+
+const PRESET_WEIGHTS: Record<CharacterTypePreset, { primary: number; listed: Partial<Weights> }> = {
+  Tank: { primary: 1, listed: { STR: 3, CON: 3, DEX: 2 } },
+  Striker: { primary: 3, listed: { DEX: 2, CON: 2} },
+  Caster: { primary: 3, listed: { CON: 2, WIS: 2 } },
+  'Skill-Focused': { primary: 1, listed: { DEX: 3, INT: 2, WIS: 2, CHA: 2 } },
+}
+
+export function presetWeight(cls: Pick<CharacterClass, 'primaryAbilities'>, preset: CharacterTypePreset): Weights {
+  const { primary, listed } = PRESET_WEIGHTS[preset]
+  const weight = (ability: Ability) => Math.max(listed[ability] ?? 1, cls.primaryAbilities.includes(ability) ? primary : 1)
+  return Object.fromEntries(ABILITIES.map((ab) => [ab, weight(ab)])) as Weights
+}
+
+export function adviceWeights(
+  cls: Pick<CharacterClass, 'primaryAbilities' | 'savingThrows'>,
+  preset: CharacterTypePreset | null,
+): Weights {
+  return preset ? presetWeight(cls, preset) : classWeights(cls)
 }
 
 export function bonusPlacements(options: readonly Ability[]): Partial<AbilityScores>[] {

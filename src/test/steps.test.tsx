@@ -13,8 +13,8 @@ import {
   SpellsStep,
 } from "../components/character/steps";
 import { seedTestCatalog } from './fixtures'
-import { setEquipmentChoice } from "../characters/progress";
-import type { AbilityScores, Character } from "../characters/character";
+import { isStepValid, setEquipmentChoice } from "../characters/progress";
+import type { AbilityScores, Character, CharacterTypePreset } from "../characters/character";
 
 beforeAll(seedTestCatalog)
 
@@ -358,6 +358,119 @@ describe('point-buy advice (US-41, FR-15)', () => {
     render(<AttributeStep character={fighter({ abilities: { method: 'standard', base: {}, rolled: [], originBonuses: {} } })} onChange={vi.fn()} />)
 
     expect(screen.queryByRole('group', { name: 'Point-buy advice' })).not.toBeInTheDocument()
+  })
+})
+
+describe('character-type presets and auto-assign (US-42, FR-15)', () => {
+  /** On point buy with the Acolyte background, every score 8, and the bonus where the optimiser won't put it. */
+  const onPointBuy = (classId: string, characterTypePresetChoice: CharacterTypePreset | null = null) =>
+    fighter({
+      classId,
+      characterTypePresetChoice,
+      abilities: {
+        method: 'pointbuy',
+        base: { STR: 8, DEX: 8, CON: 8, INT: 8, WIS: 8, CHA: 8 },
+        rolled: [],
+        originBonuses: { WIS: 2, CHA: 1 },
+      },
+    })
+
+  const presetSelect = () => screen.getByLabelText('Choose a Character-Type Preset (optional)')
+  const offered = () => within(presetSelect()).getAllByRole('option').map((option) => option.textContent)
+  const advice = () => within(screen.getByRole('group', { name: 'Point-buy advice' }))
+  /** The recommended table, one row per ability: ability, base, bonus, total, modifier, reason. */
+  const recommended = () =>
+    within(advice().getByRole('table', { name: 'Recommended scores' }))
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => [...row.children].map((cell) => cell.textContent ?? ''))
+  const column = (i: number) => Object.fromEntries(recommended().map((row) => [row[0], row[i]]))
+  const autoAssign = () => screen.getByRole('button', { name: 'Automatically Assign Recommended Ability Scores' })
+
+  it('offers Caster only to a class that casts, and says why when it is missing', () => {
+    const { rerender } = render(<AttributeStep character={onPointBuy('srd-2024_wizard')} onChange={vi.fn()} />)
+    expect(offered()).toEqual(['No Character-Type Preset', 'Tank', 'Striker', 'Caster', 'Skill-Focused'])
+    expect(screen.queryByText(/Caster isn't offered/)).not.toBeInTheDocument()
+
+    rerender(<AttributeStep character={onPointBuy('srd-2024_fighter')} onChange={vi.fn()} />)
+    expect(offered()).toEqual(['No Character-Type Preset', 'Tank', 'Striker', 'Skill-Focused'])
+    expect(screen.getByText("Caster isn't offered: a Fighter doesn't cast spells at level 1.")).toBeInTheDocument()
+  })
+
+  it('records the preset chosen, and clears it again', async () => {
+    const onChange = vi.fn()
+    const { rerender } = render(<AttributeStep character={onPointBuy('srd-2024_wizard')} onChange={onChange} />)
+
+    await userEvent.selectOptions(presetSelect(), 'Tank')
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ characterTypePresetChoice: 'Tank' }))
+
+    rerender(<AttributeStep character={onPointBuy('srd-2024_wizard', 'Tank')} onChange={onChange} />)
+    await userEvent.selectOptions(presetSelect(), 'No Character-Type Preset')
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ characterTypePresetChoice: null }))
+  })
+
+  it('reweighs the advice for the preset, and says a preset is a judgement call', () => {
+    render(<AttributeStep character={onPointBuy('srd-2024_wizard', 'Tank')} onChange={vi.fn()} />)
+    const reasons = column(5)
+
+    expect(advice().getByText(/with the Acolyte background, with the Tank preset, using/)).toBeInTheDocument()
+    expect(reasons.STR).toMatch(/^Top priority for the Tank preset\./)
+    expect(reasons.CON).toMatch(/^Top priority for the Tank preset\./)
+    expect(reasons.DEX).toMatch(/^Next priority for the Tank preset\./)
+    for (const ability of ['INT', 'WIS', 'CHA']) expect(reasons[ability]).toMatch(/^Lower priority for the Tank preset\./)
+    expect(
+      advice().getByText(
+        'Weighted for the Tank preset: Strength and Constitution 3, Dexterity 2, the rest 1. A preset is a judgement call, not a rule.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('buys Strength up to 14 for a Tank Wizard, where the class weights stop it at 12', () => {
+    // Tank weighs STR 3: 12 to 14 earns 3 for 3 points, and nothing else left pays as much as 1 a point.
+    const { rerender } = render(<AttributeStep character={onPointBuy('srd-2024_wizard')} onChange={vi.fn()} />)
+    expect(column(1)).toMatchObject({ STR: '12', CON: '14' })
+
+    rerender(<AttributeStep character={onPointBuy('srd-2024_wizard', 'Tank')} onChange={vi.fn()} />)
+    expect(column(1)).toMatchObject({ STR: '14', CON: '14' })
+  })
+
+  it('auto-assign writes the recommended scores and moves the background bonus to match', async () => {
+    const onChange = vi.fn()
+    render(<AttributeStep character={onPointBuy('srd-2024_wizard')} onChange={onChange} />)
+
+    await userEvent.click(autoAssign())
+
+    expect(onChange).toHaveBeenCalledTimes(1)
+    const written: Character = onChange.mock.calls[0][0]
+    expect(written.abilities).toEqual({
+      method: 'pointbuy',
+      base: { STR: 12, DEX: 12, CON: 14, INT: 14, WIS: 13, CHA: 8 },
+      rolled: [],
+      originBonuses: { INT: 2, WIS: 1 },
+    })
+    expect(isStepValid('attributes', written)).toBe(true)
+  })
+
+  it('auto-assign writes the spread the advice shows when a preset is chosen', async () => {
+    const onChange = vi.fn()
+    render(<AttributeStep character={onPointBuy('srd-2024_wizard', 'Tank')} onChange={onChange} />)
+    const shown = recommended()
+
+    await userEvent.click(autoAssign())
+
+    const { base, originBonuses } = (onChange.mock.calls[0][0] as Character).abilities
+    const written = shown.map(([ability]) => {
+      const bonus = originBonuses[ability as keyof AbilityScores]
+      return [String(base[ability as keyof AbilityScores]), bonus ? `+${bonus}` : '—']
+    })
+    expect(written).toEqual(shown.map((row) => [row[1], row[2]]))
+  })
+
+  it('shows neither the presets nor the button outside point buy', () => {
+    render(<AttributeStep character={fighter({ abilities: { method: 'standard', base: {}, rolled: [], originBonuses: {} } })} onChange={vi.fn()} />)
+
+    expect(screen.queryByLabelText('Choose a Character-Type Preset (optional)')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Automatically Assign/ })).not.toBeInTheDocument()
   })
 })
 
