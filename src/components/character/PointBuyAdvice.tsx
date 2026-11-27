@@ -4,12 +4,13 @@ import { ABILITIES, POINT_BUY_BUDGET, POINT_BUY_COST, POINT_BUY_MIN, abilityModi
 import { cheaperScore, classWeights, recommend } from "../../characters/optimizer";
 import { getBg, getClass, type CharacterClass } from "../../data/catalog";
 import "./PointBuyAdvice.css"
+import { useState } from "react";
 
 /** " + 1" when the ability has a bonus, nothing when it has none, so "CON 14 + 1" and "INT 13" read alike. */
 const plus = (bonus: number) => (bonus ? ` + ${bonus}` : '')
 
-/** This is used so the recommended scores can be returned to steps.tsx when the user clicks the button to automatically assign the recommended ability scores. */
-let recommendedScoresForAutoAssign: AbilityScores | null
+/** This is used so the recommended scores can be returned to steps.tsx when the user clicks the button to automatically assign the recommended ability scores [4]. */
+const [recommendedScoresForAutoAssign, setRecommendedScoresForAutoAssign] = useState<AbilityScores | null>()
 
 /** Why the recommendation buys this score: how much the class cares about it, then what its bonus does. */
 function reason(cls: CharacterClass, ability: Ability, score: number, bonus: number): string {
@@ -32,10 +33,10 @@ function reason(cls: CharacterClass, ability: Ability, score: number, bonus: num
 }
 
 /**
- * US-42: Returns the recommended ability scores so they can be automatically assigned when the pertinent button is clicked.
+ * US-42: Returns the recommended ability scores so they can be automatically assigned when the pertinent button is clicked [4].
  * @returns The recommended ability scores to use in the auto assign logic
  */
-export function getRecommendedScoresForAutoAssign(): AbilityScores | null {
+export function getRecommendedScoresForAutoAssign(): AbilityScores | null | undefined {
   return recommendedScoresForAutoAssign
 }
 
@@ -58,8 +59,8 @@ export function PointBuyAdvice({ character }: { character: Character }) {
   })
   const rec = recommend(classWeights(cls), background.abilityOptions)
 
-  /** Set the variable that is scoped to the entire file so the recommended ability scores can be automatically set when the user clicks the pertinent button */
-  recommendedScoresForAutoAssign = rec ? rec.base : null
+  /** Set the variable that is scoped to the entire file so the recommended ability scores can be automatically set when the user clicks the pertinent button [4]. */
+  setRecommendedScoresForAutoAssign(rec ? rec.base : null)
 
   const count =
     wasted.length === 0
