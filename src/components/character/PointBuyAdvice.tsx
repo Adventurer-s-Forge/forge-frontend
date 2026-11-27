@@ -9,7 +9,7 @@ import "./PointBuyAdvice.css"
 const plus = (bonus: number) => (bonus ? ` + ${bonus}` : '')
 
 /** This is used so the recommended scores can be returned to steps.tsx when the user clicks the button to automatically assign the recommended ability scores. */
-var recommendedScoresForAutoAssign: AbilityScores | null
+let recommendedScoresForAutoAssign: AbilityScores | null
 
 /** Why the recommendation buys this score: how much the class cares about it, then what its bonus does. */
 function reason(cls: CharacterClass, ability: Ability, score: number, bonus: number): string {
