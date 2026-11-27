@@ -1,5 +1,5 @@
 import { FiChevronDown } from "react-icons/fi";
-import type { Ability, Character } from "../../characters/character";
+import type { Ability, AbilityScores, Character } from "../../characters/character";
 import { ABILITIES, POINT_BUY_BUDGET, POINT_BUY_COST, POINT_BUY_MIN, abilityModifier, formatModifier } from "../../characters/abilities";
 import { cheaperScore, classWeights, recommend } from "../../characters/optimizer";
 import { getBg, getClass, type CharacterClass } from "../../data/catalog";
@@ -7,6 +7,9 @@ import "./PointBuyAdvice.css"
 
 /** " + 1" when the ability has a bonus, nothing when it has none, so "CON 14 + 1" and "INT 13" read alike. */
 const plus = (bonus: number) => (bonus ? ` + ${bonus}` : '')
+
+/** This is used so the recommended scores can be returned to steps.tsx when the user clicks the button to automatically assign the recommended ability scores. */
+var recommendedScoresForAutoAssign: AbilityScores | null
 
 /** Why the recommendation buys this score: how much the class cares about it, then what its bonus does. */
 function reason(cls: CharacterClass, ability: Ability, score: number, bonus: number): string {
@@ -29,6 +32,14 @@ function reason(cls: CharacterClass, ability: Ability, score: number, bonus: num
 }
 
 /**
+ * US-42: Returns the recommended ability scores so they can be automatically assigned when the pertinent button is clicked.
+ * @returns The recommended ability scores to use in the auto assign logic
+ */
+export function getRecommendedScoresForAutoAssign(): AbilityScores | null {
+  return recommendedScoresForAutoAssign
+}
+
+/**
  * US-41: flags point-buy scores that waste points, and shows the best spread for the class and background.
  * A native <details>, so it folds without any state, and starts open so the flags are seen. Text only --
  * it reads the character and never changes it.
@@ -46,6 +57,9 @@ export function PointBuyAdvice({ character }: { character: Character }) {
     return cheaper === null ? [] : [{ ability, score, bonus, cheaper }]
   })
   const rec = recommend(classWeights(cls), background.abilityOptions)
+
+  /** Set the variable that is scoped to the entire file so the recommended ability scores can be automatically set when the user clicks the pertinent button */
+  recommendedScoresForAutoAssign = rec ? rec.base : null
 
   const count =
     wasted.length === 0

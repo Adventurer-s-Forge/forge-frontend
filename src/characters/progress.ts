@@ -305,6 +305,10 @@ export function setToolChoice(c: Character, toolChoiceId: string | null): Charac
   return { ...c, toolChoiceId }
 }
 
+export function setCharacterTypePresetChoice(c: Character, characterTypePresetChoice: string | null): Character {
+  return { ...c, characterTypePresetChoice }
+}
+
 /** A BG that offers a tool category cannot be left unchosen. */
 function backgroundValid(c: Character): boolean {
   const bg = getBg(c.backgroundId)

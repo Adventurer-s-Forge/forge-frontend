@@ -2542,3 +2542,15 @@
   display: flex;
   gap: 10px;
 }
+
+.auto-assign-ability-scores-btn {
+  display: grid;
+  gap: 20px;
+  padding: 7px 28px 7px;
+}
+
+.auto-assign-ablity-scores-warning {
+  font-size: 14px;
+  color: var(--oxblood);
+  text-align: center;
+}

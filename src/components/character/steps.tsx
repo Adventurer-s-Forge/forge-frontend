@@ -28,6 +28,7 @@ import {
   setRolledPool,
   setSizeChoice,
   setToolChoice,
+  setCharacterTypePresetChoice,
   toggleExpertise,
   toggleSkill,
   toggleSpell,
@@ -47,16 +48,35 @@ import {
   spellOptions,
 } from "../../data/catalog";
 import { abilityRows, armorStealthDisadvantage, derived, purseCp, skillRows, spellDerived, spentCp } from "./sheets";
-import { FiArrowRight, FiCheck, FiCheckCircle, FiX } from "react-icons/fi";
+import { FiArrowRight, FiCheck, FiCheckCircle, FiChevronDown, FiX } from "react-icons/fi";
 import { useState } from "react";
 import { ConfirmDelete } from "../ConfirmDelete";
 import { formatCoins } from "../../characters/currency";
 import { Markdown } from "../Markdown";
-import { PointBuyAdvice } from "./PointBuyAdvice";
+import { getRecommendedScoresForAutoAssign, PointBuyAdvice } from "./PointBuyAdvice";
 
 export type StepProps = {
   character: Character
   onChange: (next: Character) => void
+}
+
+/**
+ * Update the character's ability scores with the ones recommended by the ability score optimizer.
+ * @param character The user's character to update the ability scores for
+ * @param abilities The list of available abilities: STR, DEX, CON, INT, WIS, and CHA
+ * @returns The updated character
+ */
+function automaticallyAssignRecommendedAbiityScores(character: Character, abilities: readonly Ability[])
+{
+  var recommendedAbilityScores = getRecommendedScoresForAutoAssign()
+  if (recommendedAbilityScores)
+  {
+    for (var i=0; i<abilities.length; i++)
+    {
+      character = setAbilityScore(character, abilities[i], recommendedAbilityScores[abilities[i]])
+    }
+  }
+  return character
 }
 
 export function NameStep({ character, onChange }: StepProps) {
@@ -679,6 +699,9 @@ export function AttributeStep({ character, onChange }: StepProps) {
   const rows = abilityRows(character)
   const d = derived(character)
   const originSpent = ABILITIES.reduce((sum, a) => sum + (originBonuses[a] ?? 0), 0)
+  const cls = getClass(character.classId)
+  const options = spellOptions(cls, background)
+  var characterTypePresets = options.length === 0 ? ["Tank", "Striker", "Skill-Focused"] : ["Tank", "Striker", "Caster", "Skill-Focused"]
 
   return (
     <div className="step step-split">
@@ -720,6 +743,31 @@ export function AttributeStep({ character, onChange }: StepProps) {
           <p className={`budget${spent > POINT_BUY_BUDGET ? ' is-over' : ''}`}>
             {spent === Infinity ? 'Invalid spread' : `${spent} / ${POINT_BUY_BUDGET} points spent`}
           </p>
+        )}
+
+        {method === 'pointbuy' && (
+          <div className="choice-card">
+            <label className="choice-label" htmlFor="character-type-preset-choice">
+              Choose a Character-Type Preset (optional)
+            </label>
+            <select
+              id="character-type-preset-choice"
+              className="choice-select"
+              value={character.characterTypePresetChoice ?? ''}
+              onChange={(e) => onChange(setCharacterTypePresetChoice(character, e.target.value || null))}
+            >
+              <option value="">No Character-Type Preset</option>
+              {characterTypePresets.map((characterType) => (
+                <option value={characterType} key={characterType}>{characterType}</option>
+              ))}
+            </select>
+            <p className="choice-note">Choosing a Character-Type Preset will adjust the Point-Buy Advice to also account for the chosen preset, as well as your Class and Background. If you do not want to use this, select the "No Character-Type Preset" option.</p>
+            {
+              options.length === 0 && (
+                <p className="choice-note">The Caster preset has been removed since this character cannot cast spells.</p>
+              )
+            }
+          </div>
         )}
 
         {method && (method !== 'roll' || rolled.length > 0) && (
@@ -818,6 +866,36 @@ export function AttributeStep({ character, onChange }: StepProps) {
 
       <aside className="derived-panel">
         {method === 'pointbuy' && <PointBuyAdvice character={character} />}
+
+        {method === 'pointbuy' && (
+          <details className="pb-advice" aria-labelledby="pb-advice-title" open>
+            <summary className="pb-summary">
+              <span className="pb-advice-title" id="pb-advice-title">Automatically Set Recommended Ability Scores?</span>
+              <span className={`pb-count`}></span>
+              <FiChevronDown className="pb-chevron" size={16} aria-hidden="true" />
+            </summary>
+
+            <div className="pb-body">
+              <p className="step-hint">
+                Clicking the button below will automatically set your ability scores to the ones recommended in the Point-Buy Advice section.
+              </p>
+
+              <div className="auto-assign-ability-scores-btn">
+                <button
+                  id="zebras"
+                  type="button"
+                  aria-label="automatically-assign-recommended-ability-scores"
+                  className="btn btn-primary"
+                  onClick={() => onChange(automaticallyAssignRecommendedAbiityScores(character, ABILITIES))}
+                >
+                  Automatically Assign Recommended Ability Scores
+                </button>
+              </div>
+
+              <p className="auto-assign-ablity-scores-warning">This will <strong>overwrite</strong> your current ability scores!</p>
+            </div>
+          </details>
+        )}
 
         <p className="derived-title">Calculated for you</p>
         <p className="derived-intro">

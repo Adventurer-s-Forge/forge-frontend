@@ -45,6 +45,7 @@ export type Character = {
   equipmentChoice: { class: EquipmentPick | null; background: EquipmentPick | null }
   purchasedItemIds: string[]
   toolChoiceId: string | null
+  characterTypePresetChoice: string | null
   walletCp: number
   completedSteps: StepId[]
   createdAt: string
@@ -71,6 +72,7 @@ export function createDraft(): Character {
     equipmentChoice: { class: null, background: null },
     purchasedItemIds: [],
     toolChoiceId: null,
+    characterTypePresetChoice: null,
     walletCp: 0,
     completedSteps: [],
     createdAt: now,
